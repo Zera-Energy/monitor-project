@@ -6,7 +6,10 @@ const viewEl = document.getElementById("view");
 ========================= */
 const ROUTES = {
   overview: "./views/overview.html",
-  devices: "./views/device-setting.html",
+
+  // ✅ (수정) 실제 파일명: devices-setting.html
+  devices: "./views/devices-setting.html",
+
   monitor: "./views/monitor.html",
   location: "./views/location.html",
   notifications: "./views/notifications.html",
@@ -22,7 +25,10 @@ const ROUTES = {
 ========================= */
 const VIEW_CSS = {
   overview: "./css/view.overview.css",
+
+  // devices-setting 화면이면 보통 이 CSS를 씀 (너 파일명이 view.devices.css라서 그대로 둠)
   devices: "./css/view.devices.css",
+
   monitor: "./css/view.monitor.css",
   location: "./css/view.location.css",
   developer: "./css/view.developer.css",
@@ -48,11 +54,6 @@ let currentViewScript = null;
 /* =========================================================
    ✅ API 폴링 (overview/monitor/dashboard용)
 ========================================================= */
-/* ✅ (수정 핵심)
-   - 로컬( localhost/127.0.0.1 )에서만 로컬 백엔드 사용
-   - 배포(ksaver.onrender.com 등)에서는 Render 백엔드 사용
-   - window.API_BASE로 전역 공유 (다른 view에서도 사용 가능)
-*/
 window.API_BASE =
   window.API_BASE ||
   (location.hostname === "localhost" || location.hostname === "127.0.0.1"
@@ -71,9 +72,6 @@ async function fetchJson(url) {
 
 /* =========================================================
    ✅ (추가) 장비 토픽 + CT(3상) 채널 정규화
-   - 원본 item 필드는 그대로 유지
-   - item.device_topic / item.device_short / item.device_display 추가
-   - item.channels = [{term:'in'|'out', phase:'L1'|'L2'|'L3', ...}] 추가
 ========================================================= */
 function splitTopicLike(v) {
   if (v == null) return null;
@@ -84,7 +82,6 @@ function splitTopicLike(v) {
 }
 
 function pickTopic(item) {
-  // 장비 식별값 후보(너네 서버 상황에 맞춰 유연하게)
   return (
     item?.topic ??
     item?._topic ??
@@ -105,19 +102,15 @@ function pickPhaseKey(k) {
 }
 
 function tailDisplayFromParts(parts) {
-  // 예: th/site001/pg46/001 -> site001 / pg46 / 001
   const tail3 = parts.slice(-3);
   if (tail3.length === 3) return `${tail3[0]} / ${tail3[1]} / ${tail3[2]}`;
   return parts[parts.length - 1] || "";
 }
 
 function ensureChannels(item) {
-  // 이미 channels가 있으면 존중
   if (Array.isArray(item.channels) && item.channels.length) return item.channels;
 
   const ch = [];
-
-  // 케이스 A: in/out 객체에 L1/L2/L3가 들어있는 경우
   const inObj = item?.in ?? item?.input ?? item?.inlet ?? item?.src ?? null;
   const outObj = item?.out ?? item?.output ?? item?.outlet ?? item?.dst ?? null;
 
@@ -127,8 +120,6 @@ function ensureChannels(item) {
       const phase = pickPhaseKey(k);
       if (!phase) continue;
 
-      // v가 number면 current일 가능성이 높고,
-      // v가 object면 (current/kw/volt 등) 묶음일 수도 있음
       if (v != null && typeof v === "object" && !Array.isArray(v)) {
         ch.push({ term, phase, ...v });
       } else {
@@ -144,12 +135,12 @@ function ensureChannels(item) {
     return item.channels;
   }
 
-  // 케이스 B: item 자체에 L1/L2/L3 / l1/l2/l3 / ct1/ct2/ct3가 있는 경우(입력만)
   const direct = {
     L1: item?.L1 ?? item?.l1 ?? item?.ct1,
     L2: item?.L2 ?? item?.l2 ?? item?.ct2,
     L3: item?.L3 ?? item?.l3 ?? item?.ct3,
   };
+
   const hasDirect = Object.values(direct).some((x) => x != null);
   if (hasDirect) {
     pushFromObj("in", direct);
@@ -157,8 +148,6 @@ function ensureChannels(item) {
     return item.channels;
   }
 
-  // 케이스 C: 이미 1채널씩 내려오는 경우(term/phase가 있음)
-  // (이 경우엔 channels를 만들기 어렵고, 뷰에서 row 단위로 쓰는 구조일 수도 있음)
   item.channels = [];
   return item.channels;
 }
@@ -166,7 +155,6 @@ function ensureChannels(item) {
 function normalizeOne(item) {
   const out = { ...item };
 
-  // 1) device/topic 정리
   const topic = pickTopic(item);
   const parts = splitTopicLike(topic);
 
@@ -175,7 +163,6 @@ function normalizeOne(item) {
     out.device_short = parts[parts.length - 1] || "";
     out.device_display = tailDisplayFromParts(parts);
   } else {
-    // topic 구조가 아니면 기존에서 최대한
     const base =
       item?.device_display ??
       item?.device_name ??
@@ -189,11 +176,9 @@ function normalizeOne(item) {
     out.device_display = String(base || "");
   }
 
-  // 2) CT(3상) 채널 배열 만들기 (IN/OUT 포함 가능)
   out.channels = ensureChannels(out);
   out.channel_count = Array.isArray(out.channels) ? out.channels.length : 0;
 
-  // 3) (옵션) 뷰에서 자주 쓰게 “요약값”도 하나 만들어둠
   if (out.summary_value == null) {
     const inL1 = out.channels?.find((c) => c.term === "in" && c.phase === "L1");
     out.summary_value =
@@ -224,8 +209,6 @@ function startViewPoll(route) {
     try {
       const data = await fetchJson(`${API_BASE}/api/devices`);
       const rawItems = data?.items || [];
-
-      // ✅ (수정) 여기서 한 번 정규화 후 뷰에 전달
       const items = normalizeItems(rawItems);
 
       if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
@@ -240,7 +223,7 @@ function startViewPoll(route) {
         try { window.__dashboardOnDevices__(items); } catch {}
       }
     } catch {
-      // 조용히 실패 (네트워크/서버 다운 시 UI가 멈추지 않게)
+      // silent
     }
   };
 
@@ -293,7 +276,7 @@ function loadViewJs(route) {
     if (!src) return resolve();
 
     const s = document.createElement("script");
-    s.src = src + "?v=" + Date.now(); // 개발용 캐시 방지
+    s.src = src + "?v=" + Date.now();
     s.defer = true;
     s.setAttribute("data-view-js", "1");
 
@@ -317,7 +300,6 @@ async function loadView(route) {
   const url = ROUTES[route] || ROUTES.overview;
 
   try {
-    // 기존 cleanup
     try {
       if (typeof window.__viewCleanup__ === "function") {
         window.__viewCleanup__();
@@ -325,10 +307,7 @@ async function loadView(route) {
     } catch {}
     window.__viewCleanup__ = null;
 
-    // 폴링 정리
     stopViewPoll();
-
-    // JS 정리
     unloadViewJs();
 
     const res = await fetch(url, { cache: "no-cache" });
@@ -340,10 +319,8 @@ async function loadView(route) {
       try { window.initDeveloperPage(); } catch {}
     }
 
-    // 분리된 JS 로드
     await loadViewJs(route);
 
-    // ✅ overview/monitor/dashboard면 폴링 시작
     if (route === "overview" || route === "monitor" || route === "dashboard") {
       startViewPoll(route);
 
