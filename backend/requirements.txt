@@ -6,3 +6,4 @@ paho-mqtt
 influxdb-client
 python-jose[cryptography]
 passlib[bcrypt]
+cryptography
