@@ -1,0 +1,142 @@
+/* =========================================================
+   ✅ view.developer.css
+   - Developer 화면 전용
+========================================================= */
+
+.panel{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow: var(--shadow);
+  padding:14px;
+}
+.panelHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+.panelTitle{ font-weight:900; font-size:16px; }
+
+.linkBtn{
+  border:none;
+  background:transparent;
+  color:#1f6bff;
+  font-weight:900;
+  cursor:pointer;
+}
+.linkBtn:hover{ text-decoration: underline; }
+
+.tableBox{ overflow:auto; }
+
+.grid{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+  background:#fff;
+}
+.grid th, .grid td{
+  border:1px solid #2a2a2a;
+  padding:10px 10px;
+  vertical-align:middle;
+}
+.grid th{
+  background:#f7f7f7;
+  color:#606a80;
+  font-weight:900;
+  text-align:center;
+}
+
+.center{ text-align:center; }
+.mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  word-break: break-all;
+  line-height: 1.35;
+}
+
+.apiKeyText{
+  color:#e64545;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+  word-break: break-all;
+}
+
+.panelFoot{
+  margin-top:10px;
+  display:flex;
+  justify-content:flex-start;
+}
+
+/* 작은 버튼 */
+.btnSmall{
+  height:34px;
+  padding:0 12px;
+  border-radius:6px;
+  border:0;
+  cursor:pointer;
+  font-weight:900;
+  color:#fff;
+  margin: 0 4px;
+  white-space: nowrap;
+}
+.btnSmall.green{ background:#00c853; }
+.btnSmall.purple{ background:#7c5cff; }
+.btnSmall.red{ background:#ff3b30; }
+.btnSmall.gray{
+  background:#e9e9ea;
+  color:#333;
+  border:1px solid var(--line);
+}
+
+.ghostBtn{
+  height:34px;
+  padding:0 12px;
+  border-radius:6px;
+  border:1px solid var(--line);
+  background:#f3f4f7;
+  cursor:pointer;
+  font-weight:900;
+}
+.ghostBtn:hover{ background:#eceef3; }
+
+.inlineInput{
+  height:30px;
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:0 8px;
+  min-width:170px;
+  margin-left:8px;
+}
+
+/* MQTT 폼 */
+.formGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap:14px;
+  margin-top: 6px;
+}
+.formField{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.formField label{
+  font-size:12px;
+  color:#666;
+  font-weight:900;
+}
+.inputWide{
+  height:40px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:0 10px;
+  outline:none;
+  background:#fff;
+}
+.formField.full{ grid-column: 1 / -1; }
+.hint{ font-size:12px; color:#777; }
+
+/* 반응형(Developer 관련) */
+@media (max-width: 920px){
+  .formGrid{ grid-template-columns: 1fr; }
+}

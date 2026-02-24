@@ -1,0 +1,218 @@
+/* ✅ Leaflet CSS 같이 로드 (가장 쉬운 방식) */
+@import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
+
+/* 상단 */
+.locTop{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 6px 0 10px;
+  position: relative;
+  z-index: 2000;
+}
+
+.locStats{
+  display:flex;
+  gap: 16px;
+  align-items:center;
+  color:#4b5563;
+  font-size: 13px;
+}
+
+.locActions{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  position: relative;
+  z-index: 2000;
+}
+
+/* 검색 */
+.locSearch{
+  display:flex;
+  align-items:center;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius: 10px;
+  overflow:hidden;
+  height: 40px;
+}
+
+.locSearchInput{
+  border:0;
+  outline:none;
+  padding:0 12px;
+  height: 40px;
+  width: 240px;
+}
+
+.locSearchBtn{
+  border:0;
+  height: 40px;
+  width: 44px;
+  background:#fff;
+  cursor:pointer;
+}
+.locSearchBtn:hover{ background:#f3f4f7; }
+
+/* 버튼 */
+.locBtn{
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background:#fff;
+  cursor:pointer;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.locBtn.light{ background:#eef0f4; }
+.locBtn.light:hover{ background:#e6e8ee; }
+
+.locBtn.amber{
+  background:#ffb020;
+  border-color:#ffb020;
+  color:#2b1a00;
+}
+.locBtn.amber:hover{ filter: brightness(.98); }
+
+/* 드롭다운 */
+.locDrop{
+  position: relative;
+  z-index: 2500;
+}
+
+.locMenu{
+  position:absolute;
+  right:0;
+  top: calc(100% + 8px);
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.15);
+  overflow:hidden;
+  min-width: 180px;
+  z-index: 3000;
+}
+
+.locMenuItem{
+  width:100%;
+  text-align:left;
+  padding: 10px 12px;
+  border:0;
+  background:#fff;
+  cursor:pointer;
+  font-weight: 800;
+}
+.locMenuItem:hover{ background:#f3f4f7; }
+
+/* 지도 */
+.locMapWrap{
+  position: relative;
+  border-radius: 14px;
+  overflow:hidden;
+  border:1px solid #d6d6db;
+  box-shadow: 0 10px 26px rgba(0,0,0,.10);
+  z-index: 1;
+}
+
+.locMap{
+  height: calc(100vh - 210px);
+  min-height: 520px;
+  background:#e5e7eb;
+}
+
+/* Leaflet 레이어 기본 */
+.locMapWrap .leaflet-pane,
+.locMapWrap .leaflet-control{
+  z-index: 1;
+}
+
+.locMapWrap .leaflet-top,
+.locMapWrap .leaflet-bottom{
+  z-index: 1;
+}
+
+/* ✅ (수정 핵심) attribution: 오른쪽 아래 + "한 줄(가로)"로 표시 */
+.locMapWrap .leaflet-control-attribution{
+  position: absolute;
+  right: 12px;
+  left: auto;
+  bottom: 10px;
+
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin: 0;
+  background: rgba(255,255,255,.9);
+  z-index: 4;
+
+  /* ✅ 한 줄 유지 + 가로 배치 */
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  font-size: 12px;
+
+  /* ✅ 불필요한 제약 제거 */
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* ✅ (수정 핵심) Status(legend): "지도 안 오른쪽 위"로 */
+.locLegend{
+  position:absolute;
+  right: 14px;
+  top: 14px;
+  bottom: auto;
+
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.12);
+  padding: 10px 12px;
+
+  z-index: 5;
+  min-width: 120px;
+}
+
+.locLegendTitle{
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.locLegendRow{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  font-size: 13px;
+  color:#444;
+  margin-top: 4px;
+}
+
+.dot{
+  width:10px;
+  height:10px;
+  border-radius: 999px;
+  display:inline-block;
+}
+.dot.green{ background:#22c55e; }
+.dot.gray{ background:#9ca3af; }
+
+/* 반응형 */
+@media (max-width: 920px){
+  .locTop{ flex-wrap: wrap; }
+  .locSearchInput{ width: 180px; }
+  .locMap{
+    height: calc(100vh - 240px);
+    min-height: 460px;
+  }
+
+  /* ✅ 모바일에서도 attribution 한 줄 유지 */
+  .locMapWrap .leaflet-control-attribution{
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}

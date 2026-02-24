@@ -1,0 +1,42 @@
+/* /css/view.overview.css */
+
+.overviewView .gridStats{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  margin:12px 0;
+}
+
+.overviewView .statCard{
+  min-width:170px;
+}
+
+.overviewView .gridDevices{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap:12px;
+}
+
+/* 카드 안에서 쓰는 pill(온라인/오프라인 표시) */
+.overviewView .pill{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid #ddd;
+  font-size:12px;
+  font-weight:800;
+  background:#fff;
+  white-space:nowrap;
+}
+
+/* 반응형 */
+@media (max-width: 980px){
+  .overviewView .gridDevices{
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+@media (max-width: 680px){
+  .overviewView .gridDevices{
+    grid-template-columns: 1fr;
+  }
+}

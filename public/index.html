@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>K-Saver Monitoring</title>
+
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/layout.css" />
+
+  <!-- ✅ views.css 분리본으로 교체 -->
+  <link rel="stylesheet" href="./css/views.common.css" />
+
+  <!-- ✅ (선택) favicon 404 방지: 파일 안 둘 거면 이거 넣어 -->
+  <link rel="icon" href="data:,">
+
+  <!-- ✅ 추가: 브라우저에서 MQTT(WebSocket) 쓰기 위한 라이브러리 -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+
+  <div class="app">
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">KS</div>
+        <div class="brandText">
+          <div class="brandName">K-Saver</div>
+          <div class="brandSub">K-Saver Monitoring</div>
+        </div>
+      </div>
+
+      <div class="menuSectionTitle">Navigation</div>
+      <nav class="menu">
+
+        <a class="item" href="#dashboard" data-route="dashboard">
+          <span class="icon">▦</span>
+          <span class="label">Dashboard</span>
+        </a>
+
+        <a class="item" href="#overview" data-route="overview">
+          <span class="icon">▣</span>
+          <span class="label">Overview</span>
+        </a>
+
+        <a class="item" href="#monitor" data-route="monitor">
+          <span class="icon">▤</span>
+          <span class="label">Monitor</span>
+        </a>
+
+        <a class="item" href="#location" data-route="location">
+          <span class="icon">⌖</span>
+          <span class="label">Location</span>
+        </a>
+
+        <!-- CONFIGURATIONS (collapsible) -->
+        <button class="groupHeader" data-toggle="group-config" type="button">
+          <span class="groupTitle">CONFIGURATIONS</span>
+          <span class="chev">▾</span>
+        </button>
+
+        <div class="group" id="group-config">
+          <a class="item" href="#notifications" data-route="notifications">
+            <span class="icon">🔔</span>
+            <span class="label">Notifications</span>
+          </a>
+
+          <a class="item" href="#devices" data-route="devices">
+            <span class="icon">⚙</span>
+            <span class="label">Devices Setting</span>
+          </a>
+
+          <a class="item" href="#dashboard-setting" data-route="dashboard-setting">
+            <span class="icon">🗂</span>
+            <span class="label">Dashboard Setting</span>
+          </a>
+        </div>
+
+        <!-- USER SUPPORTS (collapsible) -->
+        <button class="groupHeader" data-toggle="group-support" type="button">
+          <span class="groupTitle">USER SUPPORTS</span>
+          <span class="chev">▾</span>
+        </button>
+
+        <div class="group" id="group-support">
+          <!-- ✅ Products Info만 남김 -->
+          <a class="item" href="#products" data-route="products">
+            <span class="icon">ⓘ</span>
+            <span class="label">Products Info</span>
+          </a>
+        </div>
+
+        <!-- ✅ User Profile 유지 -->
+        <a class="item" href="#profile" data-route="profile">
+          <span class="icon">🙂</span>
+          <span class="label">User Profile</span>
+        </a>
+
+      </nav>
+    </aside>
+
+    <!-- RIGHT -->
+    <div class="right">
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <button class="iconBtn" id="btnSidebar" type="button">☰</button>
+
+        <div class="chip">All Roles ▾</div>
+
+        <div class="searchWrap">
+          <input class="search" placeholder="Select Project" />
+        </div>
+
+        <div class="topbarRight">
+          <button class="iconBtn" type="button">🔍</button>
+          <button class="iconBtn" type="button">🌐</button>
+          <button class="iconBtn" type="button">🔔</button>
+
+          <div class="user">
+            <div class="avatar">E</div>
+            <div class="userText">eunseok oh (user) ▾</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- PAGE -->
+      <main class="page">
+        <div class="pageInner">
+          <!-- ✅ view가 들어갈 컨테이너 -->
+          <div id="view"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="./js/sidebar.js"></script>
+
+  <!-- ✅ 추가: Developer 페이지 기능 JS (모듈 아님) -->
+  <script src="./js/dev_developer.js"></script>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

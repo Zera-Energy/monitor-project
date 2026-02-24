@@ -1,0 +1,105 @@
+<!-- /views/dashboard.html (HTML만) -->
+<section class="dash">
+  <h1>⚡ Power Monitor Dashboard</h1>
+
+  <!-- ✅ 장비 선택 -->
+  <div class="row dashTop">
+    <div class="card dashDeviceCard">
+      <div class="k">장비 선택</div>
+      <div class="dashDeviceRow">
+        <select id="selDashDevice" class="select">
+          <option value="">Auto (최근 ONLINE)</option>
+        </select>
+        <button class="btn" id="btnDashAuto" type="button">Auto</button>
+      </div>
+      <div class="small muted dashDeviceHint">
+        Auto는 온라인 장비 중 가장 최근 수신 장비를 자동으로 표시합니다.
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ 상단 요약 -->
+  <div class="row">
+    <div class="card">
+      <div class="k">통신 상태</div>
+      <div class="v" id="commStatus">-</div>
+      <div class="small">마지막 수신: <span id="lastSeen">-</span></div>
+    </div>
+
+    <div class="card">
+      <div class="k">총 유효전력 (kW)</div>
+      <div class="v" id="kwNow">-</div>
+      <div class="small">피크/알람은 추후 추가</div>
+    </div>
+
+    <div class="card">
+      <div class="k">누적 전력량 (kWh)</div>
+      <div class="v" id="kwhTotal">-</div>
+      <div class="small">오늘/월간 분리도 가능</div>
+    </div>
+
+    <div class="card">
+      <div class="k">평균 역률 (PF)</div>
+      <div class="v" id="pfAvg">-</div>
+      <div class="small">0.9 이하 경고(추후)</div>
+    </div>
+
+    <div class="card">
+      <div class="k">평균 전압 (V)</div>
+      <div class="v" id="vAvg">-</div>
+      <div class="small">L1~L3 평균</div>
+    </div>
+
+    <div class="card">
+      <div class="k">평균 전류 (A)</div>
+      <div class="v" id="aAvg">-</div>
+      <div class="small">L1~L3 평균</div>
+    </div>
+  </div>
+
+  <!-- ✅ 3상 패널 -->
+  <div class="section">
+    <div class="title">3상 전기 값</div>
+
+    <div class="grid3">
+      <div class="card">
+        <div class="k">전압 (V)</div>
+        <div class="grid3 dashTriple" style="margin-top:10px;">
+          <div><div class="k">L1</div><div class="v" id="vL1">-</div></div>
+          <div><div class="k">L2</div><div class="v" id="vL2">-</div></div>
+          <div><div class="k">L3</div><div class="v" id="vL3">-</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="k">전류 (A)</div>
+        <div class="grid3 dashTriple" style="margin-top:10px;">
+          <div><div class="k">L1</div><div class="v" id="aL1">-</div></div>
+          <div><div class="k">L2</div><div class="v" id="aL2">-</div></div>
+          <div><div class="k">L3</div><div class="v" id="aL3">-</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="k">역률 (PF)</div>
+        <div class="grid3 dashTriple" style="margin-top:10px;">
+          <div><div class="k">L1</div><div class="v" id="pfL1">-</div></div>
+          <div><div class="k">L2</div><div class="v" id="pfL2">-</div></div>
+          <div><div class="k">L3</div><div class="v" id="pfL3">-</div></div>
+        </div>
+        <div class="small" style="margin-top:8px;">
+          평균 PF: <span class="badge" id="pfAvgBadge">-</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ DI 타일 -->
+  <div class="section">
+    <div class="title">DI 상태</div>
+    <div class="grid4" id="diGrid"></div>
+    <div class="small muted" style="margin-top:6px;">
+      값이 없으면 “-”로 표시됩니다. (서버 수신 시 자동 반영)
+    </div>
+  </div>
+</section>

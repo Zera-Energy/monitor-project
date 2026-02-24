@@ -1,0 +1,113 @@
+/* =========================================================
+   ✅ view.devices.css
+   - Devices(Device Configuration) 화면 전용
+========================================================= */
+
+.filterBar{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  box-shadow: var(--shadow);
+}
+
+.pill{
+  height:40px;
+  padding:0 14px;
+  border-radius:8px;
+  border:0;
+  font-weight:900;
+  cursor:pointer;
+  white-space: nowrap;
+}
+.pill.dark{ background:#6b7280; color:#fff; }
+.pill.purple{ background:#7c5cff; color:#fff; }
+.pill.amber{ background:#ffb020; color:#2b1a00; }
+
+.filterInput{
+  flex:1;
+  height:40px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:0 12px;
+  outline:none;
+  min-width:200px;
+}
+
+.card{
+  margin-top:14px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow: var(--shadow);
+  padding:14px;
+}
+.card.big{ padding:16px; }
+.cardTitle{
+  font-size:18px;
+  font-weight:900;
+  margin:6px 6px 12px 6px;
+}
+
+.tableTools{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:0 6px 10px 6px;
+}
+.miniSelect{
+  height:36px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:0 8px;
+  background:#fff;
+}
+.toolRight{ display:flex; align-items:center; gap:8px; }
+.toolLabel{ font-size:13px; font-weight:900; }
+.miniInput{
+  height:36px;
+  width:180px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:0 10px;
+  outline:none;
+}
+.miniBtn{
+  height:36px;
+  width:44px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:#f3f4f7;
+  cursor:pointer;
+  font-weight:900;
+}
+.miniBtn:hover{ background:#eceef3; }
+
+.tableFoot{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 6px 6px 6px;
+}
+
+.pager{ display:flex; gap:8px; }
+.pagerBtn{
+  height:34px;
+  width:44px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:#fff;
+  cursor:pointer;
+}
+.pagerBtn:hover{ background:#f3f4f7; }
+
+/* 반응형(Devices 관련) */
+@media (max-width: 920px){
+  .filterBar{ flex-wrap:wrap; }
+  .miniInput{ width:140px; }
+}

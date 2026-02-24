@@ -1,0 +1,207 @@
+<section id="page-developer">
+  <div class="pageHeader">
+    <h2 class="pageTitle">Developer API</h2>
+  </div>
+
+  <!-- My API Keys -->
+  <div class="panel">
+    <div class="panelHead">
+      <div class="panelTitle">🔑 My API Keys</div>
+      <button id="btn_api_docs" class="linkBtn" type="button">📘 API Docs</button>
+    </div>
+
+    <div class="tableBox">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th style="width:60px">#</th>
+            <th>API Key</th>
+            <th style="width:200px">Monthly Requests</th>
+            <th style="width:220px">Delay Time (Minutes)</th>
+            <th style="width:140px">Package</th>
+            <th style="width:210px">Created</th>
+            <th style="width:190px">Actions</th>
+          </tr>
+        </thead>
+
+        <!-- ✅ 실제 렌더링 대상 -->
+        <tbody id="apiKeysBody">
+          <tr>
+            <td class="center">1</td>
+
+            <!-- ✅ 여기 YOUR_API_KEY가 실제 값으로 바뀜 -->
+            <td class="apiKeyText" data-bind="apiKey">YOUR_API_KEY</td>
+
+            <td class="center" data-bind="monthly">0/10000</td>
+            <td class="center" data-bind="delayMin">5</td>
+            <td class="center" data-bind="package">Free Package</td>
+            <td class="center" data-bind="createdAt">2026-02-09 11:20:45</td>
+
+            <td class="center">
+              <!-- ✅ Copy/Delete 동작 -->
+              <button class="btnSmall purple" type="button" data-action="copyApiKey">📄 Copy</button>
+              <button class="btnSmall red" type="button" data-action="deleteApiKey">🗑 Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="panelFoot">
+        <!-- ✅ 새 키 등록 -->
+        <button id="btn_new_api_key" class="ghostBtn" type="button">➕ New API Key</button>
+      </div>
+
+      <!-- ✅ 메시지 표시 -->
+      <div id="dev_msg" class="hint" style="padding:10px 12px;"></div>
+    </div>
+  </div>
+
+  <!-- API Key -->
+  <div class="panel" style="margin-top:14px;">
+    <div class="panelHead">
+      <div class="panelTitle">🔑 API Key</div>
+    </div>
+
+    <div class="tableBox">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th style="width:70px">No.</th>
+            <th style="width:90px">Method</th>
+            <th style="width:220px">Description</th>
+            <th>API</th>
+            <th style="width:190px">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-api-row="checkKey"
+              data-template="/API_Key/Check_API_Key.php?API_Key={API_KEY}">
+            <td class="center">1</td>
+            <td class="center">GET</td>
+            <td>Check API Key</td>
+
+            <!-- ✅ 화면 표시용 텍스트(치환됨) -->
+            <td class="mono" data-bind="apiText">
+              /API_Key/Check_API_Key.php?API_Key=YOUR_API_KEY
+            </td>
+
+            <td class="center">
+              <button class="btnSmall green" type="button" data-action="openApi">↗ Open</button>
+              <button class="btnSmall purple" type="button" data-action="copyApi">📄 Copy</button>
+            </td>
+          </tr>
+
+          <tr data-api-row="keyLogs"
+              data-template="/API_Key/Check_Request_API_Key.php?API_Key={API_KEY}">
+            <td class="center">2</td>
+            <td class="center">GET</td>
+            <td>API Key Logs</td>
+            <td class="mono" data-bind="apiText">
+              /API_Key/Check_Request_API_Key.php?API_Key=YOUR_API_KEY
+            </td>
+            <td class="center">
+              <button class="btnSmall green" type="button" data-action="openApi">↗ Open</button>
+              <button class="btnSmall purple" type="button" data-action="copyApi">📄 Copy</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Device Data -->
+  <div class="panel" style="margin-top:14px;">
+    <div class="panelHead">
+      <div class="panelTitle">📡 Device Data</div>
+    </div>
+
+    <div class="tableBox">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th style="width:70px">No.</th>
+            <th style="width:90px">Method</th>
+            <th style="width:260px">Description</th>
+            <th>API</th>
+            <th style="width:190px">Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr data-api-row="lastData"
+              data-template="/Device_Data/GETLAST_DATAPOINT_ByMacID.php?API_Key={API_KEY}&Mac_ID={MAC_ID}">
+            <td class="center">1</td>
+            <td class="center">GET</td>
+            <td>Get Last Data By Macid</td>
+            <td class="mono" data-bind="apiText">
+              /Device_Data/GETLAST_DATAPOINT_ByMacID.php?API_Key=YOUR_API_KEY&amp;Mac_ID=
+              <!-- ✅ 같은 row에서 MAC 입력 받기 -->
+              <input class="inlineInput" data-bind="macInput" placeholder="XX:XX:XX:XX:XX:XX" />
+            </td>
+            <td class="center">
+              <button class="btnSmall green" type="button" data-action="openApi">↗ Open</button>
+              <button class="btnSmall purple" type="button" data-action="copyApi">📄 Copy</button>
+            </td>
+          </tr>
+
+          <tr data-api-row="lastUpdate"
+              data-template="/Device_Data/GETLAST_UPDATE_ByMacID.php?API_Key={API_KEY}&Mac_ID={MAC_ID}">
+            <td class="center">2</td>
+            <td class="center">GET</td>
+            <td>Get Last Update By Macid</td>
+            <td class="mono" data-bind="apiText">
+              /Device_Data/GETLAST_UPDATE_ByMacID.php?API_Key=YOUR_API_KEY&amp;Mac_ID=
+              <input class="inlineInput" data-bind="macInput" placeholder="XX:XX:XX:XX:XX:XX" />
+            </td>
+            <td class="center">
+              <button class="btnSmall green" type="button" data-action="openApi">↗ Open</button>
+              <button class="btnSmall purple" type="button" data-action="copyApi">📄 Copy</button>
+            </td>
+          </tr>
+        </tbody>
+
+      </table>
+    </div>
+  </div>
+
+  <!-- MQTT Settings -->
+  <div class="panel" style="margin-top:14px;">
+    <div class="panelHead">
+      <div class="panelTitle">⚡ MQTT Settings</div>
+      <button class="btnSmall gray" type="button" data-action="editMqtt">✏ Edit</button>
+    </div>
+
+    <div class="formGrid">
+      <div class="formField">
+        <label>MQTT Host</label>
+        <input class="inputWide" data-bind="mqttHost" placeholder="broker.example.com" />
+      </div>
+
+      <div class="formField">
+        <label>Port</label>
+        <input class="inputWide" data-bind="mqttPort" value="1883" />
+      </div>
+
+      <div class="formField">
+        <label>Interval (sec ≥ 30)</label>
+        <input class="inputWide" data-bind="mqttInterval" value="30" />
+      </div>
+
+      <div class="formField">
+        <label>Username</label>
+        <input class="inputWide" data-bind="mqttUser" />
+      </div>
+
+      <div class="formField">
+        <label>Password</label>
+        <input class="inputWide" data-bind="mqttPass" placeholder="(hidden)" />
+        <div class="hint">Password is hidden; enter a new one when editing to update.</div>
+      </div>
+
+      <div class="formField full">
+        <label>Topic</label>
+        <input class="inputWide" data-bind="mqttTopic" />
+      </div>
+    </div>
+  </div>
+</section>

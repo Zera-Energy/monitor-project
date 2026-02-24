@@ -1,0 +1,71 @@
+<section id="locView">
+  <div class="pageHeader">
+    <h2 class="pageTitle">Devices Location</h2>
+  </div>
+
+  <!-- 상단 상태/검색/버튼 바 -->
+  <div class="locTop">
+    <div class="locStats">
+      <div class="locStat">📍 <b id="locWith">0</b> devices with location</div>
+      <div class="locStat">📍 <b id="locWithout">0</b> without location</div>
+    </div>
+
+    <div class="locActions">
+      <div class="locSearch">
+        <input id="locSearchInput" class="locSearchInput" placeholder="Search location..." />
+        <button id="locSearchBtn" class="locSearchBtn" type="button">🔍</button>
+      </div>
+
+      <button id="btnFitAll" class="locBtn light" type="button">🗺 Fit All</button>
+
+      <div class="locDrop">
+        <button id="btnSetLoc" class="locBtn amber" type="button">📍 Set Location ▾</button>
+        <div class="locMenu" id="locMenu" hidden>
+          <button class="locMenuItem" type="button" data-action="set-mode">Set mode</button>
+          <button class="locMenuItem" type="button" data-action="clear-mode">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 지도 -->
+  <div class="locMapWrap">
+    <div id="map" class="locMap"></div>
+
+    <!-- 우측하단 Status 카드 -->
+    <div class="locLegend">
+      <div class="locLegendTitle">Status</div>
+      <div class="locLegendRow"><span class="dot green"></span> Online</div>
+      <div class="locLegendRow"><span class="dot gray"></span> Offline</div>
+    </div>
+  </div>
+
+  <!-- ✅ 이 view에서만 실행 -->
+  <script data-view-script>
+    // 외부 JS 로드 (Leaflet + view.location.js)
+    // app.js가 module이라도 이 view-script는 그냥 실행됨
+
+    function loadScriptOnce(src, id){
+      return new Promise((resolve) => {
+        if (id && document.getElementById(id)) return resolve();
+        const s = document.createElement("script");
+        if (id) s.id = id;
+        s.src = src;
+        s.onload = () => resolve();
+        s.onerror = () => resolve(); // 실패해도 페이지는 살림
+        document.body.appendChild(s);
+      });
+    }
+
+    (async () => {
+      // Leaflet JS (CDN)
+      await loadScriptOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", "leaflet-js");
+      // 우리 view 전용 JS
+      await loadScriptOnce("./js/view.location.js", "view-location-js");
+
+      if (typeof window.initLocationView === "function") {
+        window.initLocationView();
+      }
+    })();
+  </script>
+</section>

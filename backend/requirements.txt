@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+xlsxwriter
+python-dotenv
+paho-mqtt
+influxdb-client

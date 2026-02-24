@@ -1,0 +1,69 @@
+<!-- /views/overview.html (HTML only) -->
+<section class="overviewView">
+  <div class="pageHeader">
+    <h2 class="pageTitle">Devices Overview</h2>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbarLeft">
+      <div class="field">
+        <span class="fieldLabel">Filter:</span>
+        <select class="select" id="filterStatus">
+          <option value="all">All Devices</option>
+          <option value="online">Online</option>
+          <option value="offline">Offline</option>
+        </select>
+      </div>
+      <span class="muted" id="deviceCount">(0 devices)</span>
+    </div>
+
+    <div class="toolbarRight">
+      <span class="muted">Last update: <span id="lastUpdate">-</span></span>
+    </div>
+  </div>
+
+  <!-- ✅ 요약 카드 -->
+  <div class="gridStats" id="gridStats">
+    <div class="contentCard statCard">
+      <div class="k">Total</div>
+      <div class="v" id="sumTotal">-</div>
+      <div class="muted">devices</div>
+    </div>
+
+    <div class="contentCard statCard">
+      <div class="k">Online</div>
+      <div class="v" id="sumOnline">-</div>
+      <div class="muted">devices</div>
+    </div>
+
+    <div class="contentCard statCard">
+      <div class="k">Offline</div>
+      <div class="v" id="sumOffline">-</div>
+      <div class="muted">devices</div>
+    </div>
+
+    <div class="contentCard statCard">
+      <div class="k">Total kW</div>
+      <div class="v" id="sumKw">-</div>
+      <div class="muted">sum</div>
+    </div>
+
+    <div class="contentCard statCard">
+      <div class="k">Avg PF</div>
+      <div class="v" id="sumPf">-</div>
+      <div class="muted">average</div>
+    </div>
+  </div>
+
+  <!-- ✅ 장비 리스트(카드) -->
+  <div id="deviceGrid" class="gridDevices"></div>
+
+  <!-- ✅ 데이터 없을 때 안내 -->
+  <div class="contentCard" id="emptyState" style="display:none;">
+    <div class="k">Status</div>
+    <div class="v">No data</div>
+    <div class="muted" style="margin-top:6px;">
+      아직 장비 데이터가 없습니다. (값은 없어도 “-”로 표시될 수 있어요)
+    </div>
+  </div>
+</section>

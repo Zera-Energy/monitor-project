@@ -1,0 +1,56 @@
+/* /css/view.monitor.css */
+
+/* 공통 클래스는 기존 base.css를 그대로 쓴다고 가정하고,
+   monitor 뷰에서만 쓰는 “추가/보정” 위주로 */
+.monitorView #selDevice { min-width: 260px; }
+
+.mt10 { margin-top: 10px; }
+.mt12 { margin-top: 12px; }
+.mb6 { margin-bottom: 6px; }
+.mb12 { margin-bottom: 12px; }
+.ml10 { margin-left: 10px; }
+
+.toolbarLeft.wrap {
+  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.seriesChecks {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.seriesChecks .chk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.desc { margin: 6px 0 10px; }
+
+.preview {
+  margin: 0;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.logBox {
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid #e6e6e6;
+  border-radius: 10px;
+  min-height: 110px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.autoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}

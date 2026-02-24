@@ -1,0 +1,182 @@
+<!-- /views/monitor.html (HTML only) -->
+<section class="monitorView">
+  <div class="pageHeader">
+    <h2 class="pageTitle">Devices Monitor</h2>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbarLeft">
+      <select class="select" id="selRole">
+        <option value="all">All Roles</option>
+      </select>
+
+      <select class="select" id="selDevice">
+        <option value="">Select Device</option>
+      </select>
+
+      <button class="btn primary" id="btnSelectData" type="button">Select data ▾</button>
+
+      <button class="btn amber" id="btnDevicesOverview" type="button">
+        Devices Overview
+      </button>
+    </div>
+
+    <div class="toolbarRight">
+      <input class="input" id="inpSearch" placeholder="Search Criteria" />
+      <button class="btn amber" id="btnSearch" type="button">Search</button>
+    </div>
+  </div>
+
+  <!-- ✅ Period Analysis -->
+  <section class="card big mt12">
+    <div class="cardTitle">Period Analysis (Skeleton)</div>
+
+    <div class="toolbar mt10">
+      <div class="toolbarLeft wrap">
+        <div class="field">
+          <span class="fieldLabel">From</span>
+          <input class="input" id="anaFrom" type="date" />
+        </div>
+
+        <div class="field">
+          <span class="fieldLabel">To</span>
+          <input class="input" id="anaTo" type="date" />
+        </div>
+
+        <div class="field">
+          <span class="fieldLabel">Group</span>
+          <select class="select" id="anaGroup">
+            <option value="day">Daily</option>
+            <option value="week">Weekly</option>
+            <option value="month">Monthly</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <span class="fieldLabel">Metric</span>
+          <select class="select" id="anaMetric">
+            <option value="kwh">Energy (kWh)</option>
+            <option value="kw">Power (kW)</option>
+            <option value="pf">Power Factor (PF)</option>
+            <option value="v">Voltage (V)</option>
+            <option value="a">Current (A)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <span class="fieldLabel">Series</span>
+          <div class="seriesChecks">
+            <label class="chk">
+              <input type="checkbox" class="anaSeriesChk" value="l1" checked />
+              L1
+            </label>
+            <label class="chk">
+              <input type="checkbox" class="anaSeriesChk" value="l2" />
+              L2
+            </label>
+            <label class="chk">
+              <input type="checkbox" class="anaSeriesChk" value="l3" />
+              L3
+            </label>
+          </div>
+        </div>
+
+        <button class="btn primary" id="btnLoadSeries" type="button">Load</button>
+        <button class="btn" id="btnDownloadCsv" type="button">Download CSV</button>
+        <button class="btn" id="btnDownloadXlsx" type="button">Download XLSX</button>
+      </div>
+
+      <div class="toolbarRight">
+        <span class="muted">Status: <b id="anaStatus">Ready</b></span>
+      </div>
+    </div>
+
+    <div class="contentCard mt12">
+      <div class="k">Chart</div>
+      <div class="muted desc">
+        Load를 누르면 선택한 Metric + (L1/L2/L3 체크된 것들)로 기간 데이터를 불러와 라인 차트로 표시합니다.
+      </div>
+      <canvas id="anaChart" height="120"></canvas>
+    </div>
+
+    <div class="contentCard mt12">
+      <div class="k">Preview (first 10 rows)</div>
+      <pre id="anaPreview" class="preview">-</pre>
+    </div>
+  </section>
+
+  <!-- ✅ Device List -->
+  <section class="card big mt12">
+    <div class="cardTitle">Device List</div>
+
+    <div class="muted mt10 mb6">
+      Live (server)
+      <span class="muted ml10">API: <b id="mqttWsStatus">-</b></span>
+      <span class="muted ml10">Last: <b id="mqttLastAt">-</b></span>
+      <span class="muted ml10">Updates: <b id="mqttMsgCount">0</b></span>
+      <button class="btn ml10" id="btnPauseLog" type="button">Pause</button>
+      <button class="btn" id="btnClearLog" type="button">Clear</button>
+    </div>
+
+    <pre id="mqttLog" class="logBox"></pre>
+
+    <div class="contentCard mt10 mb12">
+      <div class="k">Live (auto cards)</div>
+      <div class="muted desc">
+        서버가 받은 장비 목록을 기준으로 자동 카드 생성/갱신합니다.
+      </div>
+      <div id="mqttAutoGrid" class="autoGrid"></div>
+    </div>
+
+    <div class="tableWrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Actions</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Owner</th>
+            <th>RAW Data</th>
+            <th>Last Update</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="deviceTbody">
+          <tr>
+            <td colspan="8" class="empty">No data available in table</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ✅ Backdrop -->
+  <div class="modalBack" id="devOvBack" hidden></div>
+
+  <!-- ✅ Right Panel Modal -->
+  <aside class="modal" id="devOvModal" aria-hidden="true">
+    <div class="modalHead">
+      <div class="modalTitle">Devices Overview</div>
+      <button class="modalClose" type="button" data-action="close-devov" aria-label="Close">✕</button>
+    </div>
+
+    <div class="devOvFilter">
+      <div class="devOvLabel">Filter:</div>
+
+      <select class="select" id="devOvFilterSel">
+        <option value="all">All Devices</option>
+        <option value="online">Online</option>
+        <option value="offline">Offline</option>
+      </select>
+
+      <div class="devOvCount" id="devOvCount">(0 devices)</div>
+    </div>
+
+    <div class="modalBody">
+      <div class="devOvContent" id="devOvContent">
+        <div class="muted">No data</div>
+      </div>
+    </div>
+  </aside>
+</section>
