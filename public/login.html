@@ -82,6 +82,7 @@
     // ✅ 토큰이 있어도 자동 이동 안 함 (상태만 표시)
     setStatus(hasToken() ? "Token exists (press Login or Logout)" : "");
 
+    // ✅ (수정) 로그인 응답이 "string" 이거나 {token}/{access_token} 일 수 있으니 전부 대응
     async function doLogin(email, password) {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
@@ -94,8 +95,24 @@
         const t = await res.text().catch(() => "");
         throw new Error(t || `Login failed (HTTP ${res.status})`);
       }
-      // ✅ 보통 { access_token, token_type } 형태 (서버에 따라 token일 수도 있음)
-      return res.json();
+
+      const contentType = (res.headers.get("content-type") || "").toLowerCase();
+
+      // JSON으로 오면 json 파싱, 아니면 text로 처리
+      if (contentType.includes("application/json")) {
+        const data = await res.json();
+
+        // 1) 응답이 그냥 "tokenstring" 인 경우
+        if (typeof data === "string") return data.trim();
+
+        // 2) { token: ... } 또는 { access_token: ... } 인 경우
+        const token = data?.token || data?.access_token || "";
+        return String(token).trim();
+      }
+
+      // 3) content-type이 text/plain 같은 경우
+      const text = await res.text();
+      return String(text || "").trim();
     }
 
     $("btnLogin").addEventListener("click", async () => {
@@ -106,10 +123,7 @@
       setStatus("Signing in...");
 
       try {
-        const data = await doLogin(email, pass);
-
-        // ✅ (수정) token / access_token 둘 다 대응
-        const token = data?.token || data?.access_token;
+        const token = await doLogin(email, pass);
 
         if (!token) {
           throw new Error("No token returned from server");
