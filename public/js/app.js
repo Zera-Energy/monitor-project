@@ -5,8 +5,7 @@ const viewEl = document.getElementById("view");
    ✅ 라우트 -> HTML
 ========================= */
 const ROUTES = {
-  // ✅ (추가) 로그인 화면
-  login: "./views/login.html",
+  // ✅ login은 SPA 내부 view가 아니라 /login.html (별도 페이지)로 분리
 
   overview: "./views/overview.html",
 
@@ -27,14 +26,8 @@ const ROUTES = {
    ✅ 라우트 -> 뷰 전용 CSS
 ========================= */
 const VIEW_CSS = {
-  // ✅ (추가) 로그인 CSS 필요하면 만들고 연결 (없으면 주석/삭제 가능)
-  // login: "./css/view.login.css",
-
   overview: "./css/view.overview.css",
-
-  // devices-setting 화면이면 보통 이 CSS를 씀 (너 파일명이 view.devices.css라서 그대로 둠)
   devices: "./css/view.devices-setting.css",
-
   monitor: "./css/view.monitor.css",
   location: "./css/view.location.css",
   developer: "./css/view.developer.css",
@@ -50,10 +43,8 @@ const VIEW_JS = {
   dashboard: "./js/view.dashboard.js",
   monitor: "./js/view.monitor.js",
   location: "./js/view.location.js",
-  login: "./js/view.login.js",
-  // ✅ (추가) PM(Project Management) 화면 전용 JS
+  // ✅ login은 /login.html에서 처리하므로 제거
   "dashboard-setting": "./js/view.pm.js",
-  // login은 login.html 안에서 <script>로 처리한다고 가정(없어도 됨)
 };
 
 let currentCssLink = null;
@@ -71,7 +62,7 @@ window.API_BASE =
 const API_BASE = window.API_BASE;
 
 /* =========================================================
-   ✅ Auth (B: 로그인만 필요)
+   ✅ Auth
 ========================================================= */
 function getToken() {
   return localStorage.getItem("token") || "";
@@ -79,12 +70,17 @@ function getToken() {
 function isLoggedIn() {
   return !!getToken();
 }
+function goLoginPage() {
+  // ✅ 로그인 분리 페이지로 이동
+  location.replace("/login.html");
+}
 function logout() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
+  goLoginPage();
 }
 
-/** 401이면 자동 로그아웃 + 로그인 화면으로 */
+/** 401이면 자동 로그아웃 + login.html로 */
 async function apiFetch(url, options = {}) {
   const token = getToken();
   const headers = new Headers(options.headers || {});
@@ -98,9 +94,10 @@ async function apiFetch(url, options = {}) {
   const res = await fetch(url, { ...options, headers, cache: "no-cache" });
 
   if (res.status === 401) {
-    logout();
-    // 현재 라우팅 스타일이 "#overview" 형태라서 "#login" 사용
-    if (location.hash !== "#login") location.hash = "#login";
+    // 토큰 만료/불일치
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    goLoginPage();
   }
   return res;
 }
@@ -335,19 +332,8 @@ function loadViewJs(route) {
 }
 
 function getRouteFromHash() {
-  // 기존 스타일 유지: "#overview" 형태
   const r = (location.hash || "#overview").replace("#", "").trim();
   return r || "overview";
-}
-
-/* =========================
-   ✅ 로그인 가드
-========================= */
-const PUBLIC_ROUTES = new Set(["login"]);
-function guardRoute(routeName) {
-  if (PUBLIC_ROUTES.has(routeName)) return routeName;
-  if (isLoggedIn()) return routeName;
-  return "login";
 }
 
 /* =========================
@@ -404,15 +390,7 @@ async function loadView(route) {
    ✅ 라우팅
 ========================= */
 async function route() {
-  let r = getRouteFromHash();
-
-  // ✅ (추가) 로그인 가드 적용
-  const guarded = guardRoute(r);
-  if (guarded !== r) {
-    // 해시를 강제로 login으로 변경 (무한루프 방지)
-    if (location.hash !== "#login") location.hash = "#login";
-    r = "login";
-  }
+  const r = getRouteFromHash();
 
   await loadViewCss(r);
   await loadView(r);
@@ -420,11 +398,13 @@ async function route() {
 
 window.addEventListener("hashchange", route);
 
-// ✅ 첫 진입 시 해시 없고 토큰 없으면 login으로 보내기
-if (!location.hash) {
-  location.hash = isLoggedIn() ? "#overview" : "#login";
-} else if (guardRoute(getRouteFromHash()) === "login" && getRouteFromHash() !== "login") {
-  location.hash = "#login";
+/* =========================
+   ✅ 첫 진입 차단 (토큰 없으면 login.html)
+========================= */
+if (!isLoggedIn()) {
+  goLoginPage();
+} else {
+  // 토큰이 있으면 기본 해시 보정
+  if (!location.hash) location.hash = "#overview";
+  route();
 }
-
-route();

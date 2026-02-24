@@ -19,6 +19,17 @@
 
   <!-- ✅ (추가) API 주소를 한 곳에서 관리 (Vercel 배포용) -->
   <script src="/js/config.js"></script>
+
+  <!-- ✅ [추가] 토큰 없으면 index.html 자체에 못 들어오게 막고 login.html로 보내기 -->
+  <script>
+    (function () {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        // 로그인 분리 페이지로 이동 (루트에 login.html 만들었다고 가정)
+        location.replace("/login.html");
+      }
+    })();
+  </script>
 </head>
 <body>
 
