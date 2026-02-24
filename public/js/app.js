@@ -27,7 +27,7 @@ const VIEW_CSS = {
   overview: "./css/view.overview.css",
 
   // devices-setting 화면이면 보통 이 CSS를 씀 (너 파일명이 view.devices.css라서 그대로 둠)
-  devices: "./css/view.devices.css",
+  devices: "./css/view.devices-setting.css",
 
   monitor: "./css/view.monitor.css",
   location: "./css/view.location.css",
