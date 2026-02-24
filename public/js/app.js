@@ -50,6 +50,7 @@ const VIEW_JS = {
   dashboard: "./js/view.dashboard.js",
   monitor: "./js/view.monitor.js",
   location: "./js/view.location.js",
+  login: "./js/view.login.js",
   // ✅ (추가) PM(Project Management) 화면 전용 JS
   "dashboard-setting": "./js/view.pm.js",
   // login은 login.html 안에서 <script>로 처리한다고 가정(없어도 됨)
