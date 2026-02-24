@@ -4,3 +4,5 @@ xlsxwriter
 python-dotenv
 paho-mqtt
 influxdb-client
+python-jose[cryptography]
+passlib[bcrypt]
