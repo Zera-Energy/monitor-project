@@ -94,7 +94,8 @@
         const t = await res.text().catch(() => "");
         throw new Error(t || `Login failed (HTTP ${res.status})`);
       }
-      return res.json(); // { token: "..." } 기대
+      // ✅ 보통 { access_token, token_type } 형태 (서버에 따라 token일 수도 있음)
+      return res.json();
     }
 
     $("btnLogin").addEventListener("click", async () => {
@@ -107,11 +108,14 @@
       try {
         const data = await doLogin(email, pass);
 
-        if (!data || !data.token) {
+        // ✅ (수정) token / access_token 둘 다 대응
+        const token = data?.token || data?.access_token;
+
+        if (!token) {
           throw new Error("No token returned from server");
         }
 
-        localStorage.setItem("token", data.token);
+        localStorage.setItem("token", token);
         setStatus("OK");
 
         // ✅ 로그인 성공 후 이동할 페이지
