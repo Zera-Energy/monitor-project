@@ -84,7 +84,13 @@ function logout() {
 async function apiFetch(url, options = {}) {
   const token = getToken();
   const headers = new Headers(options.headers || {});
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  // ✅ (수정 핵심) token이 이미 "Bearer ..."면 그대로, 아니면 Bearer 붙이기
+  if (token) {
+    const t = String(token).trim();
+    if (/^bearer\s+/i.test(t)) headers.set("Authorization", t);
+    else headers.set("Authorization", `Bearer ${t}`);
+  }
 
   // JSON body면 content-type 자동
   if (options.body && !headers.has("Content-Type")) {
