@@ -48,7 +48,9 @@ let currentViewScript = null;
 /* =========================================================
    ✅ API 폴링 (overview/monitor/dashboard용)
 ========================================================= */
-const API_BASE = "http://127.0.0.1:8000";
+/* ✅ (수정) 배포(Vercel)에서는 window.API_BASE(Render)를 쓰고,
+   로컬 개발 시엔 127.0.0.1로 fallback */
+const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
 let __pollTimer = null;
 
 async function fetchJson(url) {

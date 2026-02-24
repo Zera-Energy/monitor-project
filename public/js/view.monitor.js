@@ -27,8 +27,16 @@
   // ✅ 기존 cleanup 체인
   const prevCleanup = window.__viewCleanup__;
 
-  const API_BASE = "http://127.0.0.1:8000";
+  // ✅ (수정) 배포(Vercel)에서는 window.API_BASE(Render)를 쓰고,
+  // 로컬 개발 시엔 127.0.0.1로 fallback
+  const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
   const ONLINE_SEC = 60;
+
+  // ✅ (권장) 배포에서 API_BASE 확인 로그 (원하면 지워도 됨)
+  try {
+    if (!window.API_BASE) console.warn("[monitor] window.API_BASE not set -> fallback to", API_BASE);
+    else console.log("[monitor] API_BASE =", API_BASE);
+  } catch {}
 
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
@@ -208,8 +216,9 @@
   const btnDownloadCsv = $("btnDownloadCsv");
   const btnDownloadXlsx = $("btnDownloadXlsx");
 
-  const SERIES_API = "http://127.0.0.1:8000/api/series";
-  const XLSX_API  = "http://127.0.0.1:8000/api/report/xlsx";
+  // ✅ (수정) API_BASE 기준으로 변경
+  const SERIES_API = `${API_BASE}/api/series`;
+  const XLSX_API  = `${API_BASE}/api/report/xlsx`;
 
   let anaChart = null;
 
