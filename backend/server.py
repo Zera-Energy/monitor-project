@@ -38,24 +38,9 @@ except Exception:
 app = FastAPI()
 
 # =========================
-# ✅ CORS (배포 대응)
-# - Render에서 CORS_ORIGINS 환경변수로 Vercel 도메인 넣기
-#   예) https://myapp.vercel.app,https://myapp-git-xxx.vercel.app
+# ✅ CORS (배포: ksaver만 허용)
 # =========================
-cors_env = os.getenv("CORS_ORIGINS", "").strip()
-
-if cors_env:
-    ALLOWED_ORIGINS = [x.strip() for x in cors_env.split(",") if x.strip()]
-else:
-    # 로컬 개발용 기본값
-    ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5500",
-        "http://127.0.0.1:5500",
-    ]
+ALLOWED_ORIGINS = ["https://ksaver.onrender.com"]
 
 app.add_middleware(
     CORSMiddleware,
