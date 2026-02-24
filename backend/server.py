@@ -387,8 +387,14 @@ def on_message(client, userdata, msg):
     topic = msg.topic
     payload_raw = msg.payload.decode("utf-8", errors="ignore")
 
+    # ✅✅✅ (수정) 디버그: 어떤 메시지든 먼저 찍기
+    print("------------")
+    print(f"Topic: {topic}")
+    print(f"Message: {payload_raw}")
+
     parsed = parse_topic(topic)
     if not parsed:
+        # 토픽 형식이 기대값이 아니면 여기서 끝 (그래도 위 로그는 남음)
         return
 
     country, site_id, model, device_id, last_type = parsed
@@ -419,10 +425,6 @@ def on_message(client, userdata, msg):
         write_to_influx(DEVICES[key], LAST_PAYLOAD[key], now)
     except Exception as e:
         print("❌ write_to_influx error:", repr(e))
-
-    print("------------")
-    print(f"Topic: {topic}")
-    print(f"Message: {payload_raw}")
 
 def start_mqtt():
     global mqtt_client
