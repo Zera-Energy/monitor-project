@@ -42,10 +42,24 @@
 
   <!-- ✅ 이 view에서만 실행 -->
   <script data-view-script>
-    // 외부 JS 로드 (Leaflet + view.location.js)
-    // app.js가 module이라도 이 view-script는 그냥 실행됨
+    // ✅ Leaflet CSS/JS + view.location.js 로드
+    // (주의) innerHTML로 주입된 script는 브라우저가 자동 실행 안 하는 경우가 있어서
+    // 아래 run()을 "즉시 + 다음 tick"으로 2번 시도해서 확률을 0에 가깝게 만듦.
 
-    function loadScriptOnce(src, id){
+    function loadCssOnce(href, id) {
+      return new Promise((resolve) => {
+        if (id && document.getElementById(id)) return resolve();
+        const l = document.createElement("link");
+        if (id) l.id = id;
+        l.rel = "stylesheet";
+        l.href = href;
+        l.onload = () => resolve();
+        l.onerror = () => resolve();
+        document.head.appendChild(l);
+      });
+    }
+
+    function loadScriptOnce(src, id) {
       return new Promise((resolve) => {
         if (id && document.getElementById(id)) return resolve();
         const s = document.createElement("script");
@@ -57,15 +71,28 @@
       });
     }
 
-    (async () => {
-      // Leaflet JS (CDN)
+    async function run() {
+      // ✅ Leaflet CSS 먼저 (이거 없으면 화면이 깨져 보일 수 있음)
+      await loadCssOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "leaflet-css");
+
+      // ✅ Leaflet JS
       await loadScriptOnce("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", "leaflet-js");
-      // 우리 view 전용 JS
+
+      // ✅ 우리 view 전용 JS
       await loadScriptOnce("./js/view.location.js", "view-location-js");
 
+      // ✅ init 실행
       if (typeof window.initLocationView === "function") {
         window.initLocationView();
+      } else {
+        console.warn("initLocationView not found");
       }
-    })();
+    }
+
+    // ✅ 즉시 1회
+    run();
+
+    // ✅ 혹시 innerHTML script 실행 타이밍이 꼬이면 다음 tick에서 1회 더
+    setTimeout(run, 0);
   </script>
 </section>
