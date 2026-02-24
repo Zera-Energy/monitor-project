@@ -48,9 +48,19 @@ let currentViewScript = null;
 /* =========================================================
    ✅ API 폴링 (overview/monitor/dashboard용)
 ========================================================= */
-/* ✅ (수정) 배포(Vercel)에서는 window.API_BASE(Render)를 쓰고,
-   로컬 개발 시엔 127.0.0.1로 fallback */
-const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
+/* ✅ (수정 핵심)
+   - 로컬( localhost/127.0.0.1 )에서만 로컬 백엔드 사용
+   - 배포(ksaver.onrender.com 등)에서는 Render 백엔드 사용
+   - window.API_BASE로 전역 공유 (다른 view에서도 사용 가능)
+*/
+window.API_BASE =
+  window.API_BASE ||
+  (location.hostname === "localhost" || location.hostname === "127.0.0.1"
+    ? "http://127.0.0.1:8000"
+    : "https://monitor-project.onrender.com");
+
+const API_BASE = window.API_BASE;
+
 let __pollTimer = null;
 
 async function fetchJson(url) {
@@ -108,10 +118,8 @@ function ensureChannels(item) {
   const ch = [];
 
   // 케이스 A: in/out 객체에 L1/L2/L3가 들어있는 경우
-  const inObj =
-    item?.in ?? item?.input ?? item?.inlet ?? item?.src ?? null;
-  const outObj =
-    item?.out ?? item?.output ?? item?.outlet ?? item?.dst ?? null;
+  const inObj = item?.in ?? item?.input ?? item?.inlet ?? item?.src ?? null;
+  const outObj = item?.out ?? item?.output ?? item?.outlet ?? item?.dst ?? null;
 
   function pushFromObj(term, obj) {
     if (!obj || typeof obj !== "object") return;
@@ -186,8 +194,6 @@ function normalizeOne(item) {
   out.channel_count = Array.isArray(out.channels) ? out.channels.length : 0;
 
   // 3) (옵션) 뷰에서 자주 쓰게 “요약값”도 하나 만들어둠
-  //    - 기존 뷰가 단일 값만 기대하는 경우를 위해
-  //    - 우선순위: in L1 value -> item.value(기존) -> null
   if (out.summary_value == null) {
     const inL1 = out.channels?.find((c) => c.term === "in" && c.phase === "L1");
     out.summary_value =
@@ -222,17 +228,14 @@ function startViewPoll(route) {
       // ✅ (수정) 여기서 한 번 정규화 후 뷰에 전달
       const items = normalizeItems(rawItems);
 
-      // ✅ overview: 원본 그대로 전달(정규화 추가필드 포함)
       if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
         try { window.__overviewOnDevices__(items); } catch {}
       }
 
-      // ✅ monitor: 원본 그대로 전달(정규화 추가필드 포함)
       if (route === "monitor" && typeof window.__monitorOnDevices__ === "function") {
         try { window.__monitorOnDevices__(items); } catch {}
       }
 
-      // ✅ dashboard: 원본 그대로 전달(정규화 추가필드 포함)
       if (route === "dashboard" && typeof window.__dashboardOnDevices__ === "function") {
         try { window.__dashboardOnDevices__(items); } catch {}
       }
