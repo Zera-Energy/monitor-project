@@ -16,14 +16,8 @@
     </div>
 
     <div style="display:flex;gap:10px;align-items:center;">
-      <button class="btn primary" id="btnLogin" type="button" style="min-width:120px;">
-        Login
-      </button>
-
-      <button class="btn" id="btnLogout" type="button" title="Clear token">
-        Logout
-      </button>
-
+      <button class="btn primary" id="btnLogin" type="button" style="min-width:120px;">Login</button>
+      <button class="btn" id="btnLogout" type="button" title="Clear token">Logout</button>
       <div class="k" id="loginStatus" style="margin-left:auto;"></div>
     </div>
 
@@ -36,91 +30,3 @@
     </div>
   </div>
 </section>
-
-<script>
-  // ✅ app.js가 해시 라우팅("#overview", "#login") 쓰니까 그대로 맞춤
-  const API_BASE =
-    window.API_BASE ||
-    (location.hostname === "localhost" || location.hostname === "127.0.0.1"
-      ? "http://127.0.0.1:8000"
-      : "https://monitor-project.onrender.com");
-
-  const $ = (id) => document.getElementById(id);
-
-  function setToken(token) {
-    localStorage.setItem("token", token || "");
-  }
-  function getToken() {
-    return localStorage.getItem("token") || "";
-  }
-  function setRole(role) {
-    localStorage.setItem("role", role || "");
-  }
-  function logout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-  }
-
-  function showStatus() {
-    const t = getToken();
-    $("loginStatus").textContent = t ? "✅ token saved" : "❌ not logged in";
-  }
-
-  async function doLogin() {
-    $("loginMsg").textContent = "";
-
-    const email = $("loginEmail").value.trim();
-    const password = $("loginPass").value;
-
-    if (!email || !password) {
-      $("loginMsg").textContent = "이메일/비밀번호를 입력해줘.";
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) {
-        const txt = await res.text();
-        $("loginMsg").textContent = `Login failed (${res.status}): ${txt}`;
-        return;
-      }
-
-      const data = await res.json();
-      setToken(data.access_token);
-      setRole(data.role);
-
-      showStatus();
-
-      // ✅ 로그인 성공 → 기본 진입 화면
-      location.hash = "#overview";
-    } catch (e) {
-      $("loginMsg").textContent = "Error: " + e;
-    }
-  }
-
-  $("btnLogin").addEventListener("click", doLogin);
-  $("btnLogout").addEventListener("click", () => {
-    logout();
-    showStatus();
-    $("loginMsg").textContent = "토큰 삭제됨. 다시 로그인해줘.";
-    location.hash = "#login";
-  });
-
-  // ✅ Enter 키로 로그인
-  $("loginEmail").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") doLogin();
-  });
-  $("loginPass").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") doLogin();
-  });
-
-  // ✅ 편의: 처음 들어오면 admin 계정 미리 채움(원하면 지워도 됨)
-  if (!$("loginEmail").value) $("loginEmail").value = "admin@local";
-  if (!$("loginPass").value) $("loginPass").value = "admin1234";
-  showStatus();
-</script>
