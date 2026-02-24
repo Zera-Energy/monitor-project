@@ -6,7 +6,7 @@ const viewEl = document.getElementById("view");
 ========================= */
 const ROUTES = {
   overview: "./views/overview.html",
-  devices: "./views/devices.html",
+  devices: "./views/device-setting.html",
   monitor: "./views/monitor.html",
   location: "./views/location.html",
   notifications: "./views/notifications.html",
