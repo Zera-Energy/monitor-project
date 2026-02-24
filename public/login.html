@@ -15,7 +15,6 @@
   <!-- ✅ (추가) API 주소(config.js) 사용하려면 유지 -->
   <script src="/js/config.js"></script>
 
-  <!-- ✅ login.html에서는 sidebar/topbar/app.js는 로드하지 않음 -->
   <style>
     body{
       margin:0;
@@ -30,7 +29,6 @@
 </head>
 <body>
 
-  <!-- ✅ 너가 준 로그인 UI 그대로 -->
   <section class="contentCard" style="max-width:420px;margin:40px auto;">
     <div class="pageHeader" style="margin-bottom:14px;">
       <h2 class="pageTitle" style="margin:0;">Login</h2>
@@ -81,13 +79,11 @@
       return !!localStorage.getItem("token");
     }
 
-    // ✅ 이미 로그인 되어있으면 바로 메인으로
-    if (hasToken()) {
-      location.replace("/#overview");
-    }
+    // ✅ (수정) 토큰이 있어도 자동으로 넘어가지 않음
+    // 필요하면 "Already signed in" 같은 안내만 표시
+    setStatus(hasToken() ? "Token exists (press Login or Logout)" : "");
 
     async function doLogin(email, password) {
-      // ⚠️ 너 백엔드 로그인 엔드포인트에 맞춰 경로만 바꾸면 됨
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,7 +114,123 @@
 
         localStorage.setItem("token", data.token);
         setStatus("OK");
-        location.replace("/#overview");
+        location.replace("/<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>K-Saver Login</title>
+
+  <!-- 기존 스타일 재사용 -->
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/views.common.css" />
+
+  <link rel="icon" href="data:,">
+
+  <!-- ✅ (추가) API 주소(config.js) 사용하려면 유지 -->
+  <script src="/js/config.js"></script>
+
+  <style>
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#f5f6fa;
+      padding:24px;
+    }
+  </style>
+</head>
+<body>
+
+  <section class="contentCard" style="max-width:420px;margin:40px auto;">
+    <div class="pageHeader" style="margin-bottom:14px;">
+      <h2 class="pageTitle" style="margin:0;">Login</h2>
+      <div class="k" style="margin-top:6px;">Sign in to access monitoring pages</div>
+    </div>
+
+    <div class="card" style="border:0;box-shadow:none;padding:0;">
+      <div class="field" style="margin-bottom:10px;">
+        <div class="fieldLabel" style="min-width:72px;">Email</div>
+        <input class="input" id="loginEmail" placeholder="admin@local" autocomplete="username" />
+      </div>
+
+      <div class="field" style="margin-bottom:12px;">
+        <div class="fieldLabel" style="min-width:72px;">Password</div>
+        <input class="input" id="loginPass" placeholder="admin1234" type="password" autocomplete="current-password" />
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="btn primary" id="btnLogin" type="button" style="min-width:120px;">Login</button>
+        <button class="btn" id="btnLogout" type="button" title="Clear token">Logout</button>
+        <div class="k" id="loginStatus" style="margin-left:auto;"></div>
+      </div>
+
+      <div id="loginMsg" style="margin-top:10px;color:#c0392b;font-weight:900;"></div>
+
+      <div class="k" style="margin-top:12px;line-height:1.4;">
+        테스트 계정<br />
+        - admin@local / admin1234<br />
+        - user@local / user1234
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // ✅ API_BASE 결정: config.js가 있으면 그걸 사용, 없으면 기본값
+    const API_BASE =
+      window.API_BASE ||
+      (location.hostname === "localhost" || location.hostname === "127.0.0.1"
+        ? "http://127.0.0.1:8000"
+        : "https://monitor-project.onrender.com");
+
+    const $ = (id) => document.getElementById(id);
+
+    function setMsg(t) { $("loginMsg").textContent = t || ""; }
+    function setStatus(t) { $("loginStatus").textContent = t || ""; }
+
+    function hasToken() {
+      return !!localStorage.getItem("token");
+    }
+
+    // ✅ (수정) 토큰이 있어도 자동으로 넘어가지 않음
+    // 필요하면 "Already signed in" 같은 안내만 표시
+    setStatus(hasToken() ? "Token exists (press Login or Logout)" : "");
+
+    async function doLogin(email, password) {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-cache",
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(t || `Login failed (HTTP ${res.status})`);
+      }
+      return res.json(); // { token: "..." } 기대
+    }
+
+    $("btnLogin").addEventListener("click", async () => {
+      const email = $("loginEmail").value.trim();
+      const pass = $("loginPass").value.trim();
+
+      setMsg("");
+      setStatus("Signing in...");
+
+      try {
+        const data = await doLogin(email, pass);
+
+        if (!data || !data.token) {
+          throw new Error("No token returned from server");
+        }
+
+        localStorage.setItem("token", data.token);
+        setStatus("OK");
+        location.replace("/#dashboard");
       } catch (e) {
         setStatus("");
         setMsg(e?.message || "Login error");
@@ -137,9 +249,27 @@
       setStatus("Token cleared");
       setMsg("");
     });
+  </script>
+</body>
+</html>");
+      } catch (e) {
+        setStatus("");
+        setMsg(e?.message || "Login error");
+      }
+    });
 
-    // 초기 상태 표시
-    setStatus(hasToken() ? "Already signed in" : "");
+    // ✅ Enter 키로 로그인
+    $("loginPass").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") $("btnLogin").click();
+    });
+
+    // ✅ Logout 버튼: 토큰 삭제하고 login.html 그대로
+    $("btnLogout").addEventListener("click", () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      setStatus("Token cleared");
+      setMsg("");
+    });
   </script>
 </body>
 </html>
