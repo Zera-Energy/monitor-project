@@ -5,14 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>K-Saver Login</title>
 
-  <!-- 기존 스타일 재사용 -->
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/layout.css" />
   <link rel="stylesheet" href="/css/views.common.css" />
-
   <link rel="icon" href="data:,">
-
-  <!-- ✅ (추가) API 주소(config.js) 사용하려면 유지 -->
   <script src="/js/config.js"></script>
 
   <style>
@@ -29,7 +25,8 @@
 </head>
 <body>
 
-  <section class="contentCard" style="max-width:420px;margin:40px auto;">
+  <!-- ✅ form으로 감싸고 submit 막아서 GET 405 튀는 것 차단 -->
+  <form id="loginForm" class="contentCard" style="max-width:420px;margin:40px auto;">
     <div class="pageHeader" style="margin-bottom:14px;">
       <h2 class="pageTitle" style="margin:0;">Login</h2>
       <div class="k" style="margin-top:6px;">Sign in to access monitoring pages</div>
@@ -47,6 +44,7 @@
       </div>
 
       <div style="display:flex;gap:10px;align-items:center;">
+        <!-- ✅ submit 방지: type="button" 유지 -->
         <button class="btn primary" id="btnLogin" type="button" style="min-width:120px;">Login</button>
         <button class="btn" id="btnLogout" type="button" title="Clear token">Logout</button>
         <div class="k" id="loginStatus" style="margin-left:auto;"></div>
@@ -60,10 +58,9 @@
         - user@local / user1234
       </div>
     </div>
-  </section>
+  </form>
 
   <script>
-    // ✅ API_BASE 결정: config.js가 있으면 그걸 사용, 없으면 기본값
     const API_BASE =
       window.API_BASE ||
       (location.hostname === "localhost" || location.hostname === "127.0.0.1"
@@ -79,10 +76,37 @@
       return !!localStorage.getItem("token");
     }
 
-    // ✅ 토큰이 있어도 자동 이동 안 함 (상태만 표시)
+    // ✅ 폼 submit(엔터 포함)로 GET /api/auth/login 튀는 것 차단
+    $("loginForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+    });
+
     setStatus(hasToken() ? "Token exists (press Login or Logout)" : "");
 
-    // ✅ (수정) 로그인 응답이 "string" 이거나 {token}/{access_token} 일 수 있으니 전부 대응
+    // ✅ 어떤 응답이 와도 토큰 문자열을 뽑아내는 함수
+    function extractTokenFromAny(bodyText) {
+      const t = String(bodyText || "").trim();
+      if (!t) return "";
+
+      // 1) 응답이 그냥 JWT 문자열
+      if (t.includes(".") && t.split(".").length >= 3) return t;
+
+      // 2) 응답이 JSON(문자열/객체)일 수 있음 → 파싱 시도
+      try {
+        const j = JSON.parse(t);
+        if (typeof j === "string") return j.trim();
+        if (j && typeof j === "object") {
+          return String(j.token || j.access_token || j.jwt || "").trim();
+        }
+      } catch {}
+
+      // 3) "Bearer xxx" 형태면 그대로 토큰으로 저장해도 됨
+      if (/^bearer\s+/i.test(t)) return t;
+
+      // 4) 그 외: 토큰으로 보기 애매하면 빈값 처리
+      return "";
+    }
+
     async function doLogin(email, password) {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
@@ -96,26 +120,17 @@
         throw new Error(t || `Login failed (HTTP ${res.status})`);
       }
 
-      const contentType = (res.headers.get("content-type") || "").toLowerCase();
+      // ✅ 무조건 text로 먼저 받고, 그 다음 토큰 추출(가장 안전)
+      const raw = await res.text().catch(() => "");
+      const token = extractTokenFromAny(raw);
 
-      // JSON으로 오면 json 파싱, 아니면 text로 처리
-      if (contentType.includes("application/json")) {
-        const data = await res.json();
+      // 디버깅 원하면 아래 한 줄 잠깐 켜도 됨
+      // console.log("login raw:", raw);
 
-        // 1) 응답이 그냥 "tokenstring" 인 경우
-        if (typeof data === "string") return data.trim();
-
-        // 2) { token: ... } 또는 { access_token: ... } 인 경우
-        const token = data?.token || data?.access_token || "";
-        return String(token).trim();
-      }
-
-      // 3) content-type이 text/plain 같은 경우
-      const text = await res.text();
-      return String(text || "").trim();
+      return token;
     }
 
-    $("btnLogin").addEventListener("click", async () => {
+    async function handleLogin() {
       const email = $("loginEmail").value.trim();
       const pass = $("loginPass").value.trim();
 
@@ -124,28 +139,27 @@
 
       try {
         const token = await doLogin(email, pass);
-
-        if (!token) {
-          throw new Error("No token returned from server");
-        }
+        if (!token) throw new Error("No token returned from server");
 
         localStorage.setItem("token", token);
         setStatus("OK");
-
-        // ✅ 로그인 성공 후 이동할 페이지
-        location.replace("/#dashboard"); // 원하면 "/#overview" 로 바꿔도 됨
+        location.replace("/#dashboard"); // or "/#overview"
       } catch (e) {
         setStatus("");
         setMsg(e?.message || "Login error");
       }
-    });
+    }
 
-    // ✅ Enter 키로 로그인
+    $("btnLogin").addEventListener("click", handleLogin);
+
+    // ✅ Enter 키 → 로그인 실행(네비게이션/submit X)
+    $("loginEmail").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); handleLogin(); }
+    });
     $("loginPass").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") $("btnLogin").click();
+      if (e.key === "Enter") { e.preventDefault(); handleLogin(); }
     });
 
-    // ✅ Logout 버튼: 토큰 삭제하고 login.html 그대로
     $("btnLogout").addEventListener("click", () => {
       localStorage.removeItem("token");
       localStorage.removeItem("role");
