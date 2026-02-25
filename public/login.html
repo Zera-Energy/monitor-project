@@ -83,27 +83,41 @@
 
     setStatus(hasToken() ? "Token exists (press Login or Logout)" : "");
 
-    // ✅ 어떤 응답이 와도 토큰 문자열을 뽑아내는 함수
-    function extractTokenFromAny(bodyText) {
-      const t = String(bodyText || "").trim();
+    // ✅ 공통: 토큰 문자열 정리(따옴표 제거 + Bearer 제거)
+    function cleanToken(t) {
+      let s = String(t || "").trim();
+      s = s.replace(/^"+|"+$/g, "");              // 앞뒤 따옴표 제거
+      s = s.replace(/^bearer\s+/i, "").trim();   // "Bearer " 제거(있다면)
+      return s;
+    }
+
+    // ✅ (수정 핵심) 서버 응답이 JSON이든 문자열이든 "JWT만" 뽑아내기
+    function extractJwt(rawText) {
+      const t = String(rawText || "").trim();
       if (!t) return "";
 
-      // 1) 응답이 그냥 JWT 문자열
-      if (t.includes(".") && t.split(".").length >= 3) return t;
-
-      // 2) 응답이 JSON(문자열/객체)일 수 있음 → 파싱 시도
+      // 1) JSON 파싱이 되는 경우 (대부분 여기로 옴)
       try {
         const j = JSON.parse(t);
-        if (typeof j === "string") return j.trim();
+
+        // 서버가 그냥 "tokenstring"만 줄 수도 있음
+        if (typeof j === "string") return cleanToken(j);
+
+        // 서버가 {access_token, token_type, role} 형태
         if (j && typeof j === "object") {
-          return String(j.token || j.access_token || j.jwt || "").trim();
+          const cand = j.access_token || j.token || j.jwt || "";
+          return cleanToken(cand);
         }
-      } catch {}
+      } catch {
+        // JSON 아니면 아래로 계속
+      }
 
-      // 3) "Bearer xxx" 형태면 그대로 토큰으로 저장해도 됨
-      if (/^bearer\s+/i.test(t)) return t;
+      // 2) JSON이 아니라 그냥 토큰 문자열로 오는 경우
+      //    (JWT는 보통 xxx.yyy.zzz 형태)
+      const direct = cleanToken(t);
+      if (direct.includes(".") && direct.split(".").length >= 3) return direct;
 
-      // 4) 그 외: 토큰으로 보기 애매하면 빈값 처리
+      // 3) 그 외: 토큰으로 보기 애매하면 빈값
       return "";
     }
 
@@ -115,19 +129,18 @@
         body: JSON.stringify({ email, password }),
       });
 
+      const raw = await res.text().catch(() => "");
+
       if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        throw new Error(t || `Login failed (HTTP ${res.status})`);
+        // 서버가 {"detail":"..."} 같이 줄 수도 있어서 그대로 보여줌
+        throw new Error(raw || `Login failed (HTTP ${res.status})`);
       }
 
-      // ✅ 무조건 text로 먼저 받고, 그 다음 토큰 추출(가장 안전)
-      const raw = await res.text().catch(() => "");
-      const token = extractTokenFromAny(raw);
-
-      // 디버깅 원하면 아래 한 줄 잠깐 켜도 됨
-      // console.log("login raw:", raw);
-
-      return token;
+      const jwt = extractJwt(raw);
+      if (!jwt) {
+        console.log("[login] raw response =", raw);
+      }
+      return jwt;
     }
 
     async function handleLogin() {
@@ -138,10 +151,12 @@
       setStatus("Signing in...");
 
       try {
-        const token = await doLogin(email, pass);
-        if (!token) throw new Error("No token returned from server");
+        const jwt = await doLogin(email, pass);
+        if (!jwt) throw new Error("No token returned from server");
 
-        localStorage.setItem("token", token);
+        // ✅ localStorage에는 무조건 JWT 문자열만 저장
+        localStorage.setItem("token", jwt);
+
         setStatus("OK");
         location.replace("/#dashboard"); // or "/#overview"
       } catch (e) {
