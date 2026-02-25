@@ -71,7 +71,6 @@ function isLoggedIn() {
   return !!getToken();
 }
 function goLoginPage() {
-  // ✅ 로그인 분리 페이지로 이동
   location.replace("/login.html");
 }
 function logout() {
@@ -81,15 +80,20 @@ function logout() {
 }
 
 /* =========================================================
-   ✅ [추가] Topbar Logout 버튼
-   - index.html에 id="btnTopLogout" 버튼을 넣어둔 상태
+   ✅ [수정 핵심] Topbar Logout 버튼 (module이라 DOM 로드 타이밍 주의)
+   - document.addEventListener("click", ...) 대신
+   - DOMContentLoaded 이후에 안전하게 바인딩
 ========================================================= */
-document.addEventListener("click", (e) => {
-  const el = e.target;
-  if (el && el.id === "btnTopLogout") {
-    logout();
-  }
-});
+function bindTopLogout() {
+  const btn = document.getElementById("btnTopLogout");
+  if (!btn) return;
+  btn.addEventListener("click", () => logout());
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindTopLogout);
+} else {
+  bindTopLogout();
+}
 
 /** 401이면 자동 로그아웃 + login.html로 */
 async function apiFetch(url, options = {}) {
@@ -110,16 +114,12 @@ async function apiFetch(url, options = {}) {
 
   const res = await fetch(url, { ...options, headers, cache: "no-cache" });
 
-  // ✅ (디버깅) 401이면 3초 후 login으로 (원인 확인용)
+  // ✅ 운영에서는 즉시 logout, 디버깅 필요하면 setTimeout으로 바꿔도 됨
   if (res.status === 401) {
     console.warn("[401] url =", url);
     console.warn("[401] raw token =", localStorage.getItem("token"));
     console.warn("[401] clean token =", getToken());
-    console.warn("[401] will redirect to /login.html in 3s");
-
-    setTimeout(() => {
-      logout(); // ✅ 중복 제거: logout() 재사용
-    }, 3000);
+    logout();
   }
 
   return res;

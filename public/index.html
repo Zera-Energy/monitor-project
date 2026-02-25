@@ -130,13 +130,14 @@
           <button class="iconBtn" type="button">🌐</button>
           <button class="iconBtn" type="button">🔔</button>
 
-          <div class="user">
-            <div class="avatar">E</div>
-            <div class="userText">eunseok oh (user) ▾</div>
+          <!-- ✅ [수정] 유저 표시 영역에 id 부여 (app.js에서 바꾸기 위해) -->
+          <div class="user" id="topUser">
+            <div class="avatar" id="topAvatar">U</div>
+            <div class="userText" id="topUserText">Signed in</div>
           </div>
 
-          <!-- ✅ [추가] Logout 버튼 -->
-          <button class="btn" id="btnTopLogout" type="button">Logout</button>
+          <!-- ✅ [수정] Logout 버튼은 같은 영역에 두고 스타일만 최소 보정 -->
+          <button class="btn" id="btnTopLogout" type="button" style="height:34px;padding:0 10px;">Logout</button>
         </div>
       </header>
 
@@ -150,6 +151,21 @@
   </div>
 
   <script src="./js/sidebar.js"></script>
+
+  <!-- ✅ Logout 버튼 동작: app.js 수정 없이 index에서 바로 처리 -->
+  <script>
+    (function () {
+      const btn = document.getElementById("btnTopLogout");
+      if (!btn) return;
+
+      btn.addEventListener("click", () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        location.replace("/login.html");
+      });
+    })();
+  </script>
+
   <script src="/js/dev_developer.js"></script>
   <script type="module" src="./js/app.js"></script>
 </body>
