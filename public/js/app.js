@@ -145,7 +145,7 @@ async function fetchJson(url) {
 }
 
 /* =========================================================
-   ✅ 토스트(간단 알림) 유틸 (추가)
+   ✅ 토스트(간단 알림) 유틸
 ========================================================= */
 let __toastEl = null;
 let __toastTimer = null;
@@ -179,107 +179,7 @@ function showToast(msg, ms = 3000) {
 }
 
 /* =========================================================
-   ✅ MQTT 연결 상태 Topbar 표시
-========================================================= */
-let __mqttClient = null;
-
-// ✅ (추가) 5초 이상 offline이면 토스트
-let __mqttOfflineTimer = null;
-let __mqttOfflineNotified = false;
-
-function setMqttChip(state, detail = "") {
-  const el = document.getElementById("mqttStatusChip");
-  if (!el) return;
-
-  if (state === "connected") el.textContent = "MQTT: 🟢 Connected";
-  else if (state === "reconnecting") el.textContent = "MQTT: 🟡 Reconnecting";
-  else if (state === "offline") el.textContent = "MQTT: 🔴 Offline";
-  else el.textContent = "MQTT: …";
-
-  el.title = detail || "";
-}
-
-function scheduleMqttOfflineToast(detail = "") {
-  if (__mqttOfflineTimer) return; // 이미 예약됨
-  __mqttOfflineTimer = setTimeout(() => {
-    __mqttOfflineTimer = null;
-    if (!__mqttOfflineNotified) {
-      __mqttOfflineNotified = true;
-      showToast("MQTT 연결이 끊겼습니다. (5초 이상 Offline)");
-    }
-  }, 5000);
-}
-
-function clearMqttOfflineToast() {
-  if (__mqttOfflineTimer) {
-    clearTimeout(__mqttOfflineTimer);
-    __mqttOfflineTimer = null;
-  }
-  __mqttOfflineNotified = false;
-}
-
-function startMqttStatus() {
-  if (typeof window.mqtt === "undefined") {
-    setMqttChip("offline", "mqtt.min.js not loaded");
-    return;
-  }
-
-  const url = window.MQTT_URL || "";
-  const username = window.MQTT_USERNAME || "";
-  const password = window.MQTT_PASSWORD || "";
-
-  if (!url) {
-    setMqttChip("offline", "MQTT_URL not set in config.js");
-    return;
-  }
-
-  try { __mqttClient?.end?.(true); } catch {}
-  __mqttClient = null;
-
-  setMqttChip("reconnecting", url);
-
-  const clientId = "web_" + Math.random().toString(16).slice(2);
-
-  const client = window.mqtt.connect(url, {
-    clientId,
-    username: username || undefined,
-    password: password || undefined,
-    keepalive: 30,
-    reconnectPeriod: 2000,
-    connectTimeout: 5000,
-    clean: true,
-  });
-
-  __mqttClient = client;
-
-  client.on("connect", () => {
-    setMqttChip("connected", url);
-    clearMqttOfflineToast();
-  });
-
-  client.on("reconnect", () => {
-    setMqttChip("reconnecting", url);
-  });
-
-  client.on("offline", () => {
-    setMqttChip("offline", url);
-    scheduleMqttOfflineToast(url);
-  });
-
-  client.on("close", () => {
-    setMqttChip("offline", url);
-    scheduleMqttOfflineToast(url);
-  });
-
-  client.on("error", (err) => {
-    const msg = err?.message ? err.message : String(err);
-    setMqttChip("offline", msg);
-    scheduleMqttOfflineToast(msg);
-  });
-}
-
-/* =========================================================
-   ✅ API 상태 Topbar 표시 (추가)
+   ✅ API 상태 Topbar 표시
 ========================================================= */
 let __apiStatusTimer = null;
 
@@ -300,18 +200,11 @@ async function pingApiOnce() {
     const token = getToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const res = await fetch(`${API_BASE}/api/auth/me`, {
-      headers,
-      cache: "no-cache",
-    });
-
+    const res = await fetch(`${API_BASE}/api/auth/me`, { headers, cache: "no-cache" });
     const ms = Math.round(performance.now() - t0);
 
-    if (res.ok) {
-      setApiChip(ms > 1200 ? "slow" : "ok", `${ms}ms`);
-    } else {
-      setApiChip("down", `HTTP ${res.status}`);
-    }
+    if (res.ok) setApiChip(ms > 1200 ? "slow" : "ok", `${ms}ms`);
+    else setApiChip("down", `HTTP ${res.status}`);
   } catch (e) {
     setApiChip("down", e?.message || String(e));
   }
@@ -322,11 +215,6 @@ function startApiStatus() {
   if (__apiStatusTimer) clearInterval(__apiStatusTimer);
   __apiStatusTimer = setInterval(pingApiOnce, 5000);
 }
-
-/* =========================================================
-   ✅ API 폴링 (overview/monitor/dashboard용)
-========================================================= */
-let __pollTimer = null;
 
 /* =========================================================
    ✅ (추가) 장비 토픽 + CT(3상) 채널 정규화
@@ -453,6 +341,175 @@ function normalizeItems(items) {
   return items.map(normalizeOne);
 }
 
+/* =========================================================
+   ✅ (추가) MQTT 실시간 캐시 + emit (폴링 대체)
+========================================================= */
+const __devicesByTopic = new Map(); // topic -> latest payload item
+let __mqttConnected = false;
+
+let __emitTimer = null;
+
+function getCurrentRoute() {
+  return (location.hash || "#overview").replace("#", "").trim() || "overview";
+}
+
+function emitDevicesToView(route) {
+  const rawItems = Array.from(__devicesByTopic.values());
+  const items = normalizeItems(rawItems);
+
+  if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
+    try { window.__overviewOnDevices__(items); } catch {}
+  }
+  if (route === "monitor" && typeof window.__monitorOnDevices__ === "function") {
+    try { window.__monitorOnDevices__(items); } catch {}
+  }
+  if (route === "dashboard" && typeof window.__dashboardOnDevices__ === "function") {
+    try { window.__dashboardOnDevices__(items); } catch {}
+  }
+}
+
+function scheduleEmit(route) {
+  if (__emitTimer) return;
+  __emitTimer = setTimeout(() => {
+    __emitTimer = null;
+    emitDevicesToView(route);
+  }, 200);
+}
+
+/* =========================================================
+   ✅ MQTT 연결 상태 Topbar 표시
+========================================================= */
+let __mqttClient = null;
+
+// ✅ 5초 이상 offline이면 토스트
+let __mqttOfflineTimer = null;
+let __mqttOfflineNotified = false;
+
+function setMqttChip(state, detail = "") {
+  const el = document.getElementById("mqttStatusChip");
+  if (!el) return;
+
+  if (state === "connected") el.textContent = "MQTT: 🟢 Connected";
+  else if (state === "reconnecting") el.textContent = "MQTT: 🟡 Reconnecting";
+  else if (state === "offline") el.textContent = "MQTT: 🔴 Offline";
+  else el.textContent = "MQTT: …";
+
+  el.title = detail || "";
+}
+
+function scheduleMqttOfflineToast(detail = "") {
+  if (__mqttOfflineTimer) return;
+  __mqttOfflineTimer = setTimeout(() => {
+    __mqttOfflineTimer = null;
+    if (!__mqttOfflineNotified) {
+      __mqttOfflineNotified = true;
+      showToast("MQTT 연결이 끊겼습니다. (5초 이상 Offline)");
+    }
+  }, 5000);
+}
+
+function clearMqttOfflineToast() {
+  if (__mqttOfflineTimer) {
+    clearTimeout(__mqttOfflineTimer);
+    __mqttOfflineTimer = null;
+  }
+  __mqttOfflineNotified = false;
+}
+
+function startMqttStatus() {
+  if (typeof window.mqtt === "undefined") {
+    setMqttChip("offline", "mqtt.min.js not loaded");
+    return;
+  }
+
+  const url = window.MQTT_URL || "";
+  const username = window.MQTT_USERNAME || "";
+  const password = window.MQTT_PASSWORD || "";
+
+  if (!url) {
+    setMqttChip("offline", "MQTT_URL not set in config.js");
+    return;
+  }
+
+  try { __mqttClient?.end?.(true); } catch {}
+  __mqttClient = null;
+
+  setMqttChip("reconnecting", url);
+
+  const clientId = "web_" + Math.random().toString(16).slice(2);
+
+  const client = window.mqtt.connect(url, {
+    clientId,
+    username: username || undefined,
+    password: password || undefined,
+    keepalive: 30,
+    reconnectPeriod: 2000,
+    connectTimeout: 5000,
+    clean: true,
+  });
+
+  __mqttClient = client;
+
+  client.on("connect", () => {
+    setMqttChip("connected", url);
+    clearMqttOfflineToast();
+    __mqttConnected = true;
+
+    // ✅ 실시간 구독
+    try {
+      client.subscribe("th/#", (err) => {
+        if (err) console.warn("MQTT subscribe err:", err);
+      });
+    } catch (e) {
+      console.warn("MQTT subscribe fail:", e);
+    }
+
+    // ✅ 연결되면 현재 캐시 1번 emit
+    scheduleEmit(getCurrentRoute());
+  });
+
+  client.on("reconnect", () => {
+    setMqttChip("reconnecting", url);
+  });
+
+  client.on("offline", () => {
+    setMqttChip("offline", url);
+    __mqttConnected = false;
+    scheduleMqttOfflineToast(url);
+  });
+
+  client.on("close", () => {
+    setMqttChip("offline", url);
+    __mqttConnected = false;
+    scheduleMqttOfflineToast(url);
+  });
+
+  client.on("error", (err) => {
+    const msg = err?.message ? err.message : String(err);
+    setMqttChip("offline", msg);
+    __mqttConnected = false;
+    scheduleMqttOfflineToast(msg);
+  });
+
+  // ✅ 실시간 메시지 수신 → 캐시에 저장 → 화면 갱신
+  client.on("message", (topic, payload) => {
+    let obj = null;
+    try {
+      obj = JSON.parse(payload.toString());
+    } catch {
+      return;
+    }
+    const item = { topic, ...obj };
+    __devicesByTopic.set(topic, item);
+    scheduleEmit(getCurrentRoute());
+  });
+}
+
+/* =========================================================
+   ✅ API 폴링 (overview/monitor/dashboard용) - 백업용으로 저주기
+========================================================= */
+let __pollTimer = null;
+
 function stopViewPoll() {
   if (__pollTimer) {
     clearInterval(__pollTimer);
@@ -460,7 +517,7 @@ function stopViewPoll() {
   }
 }
 
-function startViewPoll(route) {
+function startViewPoll(route, intervalMs = 3000) {
   stopViewPoll();
 
   const tick = async () => {
@@ -468,6 +525,12 @@ function startViewPoll(route) {
       const data = await fetchJson(`${API_BASE}/api/devices`);
       const rawItems = data?.items || [];
       const items = normalizeItems(rawItems);
+
+      // ✅ API 응답도 캐시에 반영(동기화)
+      for (const it of rawItems) {
+        const t = pickTopic(it);
+        if (t) __devicesByTopic.set(String(t), it);
+      }
 
       if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
         try { window.__overviewOnDevices__(items); } catch {}
@@ -486,7 +549,7 @@ function startViewPoll(route) {
   };
 
   tick();
-  __pollTimer = setInterval(tick, 3000);
+  __pollTimer = setInterval(tick, intervalMs);
 }
 
 /* =========================
@@ -580,7 +643,12 @@ async function loadView(route) {
     await loadViewJs(route);
 
     if (route === "overview" || route === "monitor" || route === "dashboard") {
-      startViewPoll(route);
+      // ✅ MQTT가 연결돼 있으면 폴링을 백업(저주기)로만
+      const interval = __mqttConnected ? 30000 : 3000;
+      startViewPoll(route, interval);
+
+      // ✅ MQTT 연결 상태면 진입 즉시 캐시도 1번 반영
+      if (__mqttConnected) scheduleEmit(route);
 
       const prev = window.__viewCleanup__;
       window.__viewCleanup__ = () => {
@@ -618,15 +686,14 @@ window.addEventListener("hashchange", route);
 if (!isLoggedIn()) {
   goLoginPage();
 } else {
-  // ✅ 첫 진입 시 유저정보 1회 로드해서 Topbar 갱신
   loadMeAndUpdateTopbar().catch((e) => {
     console.warn("me failed:", e?.message || e);
   });
 
-  // ✅ MQTT 상태 표시 시작
+  // ✅ MQTT 상태 + 실시간 구독 시작
   startMqttStatus();
 
-  // ✅ API 상태 표시 시작 (추가)
+  // ✅ API 상태칩
   startApiStatus();
 
   if (!location.hash) location.hash = "#dashboard";
