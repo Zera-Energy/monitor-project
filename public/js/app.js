@@ -5,12 +5,8 @@ const viewEl = document.getElementById("view");
    ✅ 라우트 -> HTML
 ========================= */
 const ROUTES = {
-  // ✅ login은 SPA 내부 view가 아니라 /login.html (별도 페이지)로 분리
   overview: "./views/overview.html",
-
-  // ✅ (수정) 실제 파일명: devices-setting.html
   devices: "./views/devices-setting.html",
-
   monitor: "./views/monitor.html",
   location: "./views/location.html",
   notifications: "./views/notifications.html",
@@ -42,7 +38,6 @@ const VIEW_JS = {
   dashboard: "./js/view.dashboard.js",
   monitor: "./js/view.monitor.js",
   location: "./js/view.location.js",
-  // ✅ login은 /login.html에서 처리하므로 제거
   "dashboard-setting": "./js/view.pm.js",
 };
 
@@ -64,7 +59,6 @@ const API_BASE = window.API_BASE;
    ✅ Auth
 ========================================================= */
 function cleanToken(v) {
-  // "eyJ..." 같이 따옴표로 저장되는 경우 제거 + 공백 제거
   return String(v || "").trim().replace(/^"+|"+$/g, "");
 }
 function getToken() {
@@ -72,7 +66,6 @@ function getToken() {
 }
 function isLoggedIn() {
   const t = getToken();
-  // JWT처럼 보이는지까지 체크(최소 점 2개)
   return !!t && t.split(".").length >= 3;
 }
 function goLoginPage() {
@@ -98,25 +91,44 @@ if (document.readyState === "loading") {
   bindTopLogout();
 }
 
+/* =========================================================
+   ✅ [추가] Topbar 유저 표시 업데이트 (/api/auth/me)
+========================================================= */
+function setTopUserUI(user) {
+  const avatarEl = document.getElementById("topAvatar");
+  const textEl = document.getElementById("topUserText");
+  if (!avatarEl || !textEl) return;
+
+  const email = user?.email || "Signed in";
+  const role = user?.role ? ` (${user.role})` : "";
+
+  const first = String(email).trim().charAt(0).toUpperCase() || "U";
+  avatarEl.textContent = first;
+  textEl.textContent = `${email}${role}`;
+}
+
+async function loadMeAndUpdateTopbar() {
+  // 서버: { ok: true, user: {...} }
+  const data = await fetchJson(`${API_BASE}/api/auth/me`);
+  setTopUserUI(data?.user);
+}
+
 /** 401이면 자동 로그아웃 + login.html로 */
 async function apiFetch(url, options = {}) {
   const token = getToken();
   const headers = new Headers(options.headers || {});
 
-  // ✅ token이 이미 "Bearer ..."면 그대로, 아니면 Bearer 붙이기
   if (token) {
     if (/^bearer\s+/i.test(token)) headers.set("Authorization", token);
     else headers.set("Authorization", `Bearer ${token}`);
   }
 
-  // JSON body면 content-type 자동
   if (options.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
   const res = await fetch(url, { ...options, headers, cache: "no-cache" });
 
-  // ✅ 운영에서는 즉시 logout
   if (res.status === 401) {
     console.warn("[401] url =", url);
     console.warn("[401] raw token =", localStorage.getItem("token"));
@@ -428,6 +440,11 @@ window.addEventListener("hashchange", route);
 if (!isLoggedIn()) {
   goLoginPage();
 } else {
+  // ✅ [추가] 첫 진입 시 유저정보 1회 로드해서 Topbar 갱신
+  loadMeAndUpdateTopbar().catch((e) => {
+    console.warn("me failed:", e?.message || e);
+  });
+
   if (!location.hash) location.hash = "#dashboard";
   route();
 }
