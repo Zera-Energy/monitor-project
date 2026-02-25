@@ -99,13 +99,18 @@ async function apiFetch(url, options = {}) {
 
   const res = await fetch(url, { ...options, headers, cache: "no-cache" });
 
-  if (res.status === 401) {
-    // 토큰 만료/불일치
+ if (res.status === 401) {
+  console.warn("[401] url =", url);
+  console.warn("[401] raw token =", localStorage.getItem("token"));
+  console.warn("[401] clean token =", getToken());
+  console.warn("[401] will redirect to /login.html in 3s");
+
+  // ✅ 즉시 튕기지 말고 잠깐 멈춰서 확인 가능하게
+  setTimeout(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     goLoginPage();
-  }
-  return res;
+  }, 3000);
 }
 
 async function fetchJson(url) {
