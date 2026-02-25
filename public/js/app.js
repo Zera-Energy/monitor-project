@@ -111,7 +111,7 @@ async function loadMeAndUpdateTopbar() {
   // ✅ 서버 응답이 실제로 { email, role, id } 형태임
   // 예: {"email":"admin@local","role":"admin","id":"1"}
   const me = await fetchJson(`${API_BASE}/api/auth/me`);
-  setTopUserUI(me); // ✅ 여기만 바뀜 (data.user → me)
+  setTopUserUI(me);
 }
 
 /** 401이면 자동 로그아웃 + login.html로 */
@@ -144,6 +144,70 @@ async function fetchJson(url) {
   const res = await apiFetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
   return await res.json();
+}
+
+/* =========================================================
+   ✅ MQTT 연결 상태 Topbar 표시 (추가)
+   - config.js에서 window.MQTT_URL / MQTT_USERNAME / MQTT_PASSWORD 사용
+========================================================= */
+let __mqttClient = null;
+
+function setMqttChip(state, detail = "") {
+  const el = document.getElementById("mqttStatusChip");
+  if (!el) return;
+
+  if (state === "connected") el.textContent = "MQTT: 🟢 Connected";
+  else if (state === "reconnecting") el.textContent = "MQTT: 🟡 Reconnecting";
+  else if (state === "offline") el.textContent = "MQTT: 🔴 Offline";
+  else el.textContent = "MQTT: …";
+
+  el.title = detail || "";
+}
+
+function startMqttStatus() {
+  // mqtt 라이브러리 없으면 종료
+  if (typeof window.mqtt === "undefined") {
+    setMqttChip("offline", "mqtt.min.js not loaded");
+    return;
+  }
+
+  const url = window.MQTT_URL || ""; // ex) wss://...:8884/mqtt
+  const username = window.MQTT_USERNAME || "";
+  const password = window.MQTT_PASSWORD || "";
+
+  if (!url) {
+    setMqttChip("offline", "MQTT_URL not set in config.js");
+    return;
+  }
+
+  // 기존 연결 있으면 끊고 재시작
+  try { __mqttClient?.end?.(true); } catch {}
+  __mqttClient = null;
+
+  setMqttChip("reconnecting", url);
+
+  const clientId = "web_" + Math.random().toString(16).slice(2);
+
+  const client = window.mqtt.connect(url, {
+    clientId,
+    username: username || undefined,
+    password: password || undefined,
+    keepalive: 30,
+    reconnectPeriod: 2000,
+    connectTimeout: 5000,
+    clean: true,
+  });
+
+  __mqttClient = client;
+
+  client.on("connect", () => setMqttChip("connected", url));
+  client.on("reconnect", () => setMqttChip("reconnecting", url));
+  client.on("offline", () => setMqttChip("offline", url));
+  client.on("close", () => setMqttChip("offline", url));
+  client.on("error", (err) => {
+    const msg = err?.message ? err.message : String(err);
+    setMqttChip("offline", msg);
+  });
 }
 
 /* =========================================================
@@ -445,6 +509,9 @@ if (!isLoggedIn()) {
   loadMeAndUpdateTopbar().catch((e) => {
     console.warn("me failed:", e?.message || e);
   });
+
+  // ✅ MQTT 상태 표시 시작 (추가)
+  startMqttStatus();
 
   if (!location.hash) location.hash = "#dashboard";
   route();
