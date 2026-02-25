@@ -213,7 +213,9 @@ async function pingApiOnce() {
 function startApiStatus() {
   pingApiOnce();
   if (__apiStatusTimer) clearInterval(__apiStatusTimer);
-  __apiStatusTimer = setInterval(pingApiOnce, 5000);
+
+  // ✅ (수정) 5초 → 30초 (Network 폭발 방지)
+  __apiStatusTimer = setInterval(pingApiOnce, 30000);
 }
 
 /* =========================================================
@@ -381,6 +383,10 @@ function scheduleEmit(route) {
 ========================================================= */
 let __pollTimer = null;
 
+// ✅ (추가) 현재 폴링 주기 기억 + 재시작 디바운스
+let __pollIntervalMs = 0;
+let __restartPollTimer = null;
+
 function stopViewPoll() {
   if (__pollTimer) {
     clearInterval(__pollTimer);
@@ -421,10 +427,13 @@ function startViewPoll(route, intervalMs = 3000) {
 
   tick();
   __pollTimer = setInterval(tick, intervalMs);
+
+  // ✅ (추가) 현재 주기 저장
+  __pollIntervalMs = intervalMs;
 }
 
 /* =========================================================
-   ✅ (추가) MQTT 상태에 따라 현재 화면 폴링 즉시 전환
+   ✅ MQTT 상태에 따라 현재 화면 폴링 즉시 전환 (수정)
 ========================================================= */
 function isLiveRoute(route) {
   return route === "overview" || route === "monitor" || route === "dashboard";
@@ -434,8 +443,17 @@ function restartPollForCurrentRoute() {
   const route = getRouteFromHash();
   if (!isLiveRoute(route)) return;
 
-  const interval = __mqttConnected ? 30000 : 3000; // ✅ 백업 유지
-  startViewPoll(route, interval);
+  const nextInterval = __mqttConnected ? 30000 : 3000;
+
+  // ✅ 이미 같은 주기면 재시작하지 않음
+  if (__pollTimer && __pollIntervalMs === nextInterval) return;
+
+  // ✅ 짧은 시간에 여러 번 호출돼도 1번만 실행(디바운스)
+  if (__restartPollTimer) clearTimeout(__restartPollTimer);
+  __restartPollTimer = setTimeout(() => {
+    __restartPollTimer = null;
+    startViewPoll(route, nextInterval);
+  }, 300);
 }
 
 /* =========================================================
@@ -529,7 +547,7 @@ function startMqttStatus() {
     // ✅ 연결되면 현재 캐시 1번 emit
     scheduleEmit(getCurrentRoute());
 
-    // ✅ (추가) MQTT 연결되면 폴링을 즉시 30초 백업으로 전환
+    // ✅ MQTT 연결되면 폴링을 즉시 30초 백업으로 전환
     restartPollForCurrentRoute();
   });
 
@@ -542,7 +560,7 @@ function startMqttStatus() {
     __mqttConnected = false;
     scheduleMqttOfflineToast(url);
 
-    // ✅ (추가) MQTT 끊기면 폴링을 즉시 3초로 복귀
+    // ✅ MQTT 끊기면 폴링을 즉시 3초로 복귀
     restartPollForCurrentRoute();
   });
 
@@ -551,7 +569,6 @@ function startMqttStatus() {
     __mqttConnected = false;
     scheduleMqttOfflineToast(url);
 
-    // ✅ (추가)
     restartPollForCurrentRoute();
   });
 
@@ -561,7 +578,6 @@ function startMqttStatus() {
     __mqttConnected = false;
     scheduleMqttOfflineToast(msg);
 
-    // ✅ (추가)
     restartPollForCurrentRoute();
   });
 
