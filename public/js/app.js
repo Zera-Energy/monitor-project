@@ -92,7 +92,7 @@ if (document.readyState === "loading") {
 }
 
 /* =========================================================
-   ✅ [추가] Topbar 유저 표시 업데이트 (/api/auth/me)
+   ✅ Topbar 유저 표시 업데이트 (/api/auth/me)
 ========================================================= */
 function setTopUserUI(user) {
   const avatarEl = document.getElementById("topAvatar");
@@ -108,9 +108,10 @@ function setTopUserUI(user) {
 }
 
 async function loadMeAndUpdateTopbar() {
-  // 서버: { ok: true, user: {...} }
-  const data = await fetchJson(`${API_BASE}/api/auth/me`);
-  setTopUserUI(data?.user);
+  // ✅ 서버 응답이 실제로 { email, role, id } 형태임
+  // 예: {"email":"admin@local","role":"admin","id":"1"}
+  const me = await fetchJson(`${API_BASE}/api/auth/me`);
+  setTopUserUI(me); // ✅ 여기만 바뀜 (data.user → me)
 }
 
 /** 401이면 자동 로그아웃 + login.html로 */
@@ -440,7 +441,7 @@ window.addEventListener("hashchange", route);
 if (!isLoggedIn()) {
   goLoginPage();
 } else {
-  // ✅ [추가] 첫 진입 시 유저정보 1회 로드해서 Topbar 갱신
+  // ✅ 첫 진입 시 유저정보 1회 로드해서 Topbar 갱신
   loadMeAndUpdateTopbar().catch((e) => {
     console.warn("me failed:", e?.message || e);
   });
