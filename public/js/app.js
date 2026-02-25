@@ -1,4 +1,10 @@
 // /js/app.js
+import { isLoggedIn, goLoginPage } from "./lib/auth.js";
+import { fetchJson } from "./lib/api.js";
+import { bindTopLogout, setTopUserUI } from "./ui/topbar.js";
+import { DeviceStore } from "./lib/deviceStore.js";
+import { createMqttClient } from "./lib/mqttClient.js";
+
 const viewEl = document.getElementById("view");
 
 /* =========================
@@ -56,177 +62,20 @@ window.API_BASE =
 const API_BASE = window.API_BASE;
 
 /* =========================================================
-   ✅ Auth
+   ✅ Topbar Chips
 ========================================================= */
-function cleanToken(v) {
-  return String(v || "").trim().replace(/^"+|"+$/g, "");
-}
-function getToken() {
-  return cleanToken(localStorage.getItem("token"));
-}
-function isLoggedIn() {
-  const t = getToken();
-  return !!t && t.split(".").length >= 3;
-}
-function goLoginPage() {
-  location.replace("/login.html");
-}
-function logout() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
-  goLoginPage();
-}
-
-/* =========================================================
-   ✅ Topbar Logout 버튼 바인딩
-========================================================= */
-function bindTopLogout() {
-  const btn = document.getElementById("btnTopLogout");
-  if (!btn) return;
-  btn.addEventListener("click", () => logout());
-}
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", bindTopLogout);
-} else {
-  bindTopLogout();
-}
-
-/* =========================================================
-   ✅ Topbar 유저 표시 업데이트 (/api/auth/me)
-========================================================= */
-function setTopUserUI(user) {
-  const avatarEl = document.getElementById("topAvatar");
-  const textEl = document.getElementById("topUserText");
-  if (!avatarEl || !textEl) return;
-
-  const email = user?.email || "Signed in";
-  const role = user?.role ? ` (${user.role})` : "";
-
-  const first = String(email).trim().charAt(0).toUpperCase() || "U";
-  avatarEl.textContent = first;
-  textEl.textContent = `${email}${role}`;
-}
-
-async function loadMeAndUpdateTopbar() {
-  const me = await fetchJson(`${API_BASE}/api/auth/me`);
-  setTopUserUI(me);
-}
-
-/** 401이면 자동 로그아웃 + login.html로 */
-async function apiFetch(url, options = {}) {
-  const token = getToken();
-  const headers = new Headers(options.headers || {});
-
-  if (token) {
-    if (/^bearer\s+/i.test(token)) headers.set("Authorization", token);
-    else headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  if (options.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  const res = await fetch(url, { ...options, headers, cache: "no-cache" });
-
-  if (res.status === 401) {
-    console.warn("[401] url =", url);
-    console.warn("[401] raw token =", localStorage.getItem("token"));
-    console.warn("[401] clean token =", getToken());
-    logout();
-  }
-
-  return res;
-}
-
-async function fetchJson(url) {
-  const res = await apiFetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
-  return await res.json();
-}
-
-/* =========================================================
-   ✅ 토스트(간단 알림) 유틸
-========================================================= */
-let __toastEl = null;
-let __toastTimer = null;
-
-function showToast(msg, ms = 3000) {
-  if (!__toastEl) {
-    __toastEl = document.createElement("div");
-    __toastEl.id = "__toast";
-    __toastEl.style.position = "fixed";
-    __toastEl.style.right = "16px";
-    __toastEl.style.bottom = "16px";
-    __toastEl.style.padding = "10px 12px";
-    __toastEl.style.borderRadius = "12px";
-    __toastEl.style.boxShadow = "0 10px 30px rgba(0,0,0,.18)";
-    __toastEl.style.background = "#111";
-    __toastEl.style.color = "#fff";
-    __toastEl.style.fontSize = "13px";
-    __toastEl.style.zIndex = "99999";
-    __toastEl.style.maxWidth = "320px";
-    __toastEl.style.display = "none";
-    document.body.appendChild(__toastEl);
-  }
-
-  __toastEl.textContent = msg;
-  __toastEl.style.display = "block";
-
-  if (__toastTimer) clearTimeout(__toastTimer);
-  __toastTimer = setTimeout(() => {
-    if (__toastEl) __toastEl.style.display = "none";
-  }, ms);
-}
-
-/* =========================================================
-   ✅ API 상태 Topbar 표시
-   ✅ (수정) 5초 → 15초로 완화 + 탭 숨김이면 중지
-========================================================= */
-let __apiStatusTimer = null;
-
-function setApiChip(state, detail = "") {
-  const el = document.getElementById("apiStatusChip");
+function setMqttChip(state, detail = "") {
+  const el = document.getElementById("mqttStatusChip");
   if (!el) return;
-
-  if (state === "ok") el.textContent = "API: 🟢 OK";
-  else if (state === "slow") el.textContent = "API: 🟡 Slow";
-  else el.textContent = "API: 🔴 Down";
-
+  if (state === "connected") el.textContent = "MQTT: 🟢 Connected";
+  else if (state === "reconnecting") el.textContent = "MQTT: 🟡 Reconnecting";
+  else if (state === "offline") el.textContent = "MQTT: 🔴 Offline";
+  else el.textContent = "MQTT: …";
   el.title = detail || "";
 }
 
-async function pingApiOnce() {
-  const t0 = performance.now();
-  try {
-    const token = getToken();
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-    const res = await fetch(`${API_BASE}/api/auth/me`, { headers, cache: "no-cache" });
-    const ms = Math.round(performance.now() - t0);
-
-    if (res.ok) setApiChip(ms > 1200 ? "slow" : "ok", `${ms}ms`);
-    else setApiChip("down", `HTTP ${res.status}`);
-  } catch (e) {
-    setApiChip("down", e?.message || String(e));
-  }
-}
-
-function stopApiStatus() {
-  if (__apiStatusTimer) clearInterval(__apiStatusTimer);
-  __apiStatusTimer = null;
-}
-
-function startApiStatus() {
-  stopApiStatus();
-  pingApiOnce();
-  __apiStatusTimer = setInterval(() => {
-    if (document.hidden) return; // ✅ 백그라운드면 스킵
-    pingApiOnce();
-  }, 15000); // ✅ 15초
-}
-
 /* =========================================================
-   ✅ (추가) 장비 토픽 + CT(3상) 채널 정규화
+   ✅ (그대로 유지) 장비 토픽 + 채널 정규화
 ========================================================= */
 function splitTopicLike(v) {
   if (v == null) return null;
@@ -351,21 +200,15 @@ function normalizeItems(items) {
 }
 
 /* =========================================================
-   ✅ MQTT 실시간 캐시 + emit
+   ✅ DeviceStore (단일 소스)
 ========================================================= */
-const __devicesByTopic = new Map(); // topic -> latest payload item
-let __mqttConnected = false;
+const store = new DeviceStore({ normalizeItems });
 
-let __emitTimer = null;
-
-function getCurrentRoute() {
-  return (location.hash || "#overview").replace("#", "").trim() || "overview";
+function isLiveRoute(route) {
+  return route === "overview" || route === "monitor" || route === "dashboard";
 }
 
-function emitDevicesToView(route) {
-  const rawItems = Array.from(__devicesByTopic.values());
-  const items = normalizeItems(rawItems);
-
+function emitToView(route, items) {
   if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
     try { window.__overviewOnDevices__(items); } catch {}
   }
@@ -377,220 +220,82 @@ function emitDevicesToView(route) {
   }
 }
 
-function scheduleEmit(route) {
-  if (__emitTimer) return;
-  __emitTimer = setTimeout(() => {
-    __emitTimer = null;
-    emitDevicesToView(route);
-  }, 200);
-}
-
-/* =========================================================
-   ✅ API 폴링 (백업)
-   ✅ (핵심 수정) "같은 (route, interval)"이면 재시작 안 함
-========================================================= */
-let __pollTimer = null;
-let __pollSpec = ""; // ✅ 현재 폴링 스펙 기억 (route|interval)
-
-function stopViewPoll() {
-  if (__pollTimer) {
-    clearInterval(__pollTimer);
-    __pollTimer = null;
-  }
-  __pollSpec = "";
-}
-
-function startViewPoll(route, intervalMs = 3000) {
-  const spec = `${route}|${intervalMs}`;
-  if (__pollTimer && __pollSpec === spec) {
-    return; // ✅ 이미 같은 설정으로 도는 중이면 그대로 둠
-  }
-
-  // ✅ 설정이 바뀌면 기존 폴링 정리하고 새로 시작
-  stopViewPoll();
-  __pollSpec = spec;
-
-  const tick = async () => {
-    if (document.hidden) return; // ✅ 백그라운드면 폴링 스킵(요청 폭감)
-
-    try {
-      const data = await fetchJson(`${API_BASE}/api/devices`);
-      const rawItems = data?.items || [];
-      const items = normalizeItems(rawItems);
-
-      // ✅ API 응답도 캐시에 반영(동기화)
-      for (const it of rawItems) {
-        const t = pickTopic(it);
-        if (t) __devicesByTopic.set(String(t), it);
-      }
-
-      if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
-        try { window.__overviewOnDevices__(items); } catch {}
-      }
-      if (route === "monitor" && typeof window.__monitorOnDevices__ === "function") {
-        try { window.__monitorOnDevices__(items); } catch {}
-      }
-      if (route === "dashboard" && typeof window.__dashboardOnDevices__ === "function") {
-        try { window.__dashboardOnDevices__(items); } catch {}
-      }
-    } catch {
-      // silent
-    }
-  };
-
-  tick();
-  __pollTimer = setInterval(tick, intervalMs);
-}
-
-/* =========================================================
-   ✅ MQTT 상태에 따라 폴링 전환 (즉시 반영)
-========================================================= */
-function isLiveRoute(route) {
-  return route === "overview" || route === "monitor" || route === "dashboard";
-}
-
 function getRouteFromHash() {
   const r = (location.hash || "#overview").replace("#", "").trim();
   return r || "overview";
 }
 
-function restartPollForCurrentRoute() {
-  const route = getRouteFromHash();
-  if (!isLiveRoute(route)) return;
+/* =========================================================
+   ✅ API Poll (백업)
+========================================================= */
+let __pollTimer = null;
+function stopViewPoll() {
+  if (__pollTimer) clearInterval(__pollTimer);
+  __pollTimer = null;
+}
+function startViewPoll(route, intervalMs = 3000) {
+  stopViewPoll();
+  const tick = async () => {
+    try {
+      const data = await fetchJson(`${API_BASE}/api/devices`);
+      const rawItems = data?.items || [];
+      store.upsertManyFromApi(rawItems, pickTopic);
 
-  // ✅ MQTT 연결이면 백업 폴링을 더 느리게(30초)
-  // ✅ MQTT 끊기면 3초로 복귀
-  const interval = __mqttConnected ? 30000 : 3000;
-  startViewPoll(route, interval);
+      if (isLiveRoute(route)) {
+        store.scheduleEmit((items) => emitToView(route, items));
+      }
+    } catch {}
+  };
+  tick();
+  __pollTimer = setInterval(tick, intervalMs);
 }
 
 /* =========================================================
-   ✅ MQTT 연결 상태 Topbar 표시
+   ✅ MQTT (실시간)
 ========================================================= */
-let __mqttClient = null;
+let __mqttConnected = false;
 
-let __mqttOfflineTimer = null;
-let __mqttOfflineNotified = false;
-
-function setMqttChip(state, detail = "") {
-  const el = document.getElementById("mqttStatusChip");
-  if (!el) return;
-
-  if (state === "connected") el.textContent = "MQTT: 🟢 Connected";
-  else if (state === "reconnecting") el.textContent = "MQTT: 🟡 Reconnecting";
-  else if (state === "offline") el.textContent = "MQTT: 🔴 Offline";
-  else el.textContent = "MQTT: …";
-
-  el.title = detail || "";
-}
-
-function scheduleMqttOfflineToast() {
-  if (__mqttOfflineTimer) return;
-  __mqttOfflineTimer = setTimeout(() => {
-    __mqttOfflineTimer = null;
-    if (!__mqttOfflineNotified) {
-      __mqttOfflineNotified = true;
-      showToast("MQTT 연결이 끊겼습니다. (5초 이상 Offline)");
-    }
-  }, 5000);
-}
-
-function clearMqttOfflineToast() {
-  if (__mqttOfflineTimer) {
-    clearTimeout(__mqttOfflineTimer);
-    __mqttOfflineTimer = null;
-  }
-  __mqttOfflineNotified = false;
-}
-
-function startMqttStatus() {
-  if (typeof window.mqtt === "undefined") {
-    setMqttChip("offline", "mqtt.min.js not loaded");
-    return;
-  }
-
+function startMqtt() {
   const url = window.MQTT_URL || "";
   const username = window.MQTT_USERNAME || "";
   const password = window.MQTT_PASSWORD || "";
 
-  if (!url) {
-    setMqttChip("offline", "MQTT_URL not set in config.js");
-    return;
-  }
+  createMqttClient({
+    mqttUrl: url,
+    username,
+    password,
+    onChip: setMqttChip,
+    onConnect: (client) => {
+      __mqttConnected = true;
 
-  try { __mqttClient?.end?.(true); } catch {}
-  __mqttClient = null;
+      try {
+        client.subscribe("th/#", (err) => {
+          if (err) console.warn("MQTT subscribe err:", err);
+        });
+      } catch (e) {
+        console.warn("MQTT subscribe fail:", e);
+      }
 
-  setMqttChip("reconnecting", url);
+      const route = getRouteFromHash();
+      if (isLiveRoute(route)) store.scheduleEmit((items) => emitToView(route, items));
+      // MQTT 연결 시 폴링은 30초 백업으로
+      if (isLiveRoute(route)) startViewPoll(route, 30000);
+    },
+    onMessage: (topic, payload) => {
+      let obj = null;
+      try { obj = JSON.parse(payload.toString()); } catch { return; }
+      const item = { topic, ...obj };
+      store.upsert(topic, item);
 
-  const clientId = "web_" + Math.random().toString(16).slice(2);
-
-  const client = window.mqtt.connect(url, {
-    clientId,
-    username: username || undefined,
-    password: password || undefined,
-    keepalive: 30,
-    reconnectPeriod: 2000,
-    connectTimeout: 5000,
-    clean: true,
-  });
-
-  __mqttClient = client;
-
-  client.on("connect", () => {
-    setMqttChip("connected", url);
-    clearMqttOfflineToast();
-    __mqttConnected = true;
-
-    // ✅ 실시간 구독
-    try {
-      client.subscribe("th/#", (err) => {
-        if (err) console.warn("MQTT subscribe err:", err);
-      });
-    } catch (e) {
-      console.warn("MQTT subscribe fail:", e);
-    }
-
-    // ✅ 연결되면 캐시 1번 emit
-    scheduleEmit(getCurrentRoute());
-
-    // ✅ 연결되면 폴링을 즉시 30초 백업으로 전환
-    restartPollForCurrentRoute();
-  });
-
-  client.on("reconnect", () => {
-    setMqttChip("reconnecting", url);
-  });
-
-  function onMqttDown(detail) {
-    setMqttChip("offline", detail);
-    __mqttConnected = false;
-    scheduleMqttOfflineToast();
-    // ✅ 끊기면 폴링을 즉시 3초로 복귀
-    restartPollForCurrentRoute();
-  }
-
-  client.on("offline", () => onMqttDown(url));
-  client.on("close", () => onMqttDown(url));
-  client.on("error", (err) => onMqttDown(err?.message ? err.message : String(err)));
-
-  // ✅ 실시간 메시지 수신 → 캐시에 저장 → 화면 갱신
-  client.on("message", (topic, payload) => {
-    let obj = null;
-    try {
-      obj = JSON.parse(payload.toString());
-    } catch {
-      return;
-    }
-    const item = { topic, ...obj };
-    __devicesByTopic.set(topic, item);
-    scheduleEmit(getCurrentRoute());
+      const route = getRouteFromHash();
+      if (isLiveRoute(route)) store.scheduleEmit((items) => emitToView(route, items));
+    },
   });
 }
 
-/* =========================
-   ✅ CSS 로드
-========================= */
+/* =========================================================
+   ✅ View CSS 로드
+========================================================= */
 function loadViewCss(route) {
   return new Promise((resolve) => {
     const href = VIEW_CSS[route];
@@ -599,14 +304,12 @@ function loadViewCss(route) {
       currentCssLink.remove();
       currentCssLink = null;
     }
-
     if (!href) return resolve();
 
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = href;
     link.setAttribute("data-view-css", "1");
-
     link.onload = () => resolve();
     link.onerror = () => resolve();
 
@@ -615,9 +318,9 @@ function loadViewCss(route) {
   });
 }
 
-/* =========================
+/* =========================================================
    ✅ View JS 로드/언로드
-========================= */
+========================================================= */
 function unloadViewJs() {
   if (currentViewScript) {
     try { currentViewScript.remove(); } catch {}
@@ -636,7 +339,6 @@ function loadViewJs(route) {
     s.src = src + "?v=" + Date.now();
     s.defer = true;
     s.setAttribute("data-view-js", "1");
-
     s.onload = () => resolve();
     s.onerror = () => resolve();
 
@@ -645,20 +347,19 @@ function loadViewJs(route) {
   });
 }
 
-/* =========================
+/* =========================================================
    ✅ View 로딩 (HTML만)
-========================= */
+========================================================= */
 async function loadView(route) {
   const url = ROUTES[route] || ROUTES.overview;
 
   try {
     try {
-      if (typeof window.__viewCleanup__ === "function") {
-        window.__viewCleanup__();
-      }
+      if (typeof window.__viewCleanup__ === "function") window.__viewCleanup__();
     } catch {}
     window.__viewCleanup__ = null;
 
+    stopViewPoll();
     unloadViewJs();
 
     const res = await fetch(url, { cache: "no-cache" });
@@ -672,21 +373,19 @@ async function loadView(route) {
 
     await loadViewJs(route);
 
-    // ✅ 라이브 화면이면: MQTT 상태에 맞춰 폴링 스펙 "한 번만" 맞춤
+    // ✅ live 화면이면 폴링 시작 (MQTT 연결이면 30초 백업 / 아니면 3초)
     if (isLiveRoute(route)) {
-      restartPollForCurrentRoute();
+      startViewPoll(route, __mqttConnected ? 30000 : 3000);
 
-      // ✅ MQTT 연결 상태면 진입 즉시 캐시 1번 반영
-      if (__mqttConnected) scheduleEmit(route);
+      // 진입 즉시 캐시 반영
+      store.scheduleEmit((items) => emitToView(route, items));
 
       const prev = window.__viewCleanup__;
       window.__viewCleanup__ = () => {
+        try { stopViewPoll(); } catch {}
         try { unloadViewJs(); } catch {}
         try { if (typeof prev === "function") prev(); } catch {}
       };
-    } else {
-      // ✅ 라이브 화면이 아니면 폴링 중지
-      stopViewPoll();
     }
   } catch (err) {
     console.error(err);
@@ -700,45 +399,40 @@ async function loadView(route) {
   }
 }
 
-/* =========================
+/* =========================================================
    ✅ 라우팅
-========================= */
+========================================================= */
 async function route() {
   const r = getRouteFromHash();
   await loadViewCss(r);
   await loadView(r);
 }
-
 window.addEventListener("hashchange", route);
 
 /* =========================================================
-   ✅ 탭 숨김/복귀 시: 폴링 스펙 재정렬 (요청 절약)
+   ✅ 부팅
 ========================================================= */
-document.addEventListener("visibilitychange", () => {
-  if (!isLoggedIn()) return;
-  if (!document.hidden) {
-    // 탭 복귀 시 한번 갱신
-    restartPollForCurrentRoute();
-    pingApiOnce();
+async function boot() {
+  // Logout 버튼
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindTopLogout);
+  } else {
+    bindTopLogout();
   }
-});
 
-/* =========================
-   ✅ 첫 진입 차단
-========================= */
-if (!isLoggedIn()) {
-  goLoginPage();
-} else {
-  loadMeAndUpdateTopbar().catch((e) => {
-    console.warn("me failed:", e?.message || e);
-  });
+  // 로그인 확인
+  if (!isLoggedIn()) return goLoginPage();
 
-  // ✅ MQTT 상태 + 실시간 구독 시작
-  startMqttStatus();
+  // me 로드(Topbar)
+  fetchJson(`${API_BASE}/api/auth/me`)
+    .then((me) => setTopUserUI(me))
+    .catch((e) => console.warn("me failed:", e?.message || e));
 
-  // ✅ API 상태칩
-  startApiStatus();
+  // MQTT 시작
+  startMqtt();
 
   if (!location.hash) location.hash = "#dashboard";
   route();
 }
+
+boot();

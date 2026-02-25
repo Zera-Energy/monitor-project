@@ -116,4 +116,4 @@ def api_device_latest(
         "summary_value": snap,
 
         **snap,
-    }
+    }ㅁ
