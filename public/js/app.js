@@ -342,7 +342,7 @@ function normalizeItems(items) {
 }
 
 /* =========================================================
-   ✅ (추가) MQTT 실시간 캐시 + emit (폴링 대체)
+   ✅ MQTT 실시간 캐시 + emit
 ========================================================= */
 const __devicesByTopic = new Map(); // topic -> latest payload item
 let __mqttConnected = false;
@@ -374,6 +374,68 @@ function scheduleEmit(route) {
     __emitTimer = null;
     emitDevicesToView(route);
   }, 200);
+}
+
+/* =========================================================
+   ✅ API 폴링 (overview/monitor/dashboard용) - 백업
+========================================================= */
+let __pollTimer = null;
+
+function stopViewPoll() {
+  if (__pollTimer) {
+    clearInterval(__pollTimer);
+    __pollTimer = null;
+  }
+}
+
+function startViewPoll(route, intervalMs = 3000) {
+  stopViewPoll();
+
+  const tick = async () => {
+    try {
+      const data = await fetchJson(`${API_BASE}/api/devices`);
+      const rawItems = data?.items || [];
+      const items = normalizeItems(rawItems);
+
+      // ✅ API 응답도 캐시에 반영(동기화)
+      for (const it of rawItems) {
+        const t = pickTopic(it);
+        if (t) __devicesByTopic.set(String(t), it);
+      }
+
+      if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
+        try { window.__overviewOnDevices__(items); } catch {}
+      }
+
+      if (route === "monitor" && typeof window.__monitorOnDevices__ === "function") {
+        try { window.__monitorOnDevices__(items); } catch {}
+      }
+
+      if (route === "dashboard" && typeof window.__dashboardOnDevices__ === "function") {
+        try { window.__dashboardOnDevices__(items); } catch {}
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  tick();
+  __pollTimer = setInterval(tick, intervalMs);
+}
+
+/* =========================================================
+   ✅ (추가) MQTT 상태에 따라 현재 화면 폴링 즉시 전환
+========================================================= */
+function isLiveRoute(route) {
+  return route === "overview" || route === "monitor" || route === "dashboard";
+}
+
+function restartPollForCurrentRoute() {
+  const route = getRouteFromHash();
+  if (!isLiveRoute(route)) return;
+
+  const interval = __mqttConnected ? 30000 : 3000; // ✅ 백업 유지
+  startViewPoll(route, interval);
 }
 
 /* =========================================================
@@ -466,6 +528,9 @@ function startMqttStatus() {
 
     // ✅ 연결되면 현재 캐시 1번 emit
     scheduleEmit(getCurrentRoute());
+
+    // ✅ (추가) MQTT 연결되면 폴링을 즉시 30초 백업으로 전환
+    restartPollForCurrentRoute();
   });
 
   client.on("reconnect", () => {
@@ -476,12 +541,18 @@ function startMqttStatus() {
     setMqttChip("offline", url);
     __mqttConnected = false;
     scheduleMqttOfflineToast(url);
+
+    // ✅ (추가) MQTT 끊기면 폴링을 즉시 3초로 복귀
+    restartPollForCurrentRoute();
   });
 
   client.on("close", () => {
     setMqttChip("offline", url);
     __mqttConnected = false;
     scheduleMqttOfflineToast(url);
+
+    // ✅ (추가)
+    restartPollForCurrentRoute();
   });
 
   client.on("error", (err) => {
@@ -489,6 +560,9 @@ function startMqttStatus() {
     setMqttChip("offline", msg);
     __mqttConnected = false;
     scheduleMqttOfflineToast(msg);
+
+    // ✅ (추가)
+    restartPollForCurrentRoute();
   });
 
   // ✅ 실시간 메시지 수신 → 캐시에 저장 → 화면 갱신
@@ -503,53 +577,6 @@ function startMqttStatus() {
     __devicesByTopic.set(topic, item);
     scheduleEmit(getCurrentRoute());
   });
-}
-
-/* =========================================================
-   ✅ API 폴링 (overview/monitor/dashboard용) - 백업용으로 저주기
-========================================================= */
-let __pollTimer = null;
-
-function stopViewPoll() {
-  if (__pollTimer) {
-    clearInterval(__pollTimer);
-    __pollTimer = null;
-  }
-}
-
-function startViewPoll(route, intervalMs = 3000) {
-  stopViewPoll();
-
-  const tick = async () => {
-    try {
-      const data = await fetchJson(`${API_BASE}/api/devices`);
-      const rawItems = data?.items || [];
-      const items = normalizeItems(rawItems);
-
-      // ✅ API 응답도 캐시에 반영(동기화)
-      for (const it of rawItems) {
-        const t = pickTopic(it);
-        if (t) __devicesByTopic.set(String(t), it);
-      }
-
-      if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
-        try { window.__overviewOnDevices__(items); } catch {}
-      }
-
-      if (route === "monitor" && typeof window.__monitorOnDevices__ === "function") {
-        try { window.__monitorOnDevices__(items); } catch {}
-      }
-
-      if (route === "dashboard" && typeof window.__dashboardOnDevices__ === "function") {
-        try { window.__dashboardOnDevices__(items); } catch {}
-      }
-    } catch {
-      // silent
-    }
-  };
-
-  tick();
-  __pollTimer = setInterval(tick, intervalMs);
 }
 
 /* =========================
@@ -643,7 +670,7 @@ async function loadView(route) {
     await loadViewJs(route);
 
     if (route === "overview" || route === "monitor" || route === "dashboard") {
-      // ✅ MQTT가 연결돼 있으면 폴링을 백업(저주기)로만
+      // ✅ MQTT가 연결돼 있으면 폴링을 백업(30초)로만
       const interval = __mqttConnected ? 30000 : 3000;
       startViewPoll(route, interval);
 
