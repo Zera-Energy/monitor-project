@@ -180,6 +180,7 @@ function showToast(msg, ms = 3000) {
 
 /* =========================================================
    ✅ API 상태 Topbar 표시
+   ✅ (수정) 5초 → 15초로 완화 + 탭 숨김이면 중지
 ========================================================= */
 let __apiStatusTimer = null;
 
@@ -210,12 +211,18 @@ async function pingApiOnce() {
   }
 }
 
-function startApiStatus() {
-  pingApiOnce();
+function stopApiStatus() {
   if (__apiStatusTimer) clearInterval(__apiStatusTimer);
+  __apiStatusTimer = null;
+}
 
-  // ✅ (수정) 5초 → 30초 (Network 폭발 방지)
-  __apiStatusTimer = setInterval(pingApiOnce, 30000);
+function startApiStatus() {
+  stopApiStatus();
+  pingApiOnce();
+  __apiStatusTimer = setInterval(() => {
+    if (document.hidden) return; // ✅ 백그라운드면 스킵
+    pingApiOnce();
+  }, 15000); // ✅ 15초
 }
 
 /* =========================================================
@@ -379,25 +386,33 @@ function scheduleEmit(route) {
 }
 
 /* =========================================================
-   ✅ API 폴링 (overview/monitor/dashboard용) - 백업
+   ✅ API 폴링 (백업)
+   ✅ (핵심 수정) "같은 (route, interval)"이면 재시작 안 함
 ========================================================= */
 let __pollTimer = null;
-
-// ✅ (추가) 현재 폴링 주기 기억 + 재시작 디바운스
-let __pollIntervalMs = 0;
-let __restartPollTimer = null;
+let __pollSpec = ""; // ✅ 현재 폴링 스펙 기억 (route|interval)
 
 function stopViewPoll() {
   if (__pollTimer) {
     clearInterval(__pollTimer);
     __pollTimer = null;
   }
+  __pollSpec = "";
 }
 
 function startViewPoll(route, intervalMs = 3000) {
+  const spec = `${route}|${intervalMs}`;
+  if (__pollTimer && __pollSpec === spec) {
+    return; // ✅ 이미 같은 설정으로 도는 중이면 그대로 둠
+  }
+
+  // ✅ 설정이 바뀌면 기존 폴링 정리하고 새로 시작
   stopViewPoll();
+  __pollSpec = spec;
 
   const tick = async () => {
+    if (document.hidden) return; // ✅ 백그라운드면 폴링 스킵(요청 폭감)
+
     try {
       const data = await fetchJson(`${API_BASE}/api/devices`);
       const rawItems = data?.items || [];
@@ -412,11 +427,9 @@ function startViewPoll(route, intervalMs = 3000) {
       if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
         try { window.__overviewOnDevices__(items); } catch {}
       }
-
       if (route === "monitor" && typeof window.__monitorOnDevices__ === "function") {
         try { window.__monitorOnDevices__(items); } catch {}
       }
-
       if (route === "dashboard" && typeof window.__dashboardOnDevices__ === "function") {
         try { window.__dashboardOnDevices__(items); } catch {}
       }
@@ -427,33 +440,28 @@ function startViewPoll(route, intervalMs = 3000) {
 
   tick();
   __pollTimer = setInterval(tick, intervalMs);
-
-  // ✅ (추가) 현재 주기 저장
-  __pollIntervalMs = intervalMs;
 }
 
 /* =========================================================
-   ✅ MQTT 상태에 따라 현재 화면 폴링 즉시 전환 (수정)
+   ✅ MQTT 상태에 따라 폴링 전환 (즉시 반영)
 ========================================================= */
 function isLiveRoute(route) {
   return route === "overview" || route === "monitor" || route === "dashboard";
+}
+
+function getRouteFromHash() {
+  const r = (location.hash || "#overview").replace("#", "").trim();
+  return r || "overview";
 }
 
 function restartPollForCurrentRoute() {
   const route = getRouteFromHash();
   if (!isLiveRoute(route)) return;
 
-  const nextInterval = __mqttConnected ? 30000 : 3000;
-
-  // ✅ 이미 같은 주기면 재시작하지 않음
-  if (__pollTimer && __pollIntervalMs === nextInterval) return;
-
-  // ✅ 짧은 시간에 여러 번 호출돼도 1번만 실행(디바운스)
-  if (__restartPollTimer) clearTimeout(__restartPollTimer);
-  __restartPollTimer = setTimeout(() => {
-    __restartPollTimer = null;
-    startViewPoll(route, nextInterval);
-  }, 300);
+  // ✅ MQTT 연결이면 백업 폴링을 더 느리게(30초)
+  // ✅ MQTT 끊기면 3초로 복귀
+  const interval = __mqttConnected ? 30000 : 3000;
+  startViewPoll(route, interval);
 }
 
 /* =========================================================
@@ -461,7 +469,6 @@ function restartPollForCurrentRoute() {
 ========================================================= */
 let __mqttClient = null;
 
-// ✅ 5초 이상 offline이면 토스트
 let __mqttOfflineTimer = null;
 let __mqttOfflineNotified = false;
 
@@ -477,7 +484,7 @@ function setMqttChip(state, detail = "") {
   el.title = detail || "";
 }
 
-function scheduleMqttOfflineToast(detail = "") {
+function scheduleMqttOfflineToast() {
   if (__mqttOfflineTimer) return;
   __mqttOfflineTimer = setTimeout(() => {
     __mqttOfflineTimer = null;
@@ -544,10 +551,10 @@ function startMqttStatus() {
       console.warn("MQTT subscribe fail:", e);
     }
 
-    // ✅ 연결되면 현재 캐시 1번 emit
+    // ✅ 연결되면 캐시 1번 emit
     scheduleEmit(getCurrentRoute());
 
-    // ✅ MQTT 연결되면 폴링을 즉시 30초 백업으로 전환
+    // ✅ 연결되면 폴링을 즉시 30초 백업으로 전환
     restartPollForCurrentRoute();
   });
 
@@ -555,31 +562,17 @@ function startMqttStatus() {
     setMqttChip("reconnecting", url);
   });
 
-  client.on("offline", () => {
-    setMqttChip("offline", url);
+  function onMqttDown(detail) {
+    setMqttChip("offline", detail);
     __mqttConnected = false;
-    scheduleMqttOfflineToast(url);
-
-    // ✅ MQTT 끊기면 폴링을 즉시 3초로 복귀
+    scheduleMqttOfflineToast();
+    // ✅ 끊기면 폴링을 즉시 3초로 복귀
     restartPollForCurrentRoute();
-  });
+  }
 
-  client.on("close", () => {
-    setMqttChip("offline", url);
-    __mqttConnected = false;
-    scheduleMqttOfflineToast(url);
-
-    restartPollForCurrentRoute();
-  });
-
-  client.on("error", (err) => {
-    const msg = err?.message ? err.message : String(err);
-    setMqttChip("offline", msg);
-    __mqttConnected = false;
-    scheduleMqttOfflineToast(msg);
-
-    restartPollForCurrentRoute();
-  });
+  client.on("offline", () => onMqttDown(url));
+  client.on("close", () => onMqttDown(url));
+  client.on("error", (err) => onMqttDown(err?.message ? err.message : String(err)));
 
   // ✅ 실시간 메시지 수신 → 캐시에 저장 → 화면 갱신
   client.on("message", (topic, payload) => {
@@ -652,11 +645,6 @@ function loadViewJs(route) {
   });
 }
 
-function getRouteFromHash() {
-  const r = (location.hash || "#overview").replace("#", "").trim();
-  return r || "overview";
-}
-
 /* =========================
    ✅ View 로딩 (HTML만)
 ========================= */
@@ -671,7 +659,6 @@ async function loadView(route) {
     } catch {}
     window.__viewCleanup__ = null;
 
-    stopViewPoll();
     unloadViewJs();
 
     const res = await fetch(url, { cache: "no-cache" });
@@ -685,20 +672,21 @@ async function loadView(route) {
 
     await loadViewJs(route);
 
-    if (route === "overview" || route === "monitor" || route === "dashboard") {
-      // ✅ MQTT가 연결돼 있으면 폴링을 백업(30초)로만
-      const interval = __mqttConnected ? 30000 : 3000;
-      startViewPoll(route, interval);
+    // ✅ 라이브 화면이면: MQTT 상태에 맞춰 폴링 스펙 "한 번만" 맞춤
+    if (isLiveRoute(route)) {
+      restartPollForCurrentRoute();
 
-      // ✅ MQTT 연결 상태면 진입 즉시 캐시도 1번 반영
+      // ✅ MQTT 연결 상태면 진입 즉시 캐시 1번 반영
       if (__mqttConnected) scheduleEmit(route);
 
       const prev = window.__viewCleanup__;
       window.__viewCleanup__ = () => {
-        try { stopViewPoll(); } catch {}
         try { unloadViewJs(); } catch {}
         try { if (typeof prev === "function") prev(); } catch {}
       };
+    } else {
+      // ✅ 라이브 화면이 아니면 폴링 중지
+      stopViewPoll();
     }
   } catch (err) {
     console.error(err);
@@ -723,8 +711,20 @@ async function route() {
 
 window.addEventListener("hashchange", route);
 
+/* =========================================================
+   ✅ 탭 숨김/복귀 시: 폴링 스펙 재정렬 (요청 절약)
+========================================================= */
+document.addEventListener("visibilitychange", () => {
+  if (!isLoggedIn()) return;
+  if (!document.hidden) {
+    // 탭 복귀 시 한번 갱신
+    restartPollForCurrentRoute();
+    pingApiOnce();
+  }
+});
+
 /* =========================
-   ✅ 첫 진입 차단 (토큰 없으면 login.html)
+   ✅ 첫 진입 차단
 ========================= */
 if (!isLoggedIn()) {
   goLoginPage();
