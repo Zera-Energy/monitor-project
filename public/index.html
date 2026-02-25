@@ -14,7 +14,7 @@
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="/js/config.js"></script>
 
-  <!-- ✅ [수정] 토큰 없거나(또는 JSON/따옴표 같은 비정상 토큰)면 login.html로 -->
+  <!-- ✅ 토큰 없거나(또는 따옴표 같은 비정상 토큰)면 login.html로 -->
   <script>
     (function () {
       function cleanToken(v){
@@ -130,13 +130,13 @@
           <button class="iconBtn" type="button">🌐</button>
           <button class="iconBtn" type="button">🔔</button>
 
-          <!-- ✅ [수정] 유저 표시 영역에 id 부여 (app.js에서 바꾸기 위해) -->
+          <!-- ✅ 유저 표시 영역(id 유지) -->
           <div class="user" id="topUser">
             <div class="avatar" id="topAvatar">U</div>
             <div class="userText" id="topUserText">Signed in</div>
           </div>
 
-          <!-- ✅ [수정] Logout 버튼은 같은 영역에 두고 스타일만 최소 보정 -->
+          <!-- ✅ Logout 버튼(id 유지) -->
           <button class="btn" id="btnTopLogout" type="button" style="height:34px;padding:0 10px;">Logout</button>
         </div>
       </header>
@@ -152,19 +152,8 @@
 
   <script src="./js/sidebar.js"></script>
 
-  <!-- ✅ Logout 버튼 동작: app.js 수정 없이 index에서 바로 처리 -->
-  <script>
-    (function () {
-      const btn = document.getElementById("btnTopLogout");
-      if (!btn) return;
-
-      btn.addEventListener("click", () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-        location.replace("/login.html");
-      });
-    })();
-  </script>
+  <!-- ✅ (수정) Logout은 app.js에서 처리할 거라 여기서는 제거 -->
+  <!-- (중복 바인딩/관리 분산 방지) -->
 
   <script src="/js/dev_developer.js"></script>
   <script type="module" src="./js/app.js"></script>

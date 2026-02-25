@@ -63,12 +63,17 @@ const API_BASE = window.API_BASE;
 /* =========================================================
    ✅ Auth
 ========================================================= */
+function cleanToken(v) {
+  // "eyJ..." 같이 따옴표로 저장되는 경우 제거 + 공백 제거
+  return String(v || "").trim().replace(/^"+|"+$/g, "");
+}
 function getToken() {
-  // ✅ 따옴표로 저장되는 경우 방지: "eyJ..." -> eyJ...
-  return (localStorage.getItem("token") || "").trim().replace(/^"+|"+$/g, "");
+  return cleanToken(localStorage.getItem("token"));
 }
 function isLoggedIn() {
-  return !!getToken();
+  const t = getToken();
+  // JWT처럼 보이는지까지 체크(최소 점 2개)
+  return !!t && t.split(".").length >= 3;
 }
 function goLoginPage() {
   location.replace("/login.html");
@@ -80,9 +85,7 @@ function logout() {
 }
 
 /* =========================================================
-   ✅ [수정 핵심] Topbar Logout 버튼 (module이라 DOM 로드 타이밍 주의)
-   - document.addEventListener("click", ...) 대신
-   - DOMContentLoaded 이후에 안전하게 바인딩
+   ✅ Topbar Logout 버튼 바인딩
 ========================================================= */
 function bindTopLogout() {
   const btn = document.getElementById("btnTopLogout");
@@ -102,9 +105,8 @@ async function apiFetch(url, options = {}) {
 
   // ✅ token이 이미 "Bearer ..."면 그대로, 아니면 Bearer 붙이기
   if (token) {
-    const t = String(token).trim();
-    if (/^bearer\s+/i.test(t)) headers.set("Authorization", t);
-    else headers.set("Authorization", `Bearer ${t}`);
+    if (/^bearer\s+/i.test(token)) headers.set("Authorization", token);
+    else headers.set("Authorization", `Bearer ${token}`);
   }
 
   // JSON body면 content-type 자동
@@ -114,7 +116,7 @@ async function apiFetch(url, options = {}) {
 
   const res = await fetch(url, { ...options, headers, cache: "no-cache" });
 
-  // ✅ 운영에서는 즉시 logout, 디버깅 필요하면 setTimeout으로 바꿔도 됨
+  // ✅ 운영에서는 즉시 logout
   if (res.status === 401) {
     console.warn("[401] url =", url);
     console.warn("[401] raw token =", localStorage.getItem("token"));
@@ -414,7 +416,6 @@ async function loadView(route) {
 ========================= */
 async function route() {
   const r = getRouteFromHash();
-
   await loadViewCss(r);
   await loadView(r);
 }
@@ -427,7 +428,6 @@ window.addEventListener("hashchange", route);
 if (!isLoggedIn()) {
   goLoginPage();
 } else {
-  // 토큰이 있으면 기본 해시 보정
   if (!location.hash) location.hash = "#dashboard";
   route();
 }
