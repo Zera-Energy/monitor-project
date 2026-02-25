@@ -6,7 +6,6 @@ const viewEl = document.getElementById("view");
 ========================= */
 const ROUTES = {
   // ✅ login은 SPA 내부 view가 아니라 /login.html (별도 페이지)로 분리
-
   overview: "./views/overview.html",
 
   // ✅ (수정) 실제 파일명: devices-setting.html
@@ -65,7 +64,8 @@ const API_BASE = window.API_BASE;
    ✅ Auth
 ========================================================= */
 function getToken() {
-  return localStorage.getItem("token") || "";
+  // ✅ 따옴표로 저장되는 경우 방지: "eyJ..." -> eyJ...
+  return (localStorage.getItem("token") || "").trim().replace(/^"+|"+$/g, "");
 }
 function isLoggedIn() {
   return !!getToken();
@@ -85,7 +85,7 @@ async function apiFetch(url, options = {}) {
   const token = getToken();
   const headers = new Headers(options.headers || {});
 
-  // ✅ (수정 핵심) token이 이미 "Bearer ..."면 그대로, 아니면 Bearer 붙이기
+  // ✅ token이 이미 "Bearer ..."면 그대로, 아니면 Bearer 붙이기
   if (token) {
     const t = String(token).trim();
     if (/^bearer\s+/i.test(t)) headers.set("Authorization", t);
@@ -99,19 +99,22 @@ async function apiFetch(url, options = {}) {
 
   const res = await fetch(url, { ...options, headers, cache: "no-cache" });
 
- if (res.status === 401) {
-  console.warn("[401] url =", url);
-  console.warn("[401] raw token =", localStorage.getItem("token"));
-  console.warn("[401] clean token =", getToken());
-  console.warn("[401] will redirect to /login.html in 3s");
+  // ✅ (디버깅) 401이면 3초 후 login으로 (원인 확인용)
+  if (res.status === 401) {
+    console.warn("[401] url =", url);
+    console.warn("[401] raw token =", localStorage.getItem("token"));
+    console.warn("[401] clean token =", getToken());
+    console.warn("[401] will redirect to /login.html in 3s");
 
-  // ✅ 즉시 튕기지 말고 잠깐 멈춰서 확인 가능하게
-  setTimeout(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    goLoginPage();
-  }, 3000);
-}
+    setTimeout(() => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      goLoginPage();
+    }, 3000);
+  }
+
+  return res;
+} // ✅✅✅ (중요) 여기 닫는 중괄호가 빠져있었음!
 
 async function fetchJson(url) {
   const res = await apiFetch(url);
@@ -416,6 +419,6 @@ if (!isLoggedIn()) {
   goLoginPage();
 } else {
   // 토큰이 있으면 기본 해시 보정
-  if (!location.hash) location.hash = "#overview";
+  if (!location.hash) location.hash = "#dashboard";
   route();
 }
