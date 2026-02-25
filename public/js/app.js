@@ -108,8 +108,6 @@ function setTopUserUI(user) {
 }
 
 async function loadMeAndUpdateTopbar() {
-  // ✅ 서버 응답이 실제로 { email, role, id } 형태임
-  // 예: {"email":"admin@local","role":"admin","id":"1"}
   const me = await fetchJson(`${API_BASE}/api/auth/me`);
   setTopUserUI(me);
 }
@@ -147,10 +145,47 @@ async function fetchJson(url) {
 }
 
 /* =========================================================
-   ✅ MQTT 연결 상태 Topbar 표시 (추가)
-   - config.js에서 window.MQTT_URL / MQTT_USERNAME / MQTT_PASSWORD 사용
+   ✅ 토스트(간단 알림) 유틸 (추가)
+========================================================= */
+let __toastEl = null;
+let __toastTimer = null;
+
+function showToast(msg, ms = 3000) {
+  if (!__toastEl) {
+    __toastEl = document.createElement("div");
+    __toastEl.id = "__toast";
+    __toastEl.style.position = "fixed";
+    __toastEl.style.right = "16px";
+    __toastEl.style.bottom = "16px";
+    __toastEl.style.padding = "10px 12px";
+    __toastEl.style.borderRadius = "12px";
+    __toastEl.style.boxShadow = "0 10px 30px rgba(0,0,0,.18)";
+    __toastEl.style.background = "#111";
+    __toastEl.style.color = "#fff";
+    __toastEl.style.fontSize = "13px";
+    __toastEl.style.zIndex = "99999";
+    __toastEl.style.maxWidth = "320px";
+    __toastEl.style.display = "none";
+    document.body.appendChild(__toastEl);
+  }
+
+  __toastEl.textContent = msg;
+  __toastEl.style.display = "block";
+
+  if (__toastTimer) clearTimeout(__toastTimer);
+  __toastTimer = setTimeout(() => {
+    if (__toastEl) __toastEl.style.display = "none";
+  }, ms);
+}
+
+/* =========================================================
+   ✅ MQTT 연결 상태 Topbar 표시
 ========================================================= */
 let __mqttClient = null;
+
+// ✅ (추가) 5초 이상 offline이면 토스트
+let __mqttOfflineTimer = null;
+let __mqttOfflineNotified = false;
 
 function setMqttChip(state, detail = "") {
   const el = document.getElementById("mqttStatusChip");
@@ -164,14 +199,32 @@ function setMqttChip(state, detail = "") {
   el.title = detail || "";
 }
 
+function scheduleMqttOfflineToast(detail = "") {
+  if (__mqttOfflineTimer) return; // 이미 예약됨
+  __mqttOfflineTimer = setTimeout(() => {
+    __mqttOfflineTimer = null;
+    if (!__mqttOfflineNotified) {
+      __mqttOfflineNotified = true;
+      showToast("MQTT 연결이 끊겼습니다. (5초 이상 Offline)");
+    }
+  }, 5000);
+}
+
+function clearMqttOfflineToast() {
+  if (__mqttOfflineTimer) {
+    clearTimeout(__mqttOfflineTimer);
+    __mqttOfflineTimer = null;
+  }
+  __mqttOfflineNotified = false;
+}
+
 function startMqttStatus() {
-  // mqtt 라이브러리 없으면 종료
   if (typeof window.mqtt === "undefined") {
     setMqttChip("offline", "mqtt.min.js not loaded");
     return;
   }
 
-  const url = window.MQTT_URL || ""; // ex) wss://...:8884/mqtt
+  const url = window.MQTT_URL || "";
   const username = window.MQTT_USERNAME || "";
   const password = window.MQTT_PASSWORD || "";
 
@@ -180,7 +233,6 @@ function startMqttStatus() {
     return;
   }
 
-  // 기존 연결 있으면 끊고 재시작
   try { __mqttClient?.end?.(true); } catch {}
   __mqttClient = null;
 
@@ -200,14 +252,75 @@ function startMqttStatus() {
 
   __mqttClient = client;
 
-  client.on("connect", () => setMqttChip("connected", url));
-  client.on("reconnect", () => setMqttChip("reconnecting", url));
-  client.on("offline", () => setMqttChip("offline", url));
-  client.on("close", () => setMqttChip("offline", url));
+  client.on("connect", () => {
+    setMqttChip("connected", url);
+    clearMqttOfflineToast();
+  });
+
+  client.on("reconnect", () => {
+    setMqttChip("reconnecting", url);
+  });
+
+  client.on("offline", () => {
+    setMqttChip("offline", url);
+    scheduleMqttOfflineToast(url);
+  });
+
+  client.on("close", () => {
+    setMqttChip("offline", url);
+    scheduleMqttOfflineToast(url);
+  });
+
   client.on("error", (err) => {
     const msg = err?.message ? err.message : String(err);
     setMqttChip("offline", msg);
+    scheduleMqttOfflineToast(msg);
   });
+}
+
+/* =========================================================
+   ✅ API 상태 Topbar 표시 (추가)
+========================================================= */
+let __apiStatusTimer = null;
+
+function setApiChip(state, detail = "") {
+  const el = document.getElementById("apiStatusChip");
+  if (!el) return;
+
+  if (state === "ok") el.textContent = "API: 🟢 OK";
+  else if (state === "slow") el.textContent = "API: 🟡 Slow";
+  else el.textContent = "API: 🔴 Down";
+
+  el.title = detail || "";
+}
+
+async function pingApiOnce() {
+  const t0 = performance.now();
+  try {
+    const token = getToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const res = await fetch(`${API_BASE}/api/auth/me`, {
+      headers,
+      cache: "no-cache",
+    });
+
+    const ms = Math.round(performance.now() - t0);
+
+    if (res.ok) {
+      setApiChip(ms > 1200 ? "slow" : "ok", `${ms}ms`);
+    } else {
+      setApiChip("down", `HTTP ${res.status}`);
+    }
+  } catch (e) {
+    setApiChip("down", e?.message || String(e));
+  }
+}
+
+function startApiStatus() {
+  pingApiOnce();
+  if (__apiStatusTimer) clearInterval(__apiStatusTimer);
+  __apiStatusTimer = setInterval(pingApiOnce, 5000);
 }
 
 /* =========================================================
@@ -510,8 +623,11 @@ if (!isLoggedIn()) {
     console.warn("me failed:", e?.message || e);
   });
 
-  // ✅ MQTT 상태 표시 시작 (추가)
+  // ✅ MQTT 상태 표시 시작
   startMqttStatus();
+
+  // ✅ API 상태 표시 시작 (추가)
+  startApiStatus();
 
   if (!location.hash) location.hash = "#dashboard";
   route();
