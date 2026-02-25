@@ -7,25 +7,27 @@
 
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/layout.css" />
-
-  <!-- ✅ views.css 분리본으로 교체 -->
   <link rel="stylesheet" href="/css/views.common.css" />
 
-  <!-- ✅ (선택) favicon 404 방지: 파일 안 둘 거면 이거 넣어 -->
   <link rel="icon" href="data:,">
 
-  <!-- ✅ 추가: 브라우저에서 MQTT(WebSocket) 쓰기 위한 라이브러리 -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
-  <!-- ✅ (추가) API 주소를 한 곳에서 관리 (Vercel 배포용) -->
   <script src="/js/config.js"></script>
 
-  <!-- ✅ [추가] 토큰 없으면 index.html 자체에 못 들어오게 막고 login.html로 보내기 -->
+  <!-- ✅ [수정] 토큰 없거나(또는 JSON/따옴표 같은 비정상 토큰)면 login.html로 -->
   <script>
     (function () {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        // 로그인 분리 페이지로 이동 (루트에 login.html 만들었다고 가정)
+      function cleanToken(v){
+        return String(v || "").trim().replace(/^"+|"+$/g, "");
+      }
+
+      const raw = localStorage.getItem("token");
+      const token = cleanToken(raw);
+
+      // JWT는 보통 점(.)이 2개 있는 형태: header.payload.signature
+      const looksLikeJwt = token && token.split(".").length >= 3;
+
+      if (!looksLikeJwt) {
         location.replace("/login.html");
       }
     })();
@@ -97,14 +99,12 @@
         </button>
 
         <div class="group" id="group-support">
-          <!-- ✅ Products Info만 남김 -->
           <a class="item" href="#products" data-route="products">
             <span class="icon">ⓘ</span>
             <span class="label">Products Info</span>
           </a>
         </div>
 
-        <!-- ✅ User Profile 유지 -->
         <a class="item" href="#profile" data-route="profile">
           <span class="icon">🙂</span>
           <span class="label">User Profile</span>
@@ -134,13 +134,15 @@
             <div class="avatar">E</div>
             <div class="userText">eunseok oh (user) ▾</div>
           </div>
+
+          <!-- ✅ [추가] Logout 버튼 -->
+          <button class="btn" id="btnTopLogout" type="button">Logout</button>
         </div>
       </header>
 
       <!-- PAGE -->
       <main class="page">
         <div class="pageInner">
-          <!-- ✅ view가 들어갈 컨테이너 -->
           <div id="view"></div>
         </div>
       </main>
@@ -148,10 +150,7 @@
   </div>
 
   <script src="./js/sidebar.js"></script>
-
-  <!-- ✅ 추가: Developer 페이지 기능 JS (모듈 아님) -->
   <script src="/js/dev_developer.js"></script>
-
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>

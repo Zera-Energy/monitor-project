@@ -80,6 +80,17 @@ function logout() {
   goLoginPage();
 }
 
+/* =========================================================
+   ✅ [추가] Topbar Logout 버튼
+   - index.html에 id="btnTopLogout" 버튼을 넣어둔 상태
+========================================================= */
+document.addEventListener("click", (e) => {
+  const el = e.target;
+  if (el && el.id === "btnTopLogout") {
+    logout();
+  }
+});
+
 /** 401이면 자동 로그아웃 + login.html로 */
 async function apiFetch(url, options = {}) {
   const token = getToken();
@@ -107,14 +118,12 @@ async function apiFetch(url, options = {}) {
     console.warn("[401] will redirect to /login.html in 3s");
 
     setTimeout(() => {
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
-      goLoginPage();
+      logout(); // ✅ 중복 제거: logout() 재사용
     }, 3000);
   }
 
   return res;
-} // ✅✅✅ (중요) 여기 닫는 중괄호가 빠져있었음!
+}
 
 async function fetchJson(url) {
   const res = await apiFetch(url);
