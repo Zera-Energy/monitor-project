@@ -1,6 +1,7 @@
 # server.py
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # ✅ 수정(추가)
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio  # ✅ 추가
 
 from app.services.influx_service import init_influx, close_influx
 from app.services.mqtt_service import start_mqtt
@@ -45,6 +46,21 @@ app.include_router(devices.router)
 app.include_router(series.router)
 app.include_router(report.router)
 app.include_router(ws_router.router)  # ✅ (추가) /ws/telemetry 활성화
+
+# =========================================================
+# ✅ WebSocket (직접 엔드포인트 - 라우터 문제 우회용)
+# =========================================================
+@app.websocket("/ws/telemetry")
+async def ws_telemetry(ws: WebSocket):
+    await ws.accept()
+    try:
+        while True:
+            await asyncio.sleep(30)
+            await ws.send_text('{"type":"ping"}')
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
 
 # =========================================================
 # Lifecycle

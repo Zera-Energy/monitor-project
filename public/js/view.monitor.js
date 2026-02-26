@@ -731,6 +731,84 @@
   setApiStatus("waiting...");
 
   // =========================
+  // ✅ 4) WebSocket 실시간 연결 (추가)
+  // =========================
+  let __ws = null;
+  (function initWebSocket(){
+    const WS_BASE =
+      (window.WS_BASE) ||
+      (API_BASE.startsWith("https")
+        ? API_BASE.replace("https", "wss")
+        : API_BASE.replace("http", "ws"));
+
+    const wsUrl = `${WS_BASE}/ws/telemetry`;
+
+    let retry = 1000;
+
+    function connect(){
+      try { __ws && __ws.close(); } catch {}
+      __ws = new WebSocket(wsUrl);
+
+      __ws.onopen = () => {
+        setApiStatus("WS connected");
+        retry = 1000;
+      };
+
+      __ws.onmessage = (ev) => {
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        if (msg.type !== "telemetry") return;
+
+        const key = msg.key;
+        if (!key) return;
+
+        const idx = devices.findIndex(d => deviceKey(d) === key);
+        if (idx === -1) return;
+
+        const d = devices[idx];
+
+        // ✅ payload / channels 갱신
+        d.payload = msg.payload || {};
+        d.channels = msg.channels || [];
+        d.channel_count = msg.channel_count || 0;
+
+        // ✅ summary 값(kw/pf/v_avg 등) 반영
+        if (msg.summary && typeof msg.summary === "object") {
+          Object.assign(d, msg.summary);
+        }
+
+        // ✅ online/age 갱신 (실시간 들어온 순간 온라인)
+        d.age_sec = 0;
+        d.online = true;
+
+        // ✅ topic 갱신(있으면)
+        if (msg.last_topic) d.last_topic = msg.last_topic;
+
+        // ✅ UI 갱신
+        renderAutoCards(devices);
+        renderDeviceTable(devices);
+        try { renderDetailPanelBySelected(devices); } catch {}
+
+        updateCount += 1;
+        if (updateCountEl) updateCountEl.textContent = String(updateCount);
+        if (lastAtEl) lastAtEl.textContent = new Date().toLocaleTimeString();
+      };
+
+      __ws.onclose = () => {
+        setApiStatus("WS reconnecting...");
+        setTimeout(connect, retry);
+        retry = Math.min(10000, retry * 2);
+      };
+
+      __ws.onerror = () => {
+        setApiStatus("WS error");
+      };
+    }
+
+    connect();
+  })();
+
+  // =========================
   // ✅ 3) Devices Overview Modal (기존)
   // =========================
   function openDevOv(){
@@ -793,6 +871,11 @@
     try { document.removeEventListener("click", onDocClick); } catch {}
     try { window.removeEventListener("keydown", onKeyDown); } catch {}
     try { if (window.__monitorOnDevices__) delete window.__monitorOnDevices__; } catch {}
+
+    // ✅ (추가) WebSocket 닫기
+    try { __ws && __ws.close(); } catch {}
+    __ws = null;
+
     try { if (typeof prevCleanup === "function") prevCleanup(); } catch {}
   };
 })();
