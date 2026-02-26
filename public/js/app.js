@@ -67,10 +67,12 @@ const API_BASE = window.API_BASE;
 function setMqttChip(state, detail = "") {
   const el = document.getElementById("mqttStatusChip");
   if (!el) return;
+
   if (state === "connected") el.textContent = "MQTT: 🟢 Connected";
   else if (state === "reconnecting") el.textContent = "MQTT: 🟡 Reconnecting";
   else if (state === "offline") el.textContent = "MQTT: 🔴 Offline";
   else el.textContent = "MQTT: …";
+
   el.title = detail || "";
 }
 
@@ -210,13 +212,19 @@ function isLiveRoute(route) {
 
 function emitToView(route, items) {
   if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
-    try { window.__overviewOnDevices__(items); } catch {}
+    try {
+      window.__overviewOnDevices__(items);
+    } catch {}
   }
   if (route === "monitor" && typeof window.__monitorOnDevices__ === "function") {
-    try { window.__monitorOnDevices__(items); } catch {}
+    try {
+      window.__monitorOnDevices__(items);
+    } catch {}
   }
   if (route === "dashboard" && typeof window.__dashboardOnDevices__ === "function") {
-    try { window.__dashboardOnDevices__(items); } catch {}
+    try {
+      window.__dashboardOnDevices__(items);
+    } catch {}
   }
 }
 
@@ -229,12 +237,15 @@ function getRouteFromHash() {
    ✅ API Poll (백업)
 ========================================================= */
 let __pollTimer = null;
+
 function stopViewPoll() {
   if (__pollTimer) clearInterval(__pollTimer);
   __pollTimer = null;
 }
+
 function startViewPoll(route, intervalMs = 3000) {
   stopViewPoll();
+
   const tick = async () => {
     try {
       const data = await fetchJson(`${API_BASE}/api/devices`);
@@ -246,14 +257,26 @@ function startViewPoll(route, intervalMs = 3000) {
       }
     } catch {}
   };
+
   tick();
   __pollTimer = setInterval(tick, intervalMs);
 }
 
 /* =========================================================
-   ✅ MQTT (실시간)
+   ✅ MQTT (실시간) + 오프라인 감지(핵심 수정)
 ========================================================= */
 let __mqttConnected = false;
+
+function restartPollForCurrentRoute() {
+  const route = getRouteFromHash();
+  if (!isLiveRoute(route)) return;
+
+  // ✅ MQTT 연결이면 30초 백업, 끊기면 3초로 즉시 복귀
+  startViewPoll(route, __mqttConnected ? 30000 : 3000);
+
+  // 화면이 live면 캐시도 즉시 1번 뿌려주기
+  store.scheduleEmit((items) => emitToView(route, items));
+}
 
 function startMqtt() {
   const url = window.MQTT_URL || "";
@@ -264,7 +287,10 @@ function startMqtt() {
     mqttUrl: url,
     username,
     password,
+
+    // chip 상태 표시 (createMqttClient 내부에서 connect/reconnect/offline 같은 걸 호출할 수 있음)
     onChip: setMqttChip,
+
     onConnect: (client) => {
       __mqttConnected = true;
 
@@ -276,19 +302,45 @@ function startMqtt() {
         console.warn("MQTT subscribe fail:", e);
       }
 
-      const route = getRouteFromHash();
-      if (isLiveRoute(route)) store.scheduleEmit((items) => emitToView(route, items));
-      // MQTT 연결 시 폴링은 30초 백업으로
-      if (isLiveRoute(route)) startViewPoll(route, 30000);
+      // ✅ 연결되면 폴링을 즉시 30초 백업으로 전환
+      restartPollForCurrentRoute();
     },
+
+    // ✅ (추가) reconnect 중이면 연결 false로 두고, 폴링은 3초 유지
+    onReconnect: () => {
+      __mqttConnected = false;
+      restartPollForCurrentRoute();
+    },
+
+    // ✅ (추가) offline/close/error면 즉시 3초 폴링으로 복귀
+    onOffline: () => {
+      __mqttConnected = false;
+      restartPollForCurrentRoute();
+    },
+    onClose: () => {
+      __mqttConnected = false;
+      restartPollForCurrentRoute();
+    },
+    onError: () => {
+      __mqttConnected = false;
+      restartPollForCurrentRoute();
+    },
+
     onMessage: (topic, payload) => {
       let obj = null;
-      try { obj = JSON.parse(payload.toString()); } catch { return; }
+      try {
+        obj = JSON.parse(payload.toString());
+      } catch {
+        return;
+      }
+
       const item = { topic, ...obj };
       store.upsert(topic, item);
 
       const route = getRouteFromHash();
-      if (isLiveRoute(route)) store.scheduleEmit((items) => emitToView(route, items));
+      if (isLiveRoute(route)) {
+        store.scheduleEmit((items) => emitToView(route, items));
+      }
     },
   });
 }
@@ -323,7 +375,9 @@ function loadViewCss(route) {
 ========================================================= */
 function unloadViewJs() {
   if (currentViewScript) {
-    try { currentViewScript.remove(); } catch {}
+    try {
+      currentViewScript.remove();
+    } catch {}
     currentViewScript = null;
   }
 }
@@ -368,7 +422,9 @@ async function loadView(route) {
     viewEl.innerHTML = await res.text();
 
     if (route === "developer" && typeof window.initDeveloperPage === "function") {
-      try { window.initDeveloperPage(); } catch {}
+      try {
+        window.initDeveloperPage();
+      } catch {}
     }
 
     await loadViewJs(route);
@@ -382,9 +438,15 @@ async function loadView(route) {
 
       const prev = window.__viewCleanup__;
       window.__viewCleanup__ = () => {
-        try { stopViewPoll(); } catch {}
-        try { unloadViewJs(); } catch {}
-        try { if (typeof prev === "function") prev(); } catch {}
+        try {
+          stopViewPoll();
+        } catch {}
+        try {
+          unloadViewJs();
+        } catch {}
+        try {
+          if (typeof prev === "function") prev();
+        } catch {}
       };
     }
   } catch (err) {

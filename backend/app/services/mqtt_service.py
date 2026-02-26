@@ -1,15 +1,18 @@
 # app/services/mqtt_service.py
 import time
 import json
+import asyncio   # ✅ 추가
 import paho.mqtt.client as mqtt
 
 from app.core.config import MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_TOPIC, MQTT_TLS
 from app.domain.topic import parse_topic, make_key
 from app.domain.device_store import DEVICES, LAST_PAYLOAD
 from app.services.influx_service import write_to_influx
+from app.services.realtime_service import push_telemetry  # ✅ 추가
 
 mqtt_client = None
 _RC_TEXT = {0: "Success", 4: "Bad username or password", 5: "Not authorized"}
+
 
 def on_connect(client, userdata, flags, rc, properties=None):
     rc_num = None
@@ -35,6 +38,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
     except Exception as e:
         print("❌ subscribe failed:", e)
 
+
 def on_message(client, userdata, msg):
     topic = msg.topic
     payload_raw = msg.payload.decode("utf-8", errors="ignore")
@@ -51,6 +55,9 @@ def on_message(client, userdata, msg):
     key = make_key(country, site_id, model, device_id)
     now = time.time()
 
+    # -----------------------------
+    # ✅ 캐시 업데이트
+    # -----------------------------
     DEVICES[key] = {
         "country": country,
         "site_id": site_id,
@@ -70,10 +77,28 @@ def on_message(client, userdata, msg):
     except Exception:
         LAST_PAYLOAD[key] = {"_raw": payload_raw}
 
+    # -----------------------------
+    # ✅ Influx 저장
+    # -----------------------------
     try:
         write_to_influx(DEVICES[key], LAST_PAYLOAD[key], now)
     except Exception as e:
         print("❌ write_to_influx error:", repr(e))
+
+    # -----------------------------
+    # ✅ WebSocket 브로드캐스트 (핵심 추가 부분)
+    # -----------------------------
+    try:
+        asyncio.create_task(
+            push_telemetry(
+                key=key,
+                payload=LAST_PAYLOAD[key],
+                last_seen=now,
+            )
+        )
+    except Exception as e:
+        print("❌ WebSocket push error:", repr(e))
+
 
 def start_mqtt():
     global mqtt_client

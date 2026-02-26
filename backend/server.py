@@ -6,6 +6,7 @@ from app.services.influx_service import init_influx, close_influx
 from app.services.mqtt_service import start_mqtt
 from app.core.config import MQTT_HOST
 from app.routers import auth, devices, series, report
+from app.routers import ws as ws_router  # ✅ (추가) WebSocket router
 
 app = FastAPI()
 
@@ -43,6 +44,7 @@ app.include_router(auth.router)
 app.include_router(devices.router)
 app.include_router(series.router)
 app.include_router(report.router)
+app.include_router(ws_router.router)  # ✅ (추가) /ws/telemetry 활성화
 
 # =========================================================
 # Lifecycle
