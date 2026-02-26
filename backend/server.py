@@ -1,13 +1,13 @@
 # server.py
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # ✅ 수정(추가)
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-import asyncio  # ✅ 추가
+import asyncio
 
 from app.services.influx_service import init_influx, close_influx
 from app.services.mqtt_service import start_mqtt
 from app.core.config import MQTT_HOST
 from app.routers import auth, devices, series, report
-from app.routers import ws as ws_router  # ✅ (추가) WebSocket router
+# from app.routers import ws as ws_router  # ✅ (테스트 중엔 주석 권장: 중복 방지)
 
 app = FastAPI()
 
@@ -19,7 +19,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:5500",
     "http://127.0.0.1:3000",
     "http://localhost:3000",
-    "https://ksaver.onrender.com",  # 👉 네 실제 프론트 주소로 수정
+    "https://ksaver.onrender.com",
 ]
 
 app.add_middleware(
@@ -35,7 +35,7 @@ app.add_middleware(
         "X-Requested-With",
     ],
     expose_headers=["Authorization"],
-    max_age=86400,  # ✅ preflight 24시간 캐시 (OPTIONS 대폭 감소)
+    max_age=86400,
 )
 
 # =========================================================
@@ -45,14 +45,17 @@ app.include_router(auth.router)
 app.include_router(devices.router)
 app.include_router(series.router)
 app.include_router(report.router)
-app.include_router(ws_router.router)  # ✅ (추가) /ws/telemetry 활성화
+# app.include_router(ws_router.router)  # ✅ (테스트 중엔 주석 권장)
 
 # =========================================================
-# ✅ WebSocket (직접 엔드포인트 - 라우터 문제 우회용)
+# ✅ WebSocket (직접 엔드포인트 - 연결 확인용)
 # =========================================================
 @app.websocket("/ws/telemetry")
 async def ws_telemetry(ws: WebSocket):
     await ws.accept()
+    # ✅ 연결 직후 바로 1번 보내서 성공 여부 즉시 확인
+    await ws.send_text('{"type":"ping","hello":"connected"}')
+
     try:
         while True:
             await asyncio.sleep(30)
