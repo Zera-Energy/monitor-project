@@ -24,7 +24,7 @@ def normalize_payload(payload: dict):
     v_l1 = _to_float(p.get("v_l1") or p.get("v1") or p.get("vl1"))
     v_l2 = _to_float(p.get("v_l2") or p.get("v2") or p.get("vl2"))
     v_l3 = _to_float(p.get("v_l3") or p.get("v3") or p.get("vl3"))
-    v_avg = _to_float(p.get("v_avg") or p.get("v"))
+    v_avg = _to_float(p.get("v_avg") or p.get("v") or p.get("volt") or p.get("voltage"))
 
     if v_avg is not None and (v_l1 is None and v_l2 is None and v_l3 is None):
         v_l1 = v_l2 = v_l3 = v_avg
@@ -35,7 +35,7 @@ def normalize_payload(payload: dict):
     a_l1 = _to_float(p.get("a_l1") or p.get("a1") or p.get("al1"))
     a_l2 = _to_float(p.get("a_l2") or p.get("a2") or p.get("al2"))
     a_l3 = _to_float(p.get("a_l3") or p.get("a3") or p.get("al3"))
-    a_avg = _to_float(p.get("a_avg") or p.get("a"))
+    a_avg = _to_float(p.get("a_avg") or p.get("a") or p.get("amp") or p.get("current"))
 
     if a_avg is not None and (a_l1 is None and a_l2 is None and a_l3 is None):
         a_l1 = a_l2 = a_l3 = a_avg
@@ -46,7 +46,7 @@ def normalize_payload(payload: dict):
     pf_l1 = _to_float(p.get("pf_l1") or p.get("pf1") or p.get("pfl1"))
     pf_l2 = _to_float(p.get("pf_l2") or p.get("pf2") or p.get("pfl2"))
     pf_l3 = _to_float(p.get("pf_l3") or p.get("pf3") or p.get("pfl3"))
-    pf_avg = _to_float(p.get("pf_avg") or p.get("pf"))
+    pf_avg = _to_float(p.get("pf_avg") or p.get("pf") or p.get("power_factor"))
 
     if pf_avg is not None and (pf_l1 is None and pf_l2 is None and pf_l3 is None):
         pf_l1 = pf_l2 = pf_l3 = pf_avg
@@ -54,8 +54,8 @@ def normalize_payload(payload: dict):
         pf_avg = _avg3(pf_l1, pf_l2, pf_l3)
 
     # --- 합계 ---
-    kw = _to_float(p.get("kw") or p.get("p") or p.get("power_kw"))
-    kwh = _to_float(p.get("kwh") or p.get("energy_kwh"))
+    kw = _to_float(p.get("kw") or p.get("kW") or p.get("p") or p.get("power_kw"))
+    kwh = _to_float(p.get("kwh") or p.get("kWh") or p.get("energy_kwh"))
 
     # --- DI 1~16 ---
     di_map = {}
@@ -116,17 +116,18 @@ def build_channels_from_payload(payload: dict):
             fixed.append({
                 "term": term or "in",
                 "phase": phase or "L1",
-                "v": _to_float(c.get("v")),
-                "a": _to_float(c.get("a")),
-                "kw": _to_float(c.get("kw")),
-                "pf": _to_float(c.get("pf")),
+                "v": _to_float(c.get("v") or c.get("volt") or c.get("voltage")),
+                "a": _to_float(c.get("a") or c.get("amp") or c.get("current")),
+                "kw": _to_float(c.get("kw") or c.get("kW") or c.get("p") or c.get("power_kw")),
+                "pf": _to_float(c.get("pf") or c.get("power_factor")),
             })
         return fixed
 
-    v = _to_float(payload.get("v"))
-    a = _to_float(payload.get("a"))
-    kw = _to_float(payload.get("kw"))
-    pf = _to_float(payload.get("pf"))
+    # ✅ 단일 값 payload fallback
+    v = _to_float(payload.get("v") or payload.get("volt") or payload.get("voltage"))
+    a = _to_float(payload.get("a") or payload.get("amp") or payload.get("current"))
+    kw = _to_float(payload.get("kw") or payload.get("kW") or payload.get("p") or payload.get("power_kw"))
+    pf = _to_float(payload.get("pf") or payload.get("power_factor"))
 
     if v is None and a is None and kw is None and pf is None:
         return []

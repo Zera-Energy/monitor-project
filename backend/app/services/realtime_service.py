@@ -9,11 +9,19 @@ async def push_telemetry(key: str, payload: Dict[str, Any], last_seen: Optional[
     snap = normalize_payload(payload)
     channels = build_channels_from_payload(payload)
 
+    # ✅ 프론트 호환성: payload 안에도 channels/channel_count를 넣어주기 (원본은 복사)
+    payload_out: Dict[str, Any] = dict(payload) if isinstance(payload, dict) else {"_raw": payload}
+    payload_out["channels"] = channels
+    payload_out["channel_count"] = len(channels)
+
     event = {
         "type": "telemetry",
         "ts": last_seen or time.time(),
         "key": key,
-        "payload": payload,
+
+        # ✅ 여기!
+        "payload": payload_out,
+
         "summary": snap,
         "channels": channels,
         "channel_count": len(channels),
