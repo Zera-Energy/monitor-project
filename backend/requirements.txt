@@ -7,3 +7,4 @@ influxdb-client
 python-jose[cryptography]
 passlib[bcrypt]
 cryptography
+websockets
