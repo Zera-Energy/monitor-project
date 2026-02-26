@@ -10,7 +10,7 @@ class WSManager:
         self._lock = asyncio.Lock()
 
     async def connect(self, ws: WebSocket) -> None:
-        await ws.accept()
+        # ❌ await ws.accept()  ← 이 줄 제거 (중복 accept 방지)
         async with self._lock:
             self._clients.add(ws)
 
@@ -38,5 +38,9 @@ class WSManager:
             async with self._lock:
                 for ws in dead:
                     self._clients.discard(ws)
+
+    # (선택) 현재 연결 수 확인용
+    def count(self) -> int:
+        return len(self._clients)
 
 ws_manager = WSManager()
