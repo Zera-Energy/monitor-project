@@ -2,9 +2,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
+from typing import Set
 
 from app.services.influx_service import init_influx, close_influx
-from app.services.mqtt_service import start_mqtt
+from app.services.mqtt_service import start_mqtt, set_main_loop  # ✅ 수정(추가)
 from app.core.config import MQTT_HOST
 from app.routers import auth, devices, series, report
 # from app.routers import ws as ws_router  # ✅ (테스트 중엔 주석 권장: 중복 방지)
@@ -48,34 +49,65 @@ app.include_router(report.router)
 # app.include_router(ws_router.router)  # ✅ (테스트 중엔 주석 권장)
 
 # =========================================================
-# ✅ WebSocket (직접 엔드포인트 - 연결 확인용)
+# ✅ WebSocket connections + broadcast
+# =========================================================
+active_connections: Set[WebSocket] = set()
+
+async def broadcast_json(data: dict):
+    """현재 붙어있는 모든 WS 클라이언트에게 JSON 전송"""
+    dead = []
+    for ws in list(active_connections):
+        try:
+            await ws.send_json(data)
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        active_connections.discard(ws)
+
+# =========================================================
+# ✅ WebSocket endpoint
 # =========================================================
 @app.websocket("/ws/telemetry")
 async def ws_telemetry(ws: WebSocket):
     await ws.accept()
-    # ✅ 연결 직후 바로 1번 보내서 성공 여부 즉시 확인
-    await ws.send_text('{"type":"ping","hello":"connected"}')
+    active_connections.add(ws)
+
+    # ✅ 연결 직후 확인용 1회 메시지
+    try:
+        await ws.send_json({"type": "ping", "hello": "connected"})
+    except Exception:
+        active_connections.discard(ws)
+        try:
+            await ws.close()
+        except Exception:
+            pass
+        return
 
     try:
+        # ✅ keepalive(선택): 30초마다 ping
         while True:
             await asyncio.sleep(30)
-            await ws.send_text('{"type":"ping"}')
+            await ws.send_json({"type": "ping"})
     except WebSocketDisconnect:
         pass
     except Exception:
         pass
+    finally:
+        active_connections.discard(ws)
 
 # =========================================================
 # Lifecycle
 # =========================================================
 @app.on_event("startup")
-def on_startup():
+async def on_startup():  # ✅ 수정: async로 변경
+    # ✅ (핵심) MQTT 콜백 스레드가 WS로 안전하게 던질 수 있도록 메인 루프 등록
+    set_main_loop(asyncio.get_running_loop())
+
     init_influx()
     if MQTT_HOST:
         start_mqtt()
     else:
         print("⚠️ MQTT_HOST empty -> MQTT not started")
-
 
 @app.on_event("shutdown")
 def on_shutdown():

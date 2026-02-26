@@ -1,17 +1,27 @@
 # app/services/mqtt_service.py
 import time
 import json
-import asyncio   # ✅ 추가
+import asyncio
 import paho.mqtt.client as mqtt
 
 from app.core.config import MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS, MQTT_TOPIC, MQTT_TLS
 from app.domain.topic import parse_topic, make_key
 from app.domain.device_store import DEVICES, LAST_PAYLOAD
 from app.services.influx_service import write_to_influx
-from app.services.realtime_service import push_telemetry  # ✅ 추가
+from app.services.realtime_service import push_telemetry
 
 mqtt_client = None
 _RC_TEXT = {0: "Success", 4: "Bad username or password", 5: "Not authorized"}
+
+# ✅ (핵심) uvicorn 메인 이벤트루프 저장용
+_MAIN_LOOP: asyncio.AbstractEventLoop | None = None
+
+
+def set_main_loop(loop: asyncio.AbstractEventLoop):
+    """서버 startup에서 메인 루프를 등록해두면,
+    MQTT 콜백(별도 스레드)에서도 안전하게 코루틴을 실행할 수 있음."""
+    global _MAIN_LOOP
+    _MAIN_LOOP = loop
 
 
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -86,16 +96,21 @@ def on_message(client, userdata, msg):
         print("❌ write_to_influx error:", repr(e))
 
     # -----------------------------
-    # ✅ WebSocket 브로드캐스트 (핵심 추가 부분)
+    # ✅ WebSocket 브로드캐스트 (스레드 안전)
     # -----------------------------
     try:
-        asyncio.create_task(
-            push_telemetry(
-                key=key,
-                payload=LAST_PAYLOAD[key],
-                last_seen=now,
+        if _MAIN_LOOP and _MAIN_LOOP.is_running():
+            asyncio.run_coroutine_threadsafe(
+                push_telemetry(
+                    key=key,
+                    payload=LAST_PAYLOAD[key],
+                    last_seen=now,
+                ),
+                _MAIN_LOOP
             )
-        )
+        else:
+            # 메인 루프가 아직 등록 안 됐으면 로그만 (startup 순서 문제)
+            print("⚠️ WS push skipped: main loop not ready")
     except Exception as e:
         print("❌ WebSocket push error:", repr(e))
 
