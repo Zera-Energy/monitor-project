@@ -105,6 +105,29 @@
     </div>
   </section>
 
+  <!-- ✅ Realtime Chart (추가) -->
+  <section class="card big mt12">
+    <div class="cardTitle">Realtime Chart</div>
+
+    <div class="muted mt10 mb6">
+      Selected Device 실시간 데이터(WS 수신)를 바로 차트로 표시합니다.
+      <span class="muted ml10">WS: <b id="rtWsStatus">-</b></span>
+      <button class="btn ml10" id="btnRtReset" type="button">Reset</button>
+    </div>
+
+    <div class="contentCard mt10">
+      <div class="k">Realtime (kW)</div>
+      <div class="muted desc">
+        장비를 선택(selDevice)한 상태에서 MQTT 메시지가 들어오면 라인 차트가 업데이트됩니다.
+      </div>
+      <canvas id="rtChart" height="120"></canvas>
+    </div>
+
+    <div class="muted mt10" style="font-size:12px;">
+      * 차트가 안 움직이면: (1) 장비 선택했는지, (2) WS 연결 상태가 WS connected인지, (3) MQTT 메시지가 실제로 들어오는지 확인하세요.
+    </div>
+  </section>
+
   <!-- ✅ Device List -->
   <section class="card big mt12">
     <div class="cardTitle">Device List</div>

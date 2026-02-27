@@ -7,7 +7,12 @@
   const modal = $("devOvModal");
 
   const logEl = $("mqttLog");
-  const apiStatusEl = $("mqttWsStatus");
+
+  // ✅ (수정) 기존 mqttWsStatus는 "API 상태"로 그대로 두고,
+  // Realtime Chart 영역의 WS 상태는 rtWsStatus로 분리
+  const apiStatusEl = $("mqttWsStatus");     // API/기타 상태 표시용(기존)
+  const rtWsStatusEl = $("rtWsStatus");      // WS 상태 표시용(추가)
+
   const lastAtEl = $("mqttLastAt");
   const updateCountEl = $("mqttMsgCount");
   const btnPauseLog = $("btnPauseLog");
@@ -23,6 +28,9 @@
 
   // ✅ Select data 버튼(있으면 사용)
   const btnSelectData = $("btnSelectData");
+
+  // ✅ Realtime Chart 리셋 버튼(HTML에 있으면 사용)
+  const btnRtReset = $("btnRtReset");
 
   // ✅ 기존 cleanup 체인
   const prevCleanup = window.__viewCleanup__;
@@ -188,70 +196,17 @@
       makeTr("OUT", outRow, outKw);
   }
 
-  selDevice?.addEventListener("change", () => {
-    try { renderDetailPanelBySelected(__devicesCache); } catch {}
-    // ✅ 선택 장비 바뀌면 실시간 차트도 리셋(권장)
-    try { resetRealtimeChart(); } catch {}
-  });
-
   // =========================
-  // ✅ Realtime Chart (추가)
+  // ✅ Realtime Chart
   // =========================
   let rtChart = null;
   const rtBuf = { labels: [], values: [] };
-  const RT_MAX = 120; // 120개 포인트 유지 (약 2분~5분)
-
-  function ensureRealtimeChartUI(){
-    // 1) 이미 canvas 있으면 사용
-    let canvas = document.getElementById("rtChart");
-
-    // 2) 없으면 detail panel 아래에 자동 생성
-    if (!canvas) {
-      ensureDetailPanel();
-      const panel = document.getElementById("monDetailPanel");
-      if (!panel) return null;
-
-      const wrap = document.createElement("section");
-      wrap.className = "contentCard";
-      wrap.style.marginTop = "12px";
-
-      wrap.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:space-between;">
-          <div>
-            <div class="k">Realtime</div>
-            <div class="v" style="font-size:14px;">Selected device kW</div>
-          </div>
-          <button type="button" class="btnSmall gray" id="btnRtReset">Reset</button>
-        </div>
-        <div style="margin-top:10px;">
-          <canvas id="rtChart" height="120"></canvas>
-        </div>
-        <div class="muted" style="margin-top:6px; font-size:12px;">
-          * Updates when telemetry arrives via WebSocket.
-        </div>
-      `;
-
-      panel.insertAdjacentElement("afterend", wrap);
-      canvas = wrap.querySelector("#rtChart");
-
-      wrap.querySelector("#btnRtReset")?.addEventListener("click", () => {
-        resetRealtimeChart();
-      });
-    }
-
-    return canvas;
-  }
+  const RT_MAX = 120;
 
   function initRealtimeChart(){
-    const canvas = ensureRealtimeChartUI();
+    const canvas = document.getElementById("rtChart");
     if (!canvas) return;
-
-    if (!window.Chart) {
-      // Chart.js가 없으면 차트 생성 못함
-      return;
-    }
-
-    // 이미 만들어져 있으면 스킵
+    if (!window.Chart) return;
     if (rtChart) return;
 
     const ctx = canvas.getContext("2d");
@@ -273,10 +228,7 @@
         animation: false,
         interaction: { mode: "index", intersect: false },
         plugins: { legend: { display: true } },
-        scales: {
-          x: { display: true },
-          y: { display: true }
-        }
+        scales: { x: { display: true }, y: { display: true } }
       }
     });
   }
@@ -297,25 +249,41 @@
     rtBuf.labels.push(label);
     rtBuf.values.push(value);
 
-    // 길이 제한
     while (rtBuf.labels.length > RT_MAX) rtBuf.labels.shift();
     while (rtBuf.values.length > RT_MAX) rtBuf.values.shift();
 
     if (!rtChart) return;
-
     rtChart.data.labels = rtBuf.labels.slice();
     rtChart.data.datasets[0].data = rtBuf.values.slice();
     rtChart.update();
   }
 
-  // 초기 차트 준비
+  // ✅ 초기 chart 준비 + Reset 버튼 연결
   initRealtimeChart();
+  btnRtReset?.addEventListener("click", resetRealtimeChart);
+
+  selDevice?.addEventListener("change", () => {
+    try { renderDetailPanelBySelected(__devicesCache); } catch {}
+    try { resetRealtimeChart(); } catch {}
+  });
 
   // =========================
   // ✅ 2) 서버(API) 기준 장비 목록 → 화면 렌더
   // =========================
   let paused = false;
   let updateCount = 0;
+
+  const devices = [];
+  let __devicesCache = devices;
+
+  function setApiStatus(v){
+    if (apiStatusEl) apiStatusEl.textContent = v;
+  }
+  function setWsStatus(v){
+    // ✅ (수정) WS 상태는 rtWsStatus에 찍기 (없으면 기존 mqttWsStatus에 fallback)
+    if (rtWsStatusEl) rtWsStatusEl.textContent = v;
+    else if (apiStatusEl) apiStatusEl.textContent = v;
+  }
 
   function appendLog(line) {
     if (!logEl || paused) return;
@@ -489,17 +457,15 @@
     renderDeviceTable(devices);
     renderDevOv();
 
-    // ✅ 선택 장비 6채널 + 절감
     try { renderDetailPanelBySelected(devices); } catch {}
-
-    // ✅ chart 준비 (렌더 이후)
     try { initRealtimeChart(); } catch {}
   };
 
   setApiStatus("waiting...");
+  setWsStatus("WS connecting...");
 
   // =========================
-  // ✅ 4) WebSocket 실시간 연결 (추가)
+  // ✅ 4) WebSocket 실시간 연결
   // =========================
   let __ws = null;
   let __wsClosedByUser = false;
@@ -522,19 +488,22 @@
       __ws = new WebSocket(wsUrl);
 
       __ws.onopen = () => {
-        setApiStatus("WS connected");
+        setWsStatus("WS connected");
         retry = 1000;
       };
 
       __ws.onmessage = (ev) => {
         let msg;
         try { msg = JSON.parse(ev.data); } catch { return; }
+
+        // ping은 무시(원하면 상태만 찍어도 됨)
+        if (msg.type === "ping") return;
+
         if (msg.type !== "telemetry") return;
 
         const key = msg.key;
         if (!key) return;
 
-        // 선택 장비 key
         const selectedKey = selDevice?.value || "";
 
         const idx = devices.findIndex(d => deviceKey(d) === key);
@@ -542,24 +511,19 @@
 
         const d = devices[idx];
 
-        // ✅ payload / channels 갱신
         d.payload = msg.payload || {};
         d.channels = msg.channels || (msg.payload?.channels || []);
         d.channel_count = msg.channel_count ?? (msg.payload?.channel_count ?? 0);
 
-        // ✅ summary 값(kw/pf/v_avg 등) 반영
         if (msg.summary && typeof msg.summary === "object") {
           Object.assign(d, msg.summary);
         }
 
-        // ✅ online/age 갱신
         d.age_sec = 0;
         d.online = true;
 
-        // ✅ topic 갱신(있으면)
         if (msg.last_topic) d.last_topic = msg.last_topic;
 
-        // ✅ UI 갱신
         renderAutoCards(devices);
         renderDeviceTable(devices);
         try { renderDetailPanelBySelected(devices); } catch {}
@@ -568,15 +532,10 @@
         if (updateCountEl) updateCountEl.textContent = String(updateCount);
         if (lastAtEl) lastAtEl.textContent = new Date().toLocaleTimeString();
 
-        // ✅ 실시간 차트 업데이트: "선택 장비"만 그리기
+        // ✅ 실시간 차트 업데이트: 선택 장비만
         if (selectedKey && selectedKey === key) {
-          // 1) kW 값을 우선 summary.kw에서 찾고 없으면 payload.kw
           const kw = n(msg?.summary?.kw ?? msg?.payload?.kw);
-
-          // 2) 라벨은 HH:MM:SS
           const t = new Date().toLocaleTimeString();
-
-          // 3) 차트에 추가
           initRealtimeChart();
           pushRealtimePoint(t, kw);
         }
@@ -584,14 +543,13 @@
 
       __ws.onclose = () => {
         if (__wsClosedByUser) return;
-
-        setApiStatus("WS reconnecting...");
+        setWsStatus("WS reconnecting...");
         setTimeout(connect, retry);
         retry = Math.min(10000, retry * 2);
       };
 
       __ws.onerror = () => {
-        setApiStatus("WS error");
+        setWsStatus("WS error");
       };
     }
 
@@ -662,7 +620,7 @@
     try { window.removeEventListener("keydown", onKeyDown); } catch {}
     try { if (window.__monitorOnDevices__) delete window.__monitorOnDevices__; } catch {}
 
-    // ✅ WebSocket 닫기 (사용자 종료 표시)
+    // ✅ WebSocket 닫기
     try {
       __wsClosedByUser = true;
       __ws && __ws.close();
