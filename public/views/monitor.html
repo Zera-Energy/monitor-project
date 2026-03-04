@@ -1,28 +1,11 @@
 <!-- /views/monitor.html -->
 <section class="monitorView">
   <div class="pageHeader">
-    <h2 class="pageTitle">devicesMonitor</h2>
+    <h2 class="pageTitle">Devices Monitor</h2>
     <div class="muted">Real-time electrical measurements</div>
   </div>
 
-  <div class="toolbar">
-    <div class="toolbarLeft">
-      <select class="select" id="selRole">
-        <option value="all">All Roles</option>
-      </select>
-
-      <button class="btn primary" id="btnSelectData" type="button">Select data ▾</button>
-
-      <button class="btn amber" id="btnDevicesOverview" type="button">
-        Devices Overview
-      </button>
-    </div>
-
-    <div class="toolbarRight">
-      <input class="input" id="inpSearch" placeholder="Search Criteria" />
-      <button class="btn amber" id="btnSearch" type="button">Search</button>
-    </div>
-  </div>
+  <!-- ✅ (삭제됨) toolbar 영역: All Roles / Select data / Devices Overview / Search Criteria / Search -->
 
   <!-- ✅ KPI BOARD -->
   <section class="card big mt12" id="kpiBoard">
@@ -104,10 +87,7 @@
       </div>
 
       <div class="kpiChartWrap">
-        <!-- ✅ (핵심 수정) 세로 길이 살짝 축소: 160 -> 120 -->
         <canvas id="trendChart" height="160"></canvas>
-
-        <!-- ✅ (수정) 아래쪽 여백 줄이기: margin-top 8px -> 4px -->
         <div class="muted" id="trendEmpty" style="margin-top:4px;" hidden>
           No data in selected range
         </div>
@@ -120,7 +100,6 @@
 
     <!-- =====================================================
          ✅ (추가) Trend 차트 아래 4개 카드 (2x2)
-         - 사진처럼 분리된 카드들
     ====================================================== -->
     <div class="trendQuad mt12">
 
@@ -264,7 +243,6 @@
       </div>
 
     </div>
-    <!-- ===================================================== -->
 
     <!-- Voltage L-L -->
     <div class="kpiSection mt12">
