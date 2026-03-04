@@ -20,9 +20,19 @@
   const devOvFilterSel = $("devOvFilterSel");
   const devOvCount = $("devOvCount");
   const devOvContent = $("devOvContent");
-
-  // ✅ selDevice 삭제됨 (HTML에서 제거했으니 JS도 제거)
   const deviceTbody = $("deviceTbody");
+
+  // ✅ 선택된 장비 (Select Device 드롭다운 삭제 → 카드/테이블 클릭으로 선택)
+  let __selectedKey = "";
+  let __selectedLabel = "";
+
+  function selectDeviceByKey(key, label){
+    __selectedKey = String(key || "");
+    __selectedLabel = String(label || __selectedKey || "");
+    try {
+      setTrendStatus(__selectedKey ? `Selected: ${__selectedLabel}` : "Ready");
+    } catch {}
+  }
 
   // ✅ Select data 버튼(있으면 사용)
   const btnSelectData = $("btnSelectData");
@@ -43,10 +53,6 @@
 
   const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
   const ONLINE_SEC = 60;
-
-  // ✅ 선택된 장비 key를 JS에서 관리
-  let __selectedKey = "";
-  let __selectedLabel = "";
 
   // ===== utils =====
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
@@ -97,61 +103,6 @@
   }
 
   /* =========================================================
-     ✅ Selection helper (selDevice 대신)
-  ========================================================= */
-  function setSelectedDevice(key, label, { scrollToKpi = false } = {}){
-    const k = String(key || "");
-    if (!k) return;
-
-    const changed = (__selectedKey !== k);
-    __selectedKey = k;
-    __selectedLabel = String(label || k);
-
-    // 상세 패널 반영 + trend 리셋
-    try { renderDetailPanelBySelected(__devicesCache); } catch {}
-    if (changed) {
-      try { resetTrend(); } catch {}
-      setTrendStatus("Ready");
-    }
-
-    // UI 강조(선택 표시)
-    try { highlightSelected(); } catch {}
-
-    if (scrollToKpi) {
-      try { document.getElementById("kpiBoard")?.scrollIntoView({ behavior: "smooth", block: "start" }); } catch {}
-    }
-  }
-
-  function highlightSelected(){
-    // Auto cards highlight
-    if (autoGrid) {
-      autoGrid.querySelectorAll("[data-device-card]").forEach(el => {
-        const k = el.getAttribute("data-device-card") || "";
-        if (k && k === __selectedKey) el.classList.add("is-selected");
-        else el.classList.remove("is-selected");
-      });
-    }
-
-    // Table rows highlight
-    if (deviceTbody) {
-      deviceTbody.querySelectorAll("tr[data-device-row]").forEach(tr => {
-        const k = tr.getAttribute("data-device-row") || "";
-        if (k && k === __selectedKey) tr.classList.add("is-selected");
-        else tr.classList.remove("is-selected");
-      });
-    }
-
-    // Overview items highlight
-    if (devOvContent) {
-      devOvContent.querySelectorAll("[data-devov-item]").forEach(el => {
-        const k = el.getAttribute("data-devov-item") || "";
-        if (k && k === __selectedKey) el.classList.add("is-selected");
-        else el.classList.remove("is-selected");
-      });
-    }
-  }
-
-  /* =========================================================
      ✅ KPI BOARD helpers (사진 스타일 타일 채우기)
   ========================================================= */
   function setTile(id, title, valueText, unit, sub){
@@ -183,7 +134,6 @@
     }) || null;
   }
 
-  // voltage line-to-line는 term/phase가 제각각인 경우가 있어서 넓게 탐색
   function findVll(channels, phase){
     if (!Array.isArray(channels)) return null;
     const want = String(phase).toUpperCase(); // "L1-L2"
@@ -199,7 +149,6 @@
     const nowText = new Date().toLocaleTimeString();
     const channels = msg?.channels || (msg?.payload?.channels || []);
 
-    // -------- Voltage (L-L)
     const v12 = pickSummaryNumber(msg, ["v12","v_l1l2","v_ll12"]) ??
                 n(findVll(channels, "L1-L2")?.v ?? findVll(channels, "L1-L2")?.volt ?? findVll(channels, "L1-L2")?.voltage);
 
@@ -213,7 +162,6 @@
     setTile("tileV23", "VOLTAGE L2–L3", v23 !== null ? v23.toFixed(2) : "-", "V", nowText);
     setTile("tileV31", "VOLTAGE L3–L1", v31 !== null ? v31.toFixed(2) : "-", "V", nowText);
 
-    // -------- Current (A)
     const a1 = pickSummaryNumber(msg, ["a1","i1","amp1"]) ??
                n(findChannel(channels, "in", "L1")?.a ?? findChannel(channels, "in", "L1")?.amp ?? findChannel(channels, "in", "L1")?.current);
 
@@ -227,7 +175,6 @@
     setTile("tileA2", "CURRENT PHASE 2", a2 !== null ? a2.toFixed(2) : "-", "A", nowText);
     setTile("tileA3", "CURRENT PHASE 3", a3 !== null ? a3.toFixed(2) : "-", "A", nowText);
 
-    // -------- Power (kW / kvar / kva / hz / pf)
     const kw1 = pickSummaryNumber(msg, ["kw1","p1_kw"]) ??
                 n(findChannel(channels, "in", "L1")?.kw ?? findChannel(channels, "in", "L1")?.p_kw ?? findChannel(channels, "in", "L1")?.power_kw ?? findChannel(channels, "in", "L1")?.p);
 
@@ -253,7 +200,6 @@
     setTile("tileHz",  "FREQUENCY",      hz  !== null ? hz.toFixed(2) : "-", "Hz", nowText);
     setTile("tilePF",  "POWER FACTOR",   pf  !== null ? pf.toFixed(2) : "-", "PF", nowText);
 
-    // -------- THD / Energy & Savings
     const thdb = pickSummaryNumber(msg, ["thd_before","thd_b","thdBefore"]);
     const thda = pickSummaryNumber(msg, ["thd_after","thd_a","thdAfter"]);
 
@@ -270,7 +216,7 @@
   }
 
   /* =========================================================
-     ✅ Trend Chart (상단 Trend Chart)
+     ✅ Trend Chart
   ========================================================= */
   let trendChart = null;
   const trendBuf = { labels: [], values: [] };
@@ -397,8 +343,8 @@
   async function loadTrendSeries(){
     const deviceKeySel = __selectedKey || "";
     if (!deviceKeySel) {
-      setTrendStatus("Select Device");
-      if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = "Select a device by clicking a card/table row"; }
+      setTrendStatus("Select Device (click a card/table row)");
+      if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = "Select Device first"; }
       return;
     }
 
@@ -449,7 +395,7 @@
       trendBuf.values = values.slice(-TREND_MAX);
 
       trendChart.data.labels = trendBuf.labels.slice();
-      trendChart.data.datasets[0].label = `${metric} (${__selectedLabel || __selectedKey})`;
+      trendChart.data.datasets[0].label = metric;
       trendChart.data.datasets[0].data = trendBuf.values.slice();
       trendChart.update();
 
@@ -480,129 +426,14 @@
     URL.revokeObjectURL(a.href);
   });
 
-  // 초기 세팅
   initTrendMetricOptions();
   initTrendChart();
   setTrendStatus("Ready");
 
   /* =========================================================
-     ✅ Selected device detail panel (유지, anchor만 변경)
+     ✅ Selected Device Panel 삭제됨
+     - 선택은 카드/테이블 클릭으로만 유지
   ========================================================= */
-  function ensureDetailPanel(){
-    let el = document.getElementById("monDetailPanel");
-    if (el) return el;
-
-    // selDevice 없으니 toolbar 아래에 붙이자
-    const toolbar = document.querySelector(".monitorView .toolbar");
-    const anchor = toolbar || document.getElementById("kpiBoard") || document.body;
-
-    el = document.createElement("section");
-    el.id = "monDetailPanel";
-    el.className = "contentCard";
-    el.style.marginTop = "12px";
-
-    el.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-        <div>
-          <div class="k">Selected Device</div>
-          <div class="v" id="monDetailTitle" style="font-size:16px;">-</div>
-        </div>
-        <div style="text-align:right;">
-          <div class="k">Saving</div>
-          <div class="v" id="monSavingMain" style="font-size:16px;">-</div>
-          <div class="muted" id="monSavingSub" style="font-size:12px;">-</div>
-        </div>
-      </div>
-
-      <div style="margin-top:10px; overflow:auto;">
-        <table style="width:100%; border-collapse:collapse; min-width:520px;">
-          <thead>
-            <tr>
-              <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">Term</th>
-              <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">L1</th>
-              <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">L2</th>
-              <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">L3</th>
-              <th style="text-align:left; padding:8px; border-bottom:1px solid #eee;">Σ</th>
-            </tr>
-          </thead>
-          <tbody id="monDetailTbody">
-            <tr><td colspan="5" class="muted" style="padding:10px;">No channel data</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="muted" style="margin-top:8px;">* Values show A / kW / V if available.</div>
-    `;
-
-    // toolbar 다음에 넣기
-    if (anchor === toolbar) toolbar.insertAdjacentElement("afterend", el);
-    else anchor.insertAdjacentElement("beforebegin", el);
-
-    return el;
-  }
-
-  function renderDetailPanelBySelected(devices){
-    ensureDetailPanel();
-    const title = document.getElementById("monDetailTitle");
-    const tbody = document.getElementById("monDetailTbody");
-    const savingMain = document.getElementById("monSavingMain");
-    const savingSub = document.getElementById("monSavingSub");
-
-    if (!title || !tbody) return;
-
-    const key = __selectedKey || "";
-    const d = devices.find(x => deviceKey(x) === key) || null;
-
-    if (!d) {
-      title.textContent = "-";
-      tbody.innerHTML = `<tr><td colspan="5" class="muted" style="padding:10px;">Select a device (click a card/table row)</td></tr>`;
-      if (savingMain) savingMain.textContent = "-";
-      if (savingSub) savingSub.textContent = "-";
-      return;
-    }
-
-    title.textContent = deviceLabel(d);
-
-    const payload = d.payload || d;
-    const channels = pickChannels(payload);
-    const phases = ["L1","L2","L3"];
-    const getCh = (term, phase) => channels.find(c => c?.term === term && c?.phase === phase) || null;
-
-    if (!channels.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="muted" style="padding:10px;">No channel data</td></tr>`;
-      if (savingMain) savingMain.textContent = "-";
-      if (savingSub) savingSub.textContent = "-";
-      return;
-    }
-
-    const inRow = phases.map(p => getCh("in", p));
-    const outRow = phases.map(p => getCh("out", p));
-
-    const inKw  = sumKwByTerm(channels, "in");
-    const outKw = sumKwByTerm(channels, "out");
-
-    let dKw = null, pct = null;
-    if (inKw !== null && outKw !== null) {
-      dKw = inKw - outKw;
-      pct = (inKw !== 0) ? (dKw / inKw) * 100 : null;
-    }
-
-    if (savingMain) savingMain.textContent = (dKw !== null) ? `${dKw.toFixed(2)} kW` : "-";
-    if (savingSub) savingSub.textContent = (pct !== null) ? `${pct.toFixed(1)} % (IN→OUT)` : "-";
-
-    const makeTr = (label, arr, sumKw) => `
-      <tr>
-        <td style="padding:8px; border-bottom:1px solid #f3f3f3; font-weight:900;">${label}</td>
-        <td style="padding:8px; border-bottom:1px solid #f3f3f3;">${fmtCell(arr[0])}</td>
-        <td style="padding:8px; border-bottom:1px solid #f3f3f3;">${fmtCell(arr[1])}</td>
-        <td style="padding:8px; border-bottom:1px solid #f3f3f3;">${fmtCell(arr[2])}</td>
-        <td style="padding:8px; border-bottom:1px solid #f3f3f3; font-weight:900;">${sumKw !== null ? `${sumKw.toFixed(2)}kW` : "-"}</td>
-      </tr>
-    `;
-
-    tbody.innerHTML =
-      makeTr("IN", inRow, inKw) +
-      makeTr("OUT", outRow, outKw);
-  }
 
   /* =========================================================
      ✅ Device list / overview (기존 유지)
@@ -646,7 +477,6 @@
     card = document.createElement("div");
     card.className = "contentCard";
     card.setAttribute("data-device-card", key);
-    card.style.cursor = "pointer";
 
     card.innerHTML = `
       <div class="k">Device</div>
@@ -681,8 +511,6 @@
       if (topicEl) topicEl.textContent = safe(d.last_topic ?? d.device_topic ?? d.topic);
       if (ageEl) ageEl.textContent = `${safe(d.age_sec)}s`;
     }
-
-    highlightSelected();
   }
 
   function renderDeviceTable(items){
@@ -699,9 +527,8 @@
       const online = (d.online !== undefined) ? !!d.online : (d.age_sec < ONLINE_SEC);
 
       const tr = document.createElement("tr");
-      tr.setAttribute("data-device-row", key);
+      tr.setAttribute("data-key", key);
       tr.style.cursor = "pointer";
-
       tr.innerHTML = `
         <td>${idx + 1}</td>
         <td>
@@ -716,8 +543,6 @@
       `;
       deviceTbody.appendChild(tr);
     });
-
-    highlightSelected();
   }
 
   function renderDevOv(){
@@ -738,15 +563,11 @@
     }
 
     filtered.forEach((d) => {
-      const key = deviceKey(d);
       const online = (d.online !== undefined) ? !!d.online : (d.age_sec < ONLINE_SEC);
 
       const el = document.createElement("div");
       el.className = "contentCard";
       el.style.marginBottom = "10px";
-      el.style.cursor = "pointer";
-      el.setAttribute("data-devov-item", key);
-
       el.innerHTML = `
         <div style="display:flex; justify-content:space-between; gap:10px;">
           <div>
@@ -762,8 +583,6 @@
       `;
       devOvContent.appendChild(el);
     });
-
-    highlightSelected();
   }
 
   devOvFilterSel?.addEventListener("change", renderDevOv);
@@ -779,26 +598,16 @@
     for (const x of (items || [])) devices.push(x);
     __devicesCache = devices;
 
-    appendLog(`✅ devices updated: ${devices.length} @ ${new Date().toLocaleTimeString()}`);
-
-    // ✅ 선택된 장비가 없으면 첫 번째 장비 자동 선택
     if (!__selectedKey && devices.length) {
       const d0 = devices[0];
-      setSelectedDevice(deviceKey(d0), deviceLabel(d0));
-    } else {
-      // 선택된 key가 사라졌으면 첫 번째로
-      const exists = __selectedKey && devices.some(d => deviceKey(d) === __selectedKey);
-      if (!exists && devices.length) {
-        const d0 = devices[0];
-        setSelectedDevice(deviceKey(d0), deviceLabel(d0));
-      }
+      selectDeviceByKey(deviceKey(d0), deviceLabel(d0));
     }
+
+    appendLog(`✅ devices updated: ${devices.length} @ ${new Date().toLocaleTimeString()}`);
 
     renderAutoCards(devices);
     renderDeviceTable(devices);
     renderDevOv();
-
-    try { renderDetailPanelBySelected(devices); } catch {}
   };
 
   setApiStatus("waiting...");
@@ -843,6 +652,13 @@
         const key = msg.key;
         if (!key) return;
 
+        let selectedKey = __selectedKey || "";
+        if (!selectedKey) {
+          const dd = devices.find(x => deviceKey(x) === key) || null;
+          selectDeviceByKey(key, dd ? deviceLabel(dd) : key);
+          selectedKey = key;
+        }
+
         const idx = devices.findIndex(d => deviceKey(d) === key);
         if (idx === -1) return;
 
@@ -863,14 +679,12 @@
 
         renderAutoCards(devices);
         renderDeviceTable(devices);
-        try { renderDetailPanelBySelected(devices); } catch {}
 
         updateCount += 1;
         if (updateCountEl) updateCountEl.textContent = String(updateCount);
         if (lastAtEl) lastAtEl.textContent = new Date().toLocaleTimeString();
 
-        // ✅ 선택 장비만 KPI/Trend 실시간 반영
-        if (__selectedKey && __selectedKey === key) {
+        if (selectedKey && selectedKey === key) {
           try { updateKpiFromTelemetry(msg); } catch {}
 
           const metric = trendMetricEl?.value || "kw";
@@ -923,21 +737,14 @@
     btnOpen.addEventListener("click", openDevOv);
   }
 
-  /* =========================================================
-     ✅ Click handlers (선택 기능 추가)
-     - Auto card 클릭 / Device table 행 클릭 / Overview item 클릭
-  ========================================================= */
   const onDocClick = (e) => {
     const t = e.target;
 
     if (t?.closest('[data-action="close-devov"]')) closeDevOv();
     if (t?.id === "devOvBack") closeDevOv();
 
-    // Copy button
     const copyBtn = t?.closest('[data-action="copy"]');
     if (copyBtn) {
-      e.preventDefault();
-      e.stopPropagation();
       const key = copyBtn.getAttribute("data-key") || "";
       if (!key) return;
       try {
@@ -952,35 +759,27 @@
         ta.remove();
         appendLog(`📋 copied: ${key}`);
       }
-      return;
     }
 
-    // Auto cards click
-    const card = t?.closest?.("[data-device-card]");
-    if (card) {
+    // ✅ 장비 선택: 카드/테이블 클릭 (Copy 버튼 제외)
+    const card = t?.closest?.('[data-device-card]');
+    if (card && !t?.closest?.('button')) {
       const key = card.getAttribute("data-device-card") || "";
-      const d = devices.find(x => deviceKey(x) === key);
-      setSelectedDevice(key, deviceLabel(d || { device_topic:key }), { scrollToKpi: true });
-      return;
+      if (key) {
+        const d = devices.find(x => deviceKey(x) === key) || null;
+        selectDeviceByKey(key, d ? deviceLabel(d) : key);
+        resetTrend();
+      }
     }
 
-    // Device table row click
-    const row = t?.closest?.("tr[data-device-row]");
-    if (row) {
-      const key = row.getAttribute("data-device-row") || "";
-      const d = devices.find(x => deviceKey(x) === key);
-      setSelectedDevice(key, deviceLabel(d || { device_topic:key }), { scrollToKpi: true });
-      return;
-    }
-
-    // Overview item click
-    const ov = t?.closest?.("[data-devov-item]");
-    if (ov) {
-      const key = ov.getAttribute("data-devov-item") || "";
-      const d = devices.find(x => deviceKey(x) === key);
-      setSelectedDevice(key, deviceLabel(d || { device_topic:key }), { scrollToKpi: true });
-      closeDevOv();
-      return;
+    const row = t?.closest?.("tr[data-key]");
+    if (row && !t?.closest?.('button')) {
+      const key = row.getAttribute("data-key") || "";
+      if (key) {
+        const d = devices.find(x => deviceKey(x) === key) || null;
+        selectDeviceByKey(key, d ? deviceLabel(d) : key);
+        resetTrend();
+      }
     }
   };
   document.addEventListener("click", onDocClick);
