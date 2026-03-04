@@ -49,7 +49,10 @@
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
 
-  function nowTime(){ return new Date().toLocaleTimeString("en-GB"); } // ✅ 13:21:15 스타일
+  function nowTime(){
+    // ✅ 13:21:15 스타일(24h)
+    return new Date().toLocaleTimeString("en-GB", { hour12: false });
+  }
 
   function setTrendStatus(v){
     if (trendStatusEl) trendStatusEl.textContent = v;
@@ -67,6 +70,36 @@
     if (deviceOnlineDotEl) deviceOnlineDotEl.style.background = isOnline ? "#22c55e" : "#ef4444";
     if (deviceOnlineTextEl) deviceOnlineTextEl.textContent = isOnline ? "Online" : "Offline";
     if (deviceLastUpdateTextEl) deviceLastUpdateTextEl.textContent = timeText || "-";
+  }
+
+  // ✅ (추가) KPI 타일 기본 텍스트를 "처음부터" 넣어둠 (telemetry 안 와도 보이게)
+  function initKpiPlaceholders(){
+    const t = nowTime();
+
+    setTile("tileV12", "VOLTAGE L1–L2", "-", "V", t);
+    setTile("tileV23", "VOLTAGE L2–L3", "-", "V", t);
+    setTile("tileV31", "VOLTAGE L3–L1", "-", "V", t);
+
+    setTile("tileA1", "CURRENT PHASE 1", "-", "A", t);
+    setTile("tileA2", "CURRENT PHASE 2", "-", "A", t);
+    setTile("tileA3", "CURRENT PHASE 3", "-", "A", t);
+
+    setTile("tileKW1", "POWER PHASE 1", "-", "kW", t);
+    setTile("tileKW2", "POWER PHASE 2", "-", "kW", t);
+    setTile("tileKW3", "POWER PHASE 3", "-", "kW", t);
+    setTile("tileKWt", "TOTAL POWER", "-", "kW", t);
+    setTile("tileKvar","REACTIVE POWER", "-", "kVAr", t);
+
+    setTile("tileKva", "APPARENT POWER", "-", "kVA", t);
+    setTile("tileHz",  "FREQUENCY", "-", "Hz", t);
+    setTile("tilePF",  "POWER FACTOR", "-", "PF", t);
+
+    setTile("tileTHDb", "THD BEFORE", "-", "%", "Before K-Save");
+    setTile("tileTHDa", "THD AFTER",  "-", "%", "With K-Save");
+
+    setTile("tileKwh",   "ENERGY", "-", "kWh", t);
+    setTile("tileSaved", "ENERGY SAVED", "-", "kWh", t);
+    setTile("tileCO2",   "CO₂ SAVED", "-", "kg", t);
   }
 
   // 로그/버튼은 HTML에서 빠졌을 수 있으니 안전하게 no-op
@@ -123,6 +156,9 @@
     } catch {
       if (trendLocationTextEl) trendLocationTextEl.textContent = "-";
     }
+
+    // ✅ 장비 바꿨으면 상단 Live 정보는 일단 초기화(실제 telemetry 오면 Online)
+    setDeviceLiveStatus(false, "-");
 
     try {
       setTrendStatus(__selectedKey ? `Selected: ${__selectedLabel}` : "Ready");
@@ -479,6 +515,9 @@
   initTrendChart();
   setTrendStatus("Ready");
 
+  // ✅ (핵심 추가) 처음부터 KPI 타일에 텍스트/시간이 보이게
+  initKpiPlaceholders();
+
   /* =========================================================
      ✅ Device list
   ========================================================= */
@@ -510,11 +549,13 @@
     if (!key) {
       selectDeviceByKey("", "");
       resetTrend();
+      initKpiPlaceholders(); // ✅ 선택 해제 시도 기본 텍스트 유지
       return;
     }
     const d = devices.find(x => deviceKey(x) === key) || null;
     selectDeviceByKey(key, d ? deviceLabel(d) : key);
     resetTrend();
+    initKpiPlaceholders(); // ✅ 장비 바꾸면 "Waiting telemetry..." 상태로 갱신
   });
 
   // ✅ Auto cards는 HTML에서 제거했으니, 있으면만 렌더(없으면 그냥 무시)
@@ -568,6 +609,7 @@
     if (!__selectedKey && devices.length) {
       const d0 = devices[0];
       selectDeviceByKey(deviceKey(d0), deviceLabel(d0));
+      initKpiPlaceholders(); // ✅ 첫 자동 선택 시도 기본 텍스트 세팅
     }
 
     appendLog(`✅ devices updated: ${devices.length} @ ${nowTime()}`);
@@ -624,6 +666,7 @@
           const dd = devices.find(x => deviceKey(x) === key) || null;
           selectDeviceByKey(key, dd ? deviceLabel(dd) : key);
           selectedKey = key;
+          initKpiPlaceholders(); // ✅ 자동선택 순간에도 기본 텍스트
         }
 
         const idx = devices.findIndex(d => deviceKey(d) === key);
@@ -696,6 +739,7 @@
         const d = devices.find(x => deviceKey(x) === key) || null;
         selectDeviceByKey(key, d ? deviceLabel(d) : key);
         resetTrend();
+        initKpiPlaceholders(); // ✅ 장비 바꾸면 "Waiting telemetry..." 상태로 표시
       }
     }
   };
