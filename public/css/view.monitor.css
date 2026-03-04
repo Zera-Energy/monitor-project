@@ -75,6 +75,37 @@
   display: block;
 }
 
+/* ✅ (추가) Trend 컨트롤바(사진처럼 한 줄 정렬 + wrap) */
+.kpiTrendBar{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ✅ (추가) Trend 체크박스(사진처럼 깔끔하게) */
+.kpiChk{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* ✅ (추가) Status를 컨트롤 아래 한 줄로 */
+.kpiTrendStatus{
+  margin-top: 6px;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+/* ✅ (추가) 차트영역: 크게, 가운데 정렬 느낌 */
+.kpiChartWrap{
+  min-height: 260px; /* 사진처럼 빈 공간 확보 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 /* 섹션 타이틀(Voltage/Current/Power...) */
 .kpiSectionTitle{
   font-weight: 900;
@@ -190,4 +221,10 @@
   .kpiGrid5{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
   .kpiGrid3{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
   .kpiGrid2{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
+
+  /* ✅ (추가) 좁은 화면에서 Trend 바가 너무 길어지면 폭 조절 */
+  .kpiTrendBar .select,
+  .kpiTrendBar .input{
+    min-width: 160px;
+  }
 }
