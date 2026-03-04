@@ -10,9 +10,7 @@
         <option value="all">All Roles</option>
       </select>
 
-      <select class="select" id="selDevice">
-        <option value="">Select Device</option>
-      </select>
+      <!-- ✅ 삭제: Select Device -->
 
       <button class="btn primary" id="btnSelectData" type="button">Select data ▾</button>
 
@@ -31,9 +29,9 @@
   <section class="card big mt12" id="kpiBoard">
     <div class="cardTitle">Real-time electrical measurements</div>
 
-    <!-- 상단: Trend + Event -->
+    <!-- ✅ 상단: Trend만 남김 (Event 삭제) -->
     <div class="kpiTop mt10">
-      <!-- ✅ Trend (사진처럼: 컨트롤바 + Status + 큰 빈 차트영역) -->
+      <!-- ✅ Trend (컨트롤바 + Status + 큰 차트영역) -->
       <div class="contentCard">
         <div class="kpiHeader">
           <div class="k">Trend Chart</div>
@@ -46,7 +44,6 @@
         <!-- ✅ 컨트롤바 -->
         <div class="kpiTrendBar mt10">
           <select class="select" id="trendMetric">
-            <!-- JS에서 덮어쓰기 가능 / 기본 옵션(비어 보이는 것 방지) -->
             <option value="v_ln1">Voltage LN1 (V)</option>
             <option value="v_ln2">Voltage LN2 (V)</option>
             <option value="v_ln3">Voltage LN3 (V)</option>
@@ -75,47 +72,17 @@
           </label>
         </div>
 
-        <!-- ✅ Status는 컨트롤 아래로 한 줄 내려서(사진처럼) -->
+        <!-- ✅ Status -->
         <div class="kpiTrendStatus">
           Status: <b id="trendStatus">Ready</b>
         </div>
 
-        <!-- ✅ 차트 영역(사진처럼 크게) -->
+        <!-- ✅ 차트 영역 -->
         <div class="kpiChartWrap mt10">
           <canvas id="trendChart" height="160"></canvas>
           <div class="muted" id="trendEmpty" style="margin-top:8px;" hidden>
             No data in selected range
           </div>
-        </div>
-      </div>
-
-      <!-- ✅ Event -->
-      <div class="contentCard">
-        <div class="kpiHeader">
-          <div class="k">Event Viewer</div>
-          <div class="kpiActions">
-            <button class="btn" id="btnEventExport" type="button">Export</button>
-          </div>
-        </div>
-
-        <div class="eventTableWrap mt10">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Data</th>
-                <th>Type</th>
-                <th>Message</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="eventTbody">
-              <tr>
-                <td colspan="6" class="empty">No data available in table</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

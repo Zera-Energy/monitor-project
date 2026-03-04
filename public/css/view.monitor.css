@@ -2,7 +2,10 @@
 
 /* 공통 클래스는 기존 base.css를 그대로 쓴다고 가정하고,
    monitor 뷰에서만 쓰는 “추가/보정” 위주로 */
+
+/* ✅ 삭제: selDevice 제거됨 (HTML에서 제거했으니 CSS도 제거)
 .monitorView #selDevice { min-width: 260px; }
+*/
 
 .mt10 { margin-top: 10px; }
 .mt12 { margin-top: 12px; }
@@ -60,14 +63,14 @@
    - monitor.html에 추가한 kpiBoard 섹션용
 ========================================================= */
 
-/* 상단 Trend + Event 2열 */
+/* ✅ 수정: Event Viewer 삭제됨 → Trend만 1열 */
 .kpiTop{
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
-/* Trend/Event 카드 안에서 canvas가 폭 꽉 차게 */
+/* Trend 카드 안에서 canvas가 폭 꽉 차게 */
 #trendChart,
 #anaChart,
 #rtChart{
@@ -75,7 +78,7 @@
   display: block;
 }
 
-/* ✅ (추가) Trend 컨트롤바(사진처럼 한 줄 정렬 + wrap) */
+/* ✅ Trend 컨트롤바(사진처럼 한 줄 정렬 + wrap) */
 .kpiTrendBar{
   display: flex;
   flex-wrap: wrap;
@@ -83,7 +86,7 @@
   align-items: center;
 }
 
-/* ✅ (추가) Trend 체크박스(사진처럼 깔끔하게) */
+/* ✅ Trend 체크박스(사진처럼 깔끔하게) */
 .kpiChk{
   display: inline-flex;
   align-items: center;
@@ -91,14 +94,14 @@
   white-space: nowrap;
 }
 
-/* ✅ (추가) Status를 컨트롤 아래 한 줄로 */
+/* ✅ Status를 컨트롤 아래 한 줄로 */
 .kpiTrendStatus{
   margin-top: 6px;
   font-size: 14px;
   opacity: 0.85;
 }
 
-/* ✅ (추가) 차트영역: 크게, 가운데 정렬 느낌 */
+/* ✅ 차트영역: 크게, 가운데 정렬 느낌 */
 .kpiChartWrap{
   min-height: 260px; /* 사진처럼 빈 공간 확보 */
   display: flex;
@@ -118,10 +121,10 @@
 .kpiGrid{ display: grid; gap: 12px; }
 .kpiGrid2{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
 .kpiGrid3{ grid-template-columns: repeat(3, minmax(240px, 1fr)); }
-/* ✅ (수정) 5칸 그리드가 너무 빡빡한 화면에서 줄바꿈 자연스럽게 */
+/* ✅ 5칸 그리드가 너무 빡빡한 화면에서 줄바꿈 자연스럽게 */
 .kpiGrid5{ grid-template-columns: repeat(5, minmax(190px, 1fr)); }
 
-/* KPI 카드 헤더(Trend/Event 위에 버튼 붙는 부분) */
+/* KPI 카드 헤더(Trend 위에 버튼 붙는 부분) */
 .kpiHeader{
   display: flex;
   align-items: center;
@@ -143,7 +146,7 @@
   background: #fff;
   min-height: 86px;
 
-  /* ✅ (수정) 타일 내부 레이아웃 안정화 */
+  /* ✅ 타일 내부 레이아웃 안정화 */
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -205,24 +208,24 @@
   border-color: #7de58a;
 }
 
-/* Event table 영역 스크롤 */
-.eventTableWrap{
-  overflow: auto;
+/* ✅ 추가: 선택된 카드/행 하이라이트 (JS에서 is-selected 토글함) */
+.contentCard.is-selected{
+  outline: 2px solid #333;
+  outline-offset: 2px;
 }
 
-/* ✅ (수정) Event table이 컬럼 많아도 안 깨지게 최소 폭 확보 */
-.eventTableWrap .table{
-  min-width: 780px;
+tr.is-selected{
+  background: rgba(0,0,0,0.06);
 }
 
-/* 반응형: 화면 좁으면 1열로 내려주기 */
+/* 반응형: 화면 좁으면 그리드 줄이기 */
 @media (max-width: 1100px){
   .kpiTop{ grid-template-columns: 1fr; }
   .kpiGrid5{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
   .kpiGrid3{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
   .kpiGrid2{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
 
-  /* ✅ (추가) 좁은 화면에서 Trend 바가 너무 길어지면 폭 조절 */
+  /* 좁은 화면에서 Trend 바 폭 조절 */
   .kpiTrendBar .select,
   .kpiTrendBar .input{
     min-width: 160px;
