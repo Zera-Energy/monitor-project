@@ -10,38 +10,38 @@
   const filterEl = $("filterStatus");
   const countEl = $("deviceCount");
 
+  // (선택) 버튼이 있으면 동작만 걸어둠 (실제 addDevice 모달/페이지는 너 프로젝트 방식대로 연결)
+  $("btnOvRefresh")?.addEventListener("click", () => {
+    // app.js 쪽에서 주기적으로 fetch하고 있으면 그냥 화면만 다시 렌더
+    render();
+  });
+  $("btnAddDevice")?.addEventListener("click", () => {
+    alert("addDevice action (TODO: connect to your add device flow)");
+  });
+
   function safe(v){
-    return (v === undefined || v === null || v === "") ? "-" : String(v);
+    return (v === undefined || v === null || v === "") ? "--.--" : String(v);
   }
 
-  function toFixedMaybe(v, n=2){
+  function toFixedMaybe(v, n=1){
     const num = Number(v);
-    if (!isFinite(num)) return v;
+    if (!isFinite(num)) return null;
     return num.toFixed(n);
   }
 
-  function statusPill(online){
-    if (online === true)  return `<span class="pill" style="border-color:#bfe5c8;">Online</span>`;
-    if (online === false) return `<span class="pill" style="border-color:#f3c2c2;">Offline</span>`;
-    return `<span class="pill">-</span>`;
-  }
-
-  // ✅ (수정) 서버 item -> 카드용 모델로 변환 (topic 기반 우선 지원)
+  // ✅ 서버 item -> 화면 카드 모델
   function mapServerItemToCard(item){
     if (!item) return null;
 
-    const hasLegacyFields = item && (item.country || item.site_id || item.model || item.device_id);
+    const hasLegacy = item && (item.country || item.site_id || item.model || item.device_id);
 
-    // ✅ id/name 우선순위: device_display → device_topic → legacy country/site/model/device_id
     const id = item.device_topic
       ? String(item.device_topic)
-      : hasLegacyFields
+      : hasLegacy
         ? `${item.country}/${item.site_id}/${item.model}/${item.device_id}`
         : (item.id ? String(item.id) : "-");
 
-    const name = item.device_display
-      ? String(item.device_display)
-      : id;
+    const name = item.device_display ? String(item.device_display) : id;
 
     const online = (item.online !== undefined)
       ? !!item.online
@@ -52,40 +52,65 @@
       ? new Date(lastSeenEpoch * 1000).toLocaleString()
       : "-";
 
-    const kw = (item.kw !== undefined && item.kw !== null) ? toFixedMaybe(item.kw, 2) : "-";
-    const pf = (item.pf !== undefined && item.pf !== null) ? toFixedMaybe(item.pf, 2) : "-";
+    // ✅ 전압 LL1~LL3 (데이터 없을 때는 null)
+    // 장비 payload 포맷이 확정되면 여기 키만 맞춰주면 됨
+    const v1 = toFixedMaybe(item.v_ll1 ?? item.v_ll_1 ?? item.v_ln1 ?? item.v1 ?? item.v);
+    const v2 = toFixedMaybe(item.v_ll2 ?? item.v_ll_2 ?? item.v_ln2 ?? item.v2);
+    const v3 = toFixedMaybe(item.v_ll3 ?? item.v_ll_3 ?? item.v_ln3 ?? item.v3);
 
-    return { id, name, online, kw, pf, lastSeen };
+    return { id, name, online, lastSeen, v1, v2, v3 };
   }
 
   function renderCard(d){
     const el = document.createElement("div");
-    el.className = "contentCard";
-    el.style.cursor = "default";
+    el.className = "ovDevCard" + (d.online ? "" : " offline");
+
+    const stateIcon = d.online ? "📶" : "📡";
+    const xBadge = d.online ? "" : `<span class="ovDevBadgeX">×</span>`;
+
     el.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div class="ovDevHead">
         <div>
-          <div class="k">Device</div>
-          <div class="v" style="font-size:18px;">${safe(d.name || d.id)}</div>
+          <div class="ovDevNameRow">
+            <div class="ovDevName">${d.name}</div>
+            ${xBadge}
+          </div>
         </div>
-        ${statusPill(d.online)}
+        <div class="ovDevStateIcon" title="${d.online ? "Online" : "Offline"}">${stateIcon}</div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
-        <div>
-          <div class="k">kW</div>
-          <div class="v" style="font-size:18px;">${safe(d.kw)}</div>
+      <div class="ovRows">
+        <div class="ovRow">
+          <div class="ovRowLeft">
+            <span class="ovBolt">⚡</span>
+            <span class="ovRowLabel">전압 LL1</span>
+          </div>
+          <div class="ovVal">${safe(d.v1)} <span class="ovUnit">VOLT</span></div>
         </div>
-        <div>
-          <div class="k">PF</div>
-          <div class="v" style="font-size:18px;">${safe(d.pf)}</div>
+
+        <div class="ovRow">
+          <div class="ovRowLeft">
+            <span class="ovBolt">⚡</span>
+            <span class="ovRowLabel">전압 LL2</span>
+          </div>
+          <div class="ovVal">${safe(d.v2)} <span class="ovUnit">VOLT</span></div>
         </div>
-        <div style="grid-column:1 / span 2;">
-          <div class="k">Last Seen</div>
-          <div class="muted">${safe(d.lastSeen)}</div>
+
+        <div class="ovRow">
+          <div class="ovRowLeft">
+            <span class="ovBolt">⚡</span>
+            <span class="ovRowLabel">전압 LL3</span>
+          </div>
+          <div class="ovVal">${safe(d.v3)} <span class="ovUnit">VOLT</span></div>
         </div>
       </div>
+
+      <div class="ovDevFoot">
+        <div class="ovLast">lastConnected: ${d.lastSeen}</div>
+        <div class="ovEdit">✎</div>
+      </div>
     `;
+
     return el;
   }
 
@@ -97,18 +122,10 @@
     const sumTotal = $("sumTotal");
     const sumOnline = $("sumOnline");
     const sumOffline = $("sumOffline");
-    const sumKw = $("sumKw");
-    const sumPf = $("sumPf");
 
     if (sumTotal) sumTotal.textContent = total ? String(total) : "-";
     if (sumOnline) sumOnline.textContent = total ? String(online) : "-";
     if (sumOffline) sumOffline.textContent = total ? String(offline) : "-";
-
-    const kwNums = list.map(x => Number(x.kw)).filter(n => Number.isFinite(n));
-    const pfNums = list.map(x => Number(x.pf)).filter(n => Number.isFinite(n));
-
-    if (sumKw) sumKw.textContent = kwNums.length ? kwNums.reduce((a,b)=>a+b,0).toFixed(2) : "-";
-    if (sumPf) sumPf.textContent = pfNums.length ? (pfNums.reduce((a,b)=>a+b,0)/pfNums.length).toFixed(2) : "-";
   }
 
   function applyCount(n){
@@ -149,18 +166,19 @@
 
   filterEl?.addEventListener("change", render);
 
+  // ✅ app.js(라우터)에서 devices 데이터를 받으면 여기로 주입되는 구조 유지
   window.__overviewOnDevices__ = (list) => {
     const arr = Array.isArray(list) ? list : [];
 
     const mapped = arr.map(x => {
-      const looksLikeServerItem =
+      const looksServer =
         x && (
-          x.device_topic || x.device_display || x.topic || x._raw_topic || // ✅ topic 기반
-          x.country || x.site_id || x.model || x.device_id                // legacy
+          x.device_topic || x.device_display ||
+          x.country || x.site_id || x.model || x.device_id ||
+          x.last_seen || x.age_sec
         );
 
-      if (looksLikeServerItem) return mapServerItemToCard(x);
-      return x;
+      return looksServer ? mapServerItemToCard(x) : x;
     }).filter(Boolean);
 
     devices = mapped;

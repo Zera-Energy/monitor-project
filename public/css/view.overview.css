@@ -1,42 +1,255 @@
 /* /css/view.overview.css */
 
-.overviewView .gridStats{
+.overviewView{
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* ===== HERO ===== */
+.ovHero{
+  border-radius: 26px;
+  padding: 22px 24px;
+  color: #fff;
+  background: linear-gradient(135deg, #2f6cf6 0%, #2545c9 60%, #2139bb 100%);
   display:flex;
-  gap:12px;
-  flex-wrap:wrap;
-  margin:12px 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.overviewView .statCard{
-  min-width:170px;
+.ovHeroLeft{ min-width: 260px; }
+
+.ovBrandPill{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.18);
+  font-size: 13px;
+  font-weight: 700;
 }
 
-.overviewView .gridDevices{
+.ovHeroTitle{
+  margin-top: 10px;
+  font-weight: 900;
+  letter-spacing: -0.4px;
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.ovHeroSub{
+  margin-top: 6px;
+  opacity: .9;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ovHeroRight{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ovHeroStats{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+
+.ovMiniStat{
+  width: 74px;
+  padding: 10px 10px 9px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.16);
+  text-align:center;
+}
+
+.ovMiniIcon{ opacity: .95; font-size: 16px; }
+.ovMiniNum{ margin-top: 4px; font-size: 20px; font-weight: 900; line-height: 1.05; }
+.ovMiniLbl{ margin-top: 2px; font-size: 11px; opacity: .9; font-weight: 800; }
+
+.ovMiniStat.online{ background: rgba(42, 201, 138, .18); border-color: rgba(42,201,138,.25); }
+.ovMiniStat.offline{ background: rgba(200, 87, 117, .18); border-color: rgba(200,87,117,.25); }
+
+.ovIconBtn{
+  height: 44px;
+  width: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.12);
+  color:#fff;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.ovAddBtn{
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: #fff;
+  color: #2444c7;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+/* ===== BAR ===== */
+.ovBar{
+  margin-top: 14px;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ovBarLeft{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ovCount{
+  font-weight: 800;
+  opacity: .75;
+}
+
+.ovBarRight{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  opacity: .9;
+}
+
+/* ===== GRID ===== */
+.ovGrid{
+  margin-top: 14px;
   display:grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap:12px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 14px;
 }
 
-/* 카드 안에서 쓰는 pill(온라인/오프라인 표시) */
-.overviewView .pill{
-  display:inline-block;
-  padding:4px 10px;
-  border-radius:999px;
-  border:1px solid #ddd;
-  font-size:12px;
-  font-weight:800;
+/* ===== DEVICE CARD ===== */
+.ovDevCard{
   background:#fff;
-  white-space:nowrap;
+  border: 1px solid #e6e6e6;
+  border-radius: 14px;
+  padding: 16px 16px 14px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
 }
 
-/* 반응형 */
-@media (max-width: 980px){
-  .overviewView .gridDevices{
-    grid-template-columns: repeat(2, minmax(0,1fr));
-  }
+.ovDevCard.offline{
+  border-color: #ffb6b6;
+  box-shadow: 0 2px 6px rgba(255, 90, 90, .12);
 }
-@media (max-width: 680px){
-  .overviewView .gridDevices{
-    grid-template-columns: 1fr;
-  }
+
+.ovDevHead{
+  display:flex;
+  align-items:flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ovDevNameRow{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+}
+
+.ovDevName{
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.ovDevBadgeX{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid #ff6b6b;
+  color:#ff2d2d;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.ovDevStateIcon{
+  font-size: 18px;
+  opacity: .9;
+}
+
+.ovRows{
+  margin-top: 12px;
+  display:flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ovRow{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ovRowLeft{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  min-width: 160px;
+}
+
+.ovBolt{ color:#f5b301; font-weight: 900; }
+.ovRowLabel{ font-weight: 800; font-size: 13px; opacity: .9; }
+
+.ovVal{
+  font-weight: 900;
+  color:#7c8799;
+  letter-spacing: .2px;
+}
+
+.ovUnit{
+  margin-left: 6px;
+  font-weight: 900;
+  font-size: 12px;
+  opacity: .75;
+}
+
+.ovDevFoot{
+  margin-top: 10px;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ovLast{
+  color:#ff2d2d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ovEdit{
+  opacity: .65;
+}
+
+/* EMPTY */
+.ovEmpty{
+  margin-top: 18px;
+  padding: 20px 10px;
+  text-align:center;
+}
+
+/* responsive */
+@media (max-width: 980px){
+  .ovGrid{ grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .ovHeroTitle{ font-size: 26px; }
 }
