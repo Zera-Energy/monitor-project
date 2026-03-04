@@ -33,7 +33,7 @@
 
     <!-- 상단: Trend + Event -->
     <div class="kpiTop mt10">
-      <!-- Trend -->
+      <!-- ✅ Trend (사진처럼: 컨트롤바 + Status + 큰 빈 차트영역) -->
       <div class="contentCard">
         <div class="kpiHeader">
           <div class="k">Trend Chart</div>
@@ -43,9 +43,22 @@
           </div>
         </div>
 
-        <!-- ✅ (추가) Trend 컨트롤바: 사진처럼 -->
+        <!-- ✅ 컨트롤바 -->
         <div class="kpiTrendBar mt10">
-          <select class="select" id="trendMetric"></select>
+          <select class="select" id="trendMetric">
+            <!-- JS에서 덮어쓰기 가능 / 기본 옵션(비어 보이는 것 방지) -->
+            <option value="v_ln1">Voltage LN1 (V)</option>
+            <option value="v_ln2">Voltage LN2 (V)</option>
+            <option value="v_ln3">Voltage LN3 (V)</option>
+            <option value="a_l1">Current L1 (A)</option>
+            <option value="a_l2">Current L2 (A)</option>
+            <option value="a_l3">Current L3 (A)</option>
+            <option value="kw">Active Power (kW)</option>
+            <option value="kvar">Reactive Power (kVAr)</option>
+            <option value="pf">Power Factor (PF)</option>
+            <option value="hz">Frequency (Hz)</option>
+            <option value="kwh">Energy (kWh)</option>
+          </select>
 
           <select class="select" id="trendInterval">
             <option value="minute">Minute</option>
@@ -56,25 +69,27 @@
           <input class="input" id="trendFrom" type="date" />
           <input class="input" id="trendTo" type="date" />
 
-          <label class="chk" style="display:flex;align-items:center;gap:8px;">
+          <label class="chk kpiChk">
             <input type="checkbox" id="trendShowLimits" />
             <span>Show Limits</span>
           </label>
-
-          <span class="muted" style="margin-left:auto;">
-            Status: <b id="trendStatus">Ready</b>
-          </span>
         </div>
 
+        <!-- ✅ Status는 컨트롤 아래로 한 줄 내려서(사진처럼) -->
+        <div class="kpiTrendStatus">
+          Status: <b id="trendStatus">Ready</b>
+        </div>
+
+        <!-- ✅ 차트 영역(사진처럼 크게) -->
         <div class="kpiChartWrap mt10">
-          <canvas id="trendChart" height="120"></canvas>
+          <canvas id="trendChart" height="160"></canvas>
           <div class="muted" id="trendEmpty" style="margin-top:8px;" hidden>
             No data in selected range
           </div>
         </div>
       </div>
 
-      <!-- Event -->
+      <!-- ✅ Event -->
       <div class="contentCard">
         <div class="kpiHeader">
           <div class="k">Event Viewer</div>
