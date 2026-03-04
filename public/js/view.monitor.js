@@ -4,15 +4,20 @@
 
   // ✅ (삭제) Device List 상단 상태줄/로그/auto cards를 HTML에서 제거했으므로
   // 이 요소들은 없어도 동작하도록 "있으면 쓰고 없으면 무시" 형태로 둡니다.
-  const apiStatusEl = $("mqttWsStatus");  // (없어도 OK)
-  const lastAtEl = $("mqttLastAt");       // (없어도 OK)
-  const updateCountEl = $("mqttMsgCount");// (없어도 OK)
-  const logEl = $("mqttLog");             // (없어도 OK)
-  const btnPauseLog = $("btnPauseLog");   // (없어도 OK)
-  const btnClearLog = $("btnClearLog");   // (없어도 OK)
-  const autoGrid = $("mqttAutoGrid");     // (없어도 OK)
+  const apiStatusEl = $("mqttWsStatus");   // (없어도 OK)
+  const lastAtEl = $("mqttLastAt");        // (없어도 OK)
+  const updateCountEl = $("mqttMsgCount"); // (없어도 OK)
+  const logEl = $("mqttLog");              // (없어도 OK)
+  const btnPauseLog = $("btnPauseLog");    // (없어도 OK)
+  const btnClearLog = $("btnClearLog");    // (없어도 OK)
+  const autoGrid = $("mqttAutoGrid");      // (없어도 OK)
 
   const deviceTbody = $("deviceTbody");
+
+  // ✅ (추가) Trend 상단 장비 상태 pill (Online/Last)
+  const deviceOnlineDotEl = $("deviceOnlineDot");
+  const deviceOnlineTextEl = $("deviceOnlineText");
+  const deviceLastUpdateTextEl = $("deviceLastUpdateText");
 
   // ✅ 선택된 장비
   let __selectedKey = "";
@@ -44,6 +49,8 @@
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
 
+  function nowTime(){ return new Date().toLocaleTimeString("en-GB"); } // ✅ 13:21:15 스타일
+
   function setTrendStatus(v){
     if (trendStatusEl) trendStatusEl.textContent = v;
   }
@@ -53,6 +60,13 @@
   }
   function setWsStatus(v){
     if (apiStatusEl) apiStatusEl.textContent = v;
+  }
+
+  // ✅ (추가) Trend 상단 Online/Last 표시 갱신
+  function setDeviceLiveStatus(isOnline, timeText){
+    if (deviceOnlineDotEl) deviceOnlineDotEl.style.background = isOnline ? "#22c55e" : "#ef4444";
+    if (deviceOnlineTextEl) deviceOnlineTextEl.textContent = isOnline ? "Online" : "Offline";
+    if (deviceLastUpdateTextEl) deviceLastUpdateTextEl.textContent = timeText || "-";
   }
 
   // 로그/버튼은 HTML에서 빠졌을 수 있으니 안전하게 no-op
@@ -118,15 +132,34 @@
   /* =========================================================
      ✅ KPI BOARD helpers
   ========================================================= */
+
+  // ✅ (수정) 값이 없어도 "NO DATA / Waiting telemetry..." + LIVE 시간 텍스트 표시
   function setTile(id, title, valueText, unit, sub){
     const el = document.getElementById(id);
     if (!el) return;
-    const v = (valueText === undefined || valueText === null || valueText === "") ? "-" : String(valueText);
+
+    const raw = (valueText === undefined || valueText === null || valueText === "") ? "-" : String(valueText);
+    const hasValue = raw !== "-" && raw !== "NaN";
+
+    const vText = hasValue ? raw : "NO DATA";
+    const subText = hasValue ? `● LIVE ${sub || "-"}` : "Waiting telemetry...";
+
     el.innerHTML = `
       <div class="t">${title}</div>
-      <div class="v">${v}${unit ? `<span class="u">${unit}</span>` : ""}</div>
-      <div class="s">${sub || ""}</div>
+      <div class="v">
+        ${vText}${hasValue && unit ? `<span class="u">${unit}</span>` : ""}
+      </div>
+      <div class="s">${subText}</div>
     `;
+
+    // ✅ 값 없을 때 회색 처리(클래스가 없으면 그냥 무시됨)
+    if (!hasValue) el.classList.add("kpiNoData");
+    else el.classList.remove("kpiNoData");
+
+    // ✅ 업데이트 반짝(클래스 없으면 그냥 무시됨)
+    el.classList.remove("kpiUpdated");
+    void el.offsetWidth;
+    el.classList.add("kpiUpdated");
   }
 
   function pickSummaryNumber(msg, keys){
@@ -159,7 +192,7 @@
   }
 
   function updateKpiFromTelemetry(msg){
-    const nowText = new Date().toLocaleTimeString();
+    const nowText = nowTime();
     const channels = msg?.channels || (msg?.payload?.channels || []);
 
     const v12 = pickSummaryNumber(msg, ["v12","v_l1l2","v_ll12"]) ??
@@ -488,7 +521,6 @@
   function renderAutoCards(items){
     if (!autoGrid) return;
     // auto cards 쓰고 싶으면 HTML에 mqttAutoGrid 다시 넣으면 됨
-    // 지금은 화면에서 삭제했으니 기본은 아무것도 안 함
   }
 
   // ✅ 테이블: 6컬럼(No, Name, Type, RAW Data, Last Update, Status)
@@ -525,7 +557,7 @@
 
     updateCount += 1;
     if (updateCountEl) updateCountEl.textContent = String(updateCount);
-    if (lastAtEl) lastAtEl.textContent = new Date().toLocaleTimeString();
+    if (lastAtEl) lastAtEl.textContent = nowTime();
 
     devices.length = 0;
     for (const x of (items || [])) devices.push(x);
@@ -538,7 +570,7 @@
       selectDeviceByKey(deviceKey(d0), deviceLabel(d0));
     }
 
-    appendLog(`✅ devices updated: ${devices.length} @ ${new Date().toLocaleTimeString()}`);
+    appendLog(`✅ devices updated: ${devices.length} @ ${nowTime()}`);
 
     renderAutoCards(devices);
     renderDeviceTable(devices);
@@ -546,6 +578,7 @@
 
   setApiStatus("waiting...");
   setWsStatus("WS connecting...");
+  setDeviceLiveStatus(false, "-"); // ✅ 초기 Offline
 
   /* =========================================================
      ✅ WebSocket 실시간 연결
@@ -573,6 +606,7 @@
       __ws.onopen = () => {
         setWsStatus("WS connected");
         retry = 1000;
+        // ✅ 연결만 됐다고 Online으로 보긴 애매해서, 실제 telemetry 수신 시 Online 처리
       };
 
       __ws.onmessage = (ev) => {
@@ -615,14 +649,17 @@
 
         updateCount += 1;
         if (updateCountEl) updateCountEl.textContent = String(updateCount);
-        if (lastAtEl) lastAtEl.textContent = new Date().toLocaleTimeString();
+        if (lastAtEl) lastAtEl.textContent = nowTime();
+
+        // ✅ (추가) Trend 상단 Online/Last 갱신
+        setDeviceLiveStatus(true, nowTime());
 
         if (selectedKey && selectedKey === key) {
           try { updateKpiFromTelemetry(msg); } catch {}
 
           const metric = trendMetricEl?.value || "kw";
           const v = pickTrendValueFromTelemetry(msg, metric);
-          const t = new Date().toLocaleTimeString();
+          const t = nowTime();
           initTrendChart();
           pushTrendPoint(t, v);
         }
@@ -631,12 +668,14 @@
       __ws.onclose = () => {
         if (__wsClosedByUser) return;
         setWsStatus("WS reconnecting...");
+        setDeviceLiveStatus(false, "-"); // ✅ (추가) 끊기면 Offline
         setTimeout(connect, retry);
         retry = Math.min(10000, retry * 2);
       };
 
       __ws.onerror = () => {
         setWsStatus("WS error");
+        setDeviceLiveStatus(false, "-"); // ✅ (추가) 에러도 Offline
       };
     }
 
