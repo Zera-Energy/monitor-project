@@ -1,7 +1,7 @@
 /* /css/view.monitor.css */
 
-/* 공통 클래스는 기존 base.css를 그대로 쓴다고 가정하고,
-   monitor 뷰에서만 쓰는 “추가/보정” 위주로 */
+.monitorView #selDevice { min-width: 260px; }
+
 .mt10 { margin-top: 10px; }
 .mt12 { margin-top: 12px; }
 .mb6 { margin-bottom: 6px; }
@@ -54,19 +54,10 @@
 }
 
 /* =========================================================
-   ✅ KPI BOARD (사진 스타일)
+   ✅ KPI BOARD
 ========================================================= */
 
-/* ✅ 상단 Trend만 남음 */
-.kpiTop{
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-#trendChart,
-#anaChart,
-#rtChart{
+#trendChart{
   width: 100%;
   display: block;
 }
@@ -86,7 +77,7 @@
 }
 
 .kpiTrendStatus{
-  margin-top: 6px;
+  margin-top: 10px;
   font-size: 14px;
   opacity: 0.85;
 }
@@ -96,6 +87,9 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 10px;
+  padding-top: 10px;
 }
 
 .kpiSectionTitle{
@@ -105,24 +99,13 @@
   opacity: 0.85;
 }
 
+/* 그리드 시스템 */
 .kpiGrid{ display: grid; gap: 12px; }
 .kpiGrid2{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
 .kpiGrid3{ grid-template-columns: repeat(3, minmax(240px, 1fr)); }
 .kpiGrid5{ grid-template-columns: repeat(5, minmax(190px, 1fr)); }
 
-.kpiHeader{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-.kpiActions{
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
+/* KPI 타일 */
 .kpiTile{
   border: 1px solid #e9e9e9;
   border-radius: 14px;
@@ -161,43 +144,92 @@
   opacity: 0.72;
 }
 
-.kpiTile.warn{
-  background: #fff8dc;
-  border-color: #f3d37a;
-}
-.kpiTile.cool{
-  background: #eef6ff;
-  border-color: #7db3ff;
-}
-.kpiTile.hot{
-  background: #fff1e6;
-  border-color: #ff9b5c;
-}
-.kpiTile.violet{
-  background: #f4efff;
-  border-color: #b48cff;
-}
-.kpiTile.ok{
-  background: #effff1;
-  border-color: #7de58a;
-}
-.kpiTile.thdBad{
-  background: #ffecec;
-  border-color: #ff9aa0;
-}
-.kpiTile.thdGood{
-  background: #ecfff1;
-  border-color: #7de58a;
+.kpiTile.warn{ background: #fff8dc; border-color: #f3d37a; }
+.kpiTile.cool{ background: #eef6ff; border-color: #7db3ff; }
+.kpiTile.hot{ background: #fff1e6; border-color: #ff9b5c; }
+.kpiTile.violet{ background: #f4efff; border-color: #b48cff; }
+.kpiTile.ok{ background: #effff1; border-color: #7de58a; }
+.kpiTile.thdBad{ background: #ffecec; border-color: #ff9aa0; }
+.kpiTile.thdGood{ background: #ecfff1; border-color: #7de58a; }
+
+/* =========================================================
+   ✅ (핵심) Trend "분리 카드" 스타일
+========================================================= */
+
+/* 상단 카드(디바이스/refresh/위치) */
+.trendTopBar{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
 }
 
+.trendTopLeft{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.trendTopLeft #trendDeviceSel{
+  min-width: 240px;
+}
+
+.trendPill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 8px 12px;
+  border: 1px solid #e9e9e9;
+  border-radius: 999px;
+  background: #f7f7f7;
+  font-size: 13px;
+  opacity: 0.9;
+}
+.trendPillIcon{ opacity: 0.9; }
+
+/* 아래 카드: 컨트롤 바 + Export 오른쪽 끝 */
+.trendControlsRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.trendControlsLeft{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+/* Trend Chart 제목 줄 */
+.trendTitleRow{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top: 12px;
+  opacity: 0.85;
+  font-weight: 800;
+}
+.trendTitleIcon{ opacity: 0.8; }
+
+/* Plot/Export 녹색 버튼 */
+.btn.green{
+  background:#22c55e;
+  border-color:#22c55e;
+  color:#fff;
+}
+
+/* 반응형 */
 @media (max-width: 1100px){
-  .kpiTop{ grid-template-columns: 1fr; }
   .kpiGrid5{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
   .kpiGrid3{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
   .kpiGrid2{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
 
-  .kpiTrendBar .select,
-  .kpiTrendBar .input{
+  .trendControlsLeft .select,
+  .trendControlsLeft .input{
     min-width: 160px;
   }
-}햐
+}

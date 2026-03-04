@@ -1,7 +1,8 @@
-<!-- /views/monitor.html (HTML only) -->
+<!-- /views/monitor.html -->
 <section class="monitorView">
   <div class="pageHeader">
-    <h2 class="pageTitle">Devices Monitor</h2>
+    <h2 class="pageTitle">devicesMonitor</h2>
+    <div class="muted">Real-time electrical measurements</div>
   </div>
 
   <div class="toolbar">
@@ -9,8 +10,6 @@
       <select class="select" id="selRole">
         <option value="all">All Roles</option>
       </select>
-
-      <!-- (네가 삭제한 Select Device는 여기서도 없음) -->
 
       <button class="btn primary" id="btnSelectData" type="button">Select data ▾</button>
 
@@ -29,37 +28,35 @@
   <section class="card big mt12" id="kpiBoard">
     <div class="cardTitle">Real-time electrical measurements</div>
 
-    <!-- 상단: Trend -->
-    <div class="kpiTop mt10">
-      <!-- ✅ Trend -->
-      <div class="contentCard">
-        <div class="kpiHeader">
-          <div class="k">Trend Chart</div>
-          <div class="kpiActions">
-            <button class="btn" id="btnTrendExport" type="button">Export</button>
+    <!-- =====================================================
+         ✅ (분리 1) Trend 상단 섹션만 별도 카드
+         - 사진처럼 위에 따로
+    ====================================================== -->
+    <div class="contentCard mt12">
+      <div class="trendTopBar">
+        <div class="trendTopLeft">
+          <select class="select" id="trendDeviceSel">
+            <option value="">Select Device</option>
+          </select>
+
+          <button class="btn primary" id="btnTrendRefresh" type="button">refresh</button>
+
+          <div class="trendPill" id="trendLocationPill">
+            <span class="trendPillIcon">📍</span>
+            <span id="trendLocationText">-</span>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- ✅ Trend 상단 섹션(사진 스타일: Device 선택 + refresh + 위치) -->
-        <div class="trendTopBar mt10">
-          <div class="trendTopLeft">
-            <select class="select" id="trendDeviceSel">
-              <option value="">Select Device</option>
-            </select>
-
-            <button class="btn primary" id="btnTrendRefresh" type="button">refresh</button>
-
-            <div class="trendPill" id="trendLocationPill">
-              <span class="trendPillIcon">📍</span>
-              <span id="trendLocationText">-</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- ✅ 컨트롤바 -->
-        <div class="kpiTrendBar mt10">
+    <!-- =====================================================
+         ✅ (분리 2) Trend 차트 카드 (컨트롤 + 차트)
+    ====================================================== -->
+    <div class="contentCard mt12">
+      <!-- 컨트롤 바 + Export (사진처럼 한 줄) -->
+      <div class="trendControlsRow">
+        <div class="trendControlsLeft">
           <select class="select" id="trendMetric">
-            <!-- JS에서 덮어쓰기 가능 / 기본 옵션 -->
             <option value="v_ln1">Voltage LN1 (V)</option>
             <option value="v_ln2">Voltage LN2 (V)</option>
             <option value="v_ln3">Voltage LN3 (V)</option>
@@ -90,27 +87,32 @@
           </label>
 
           <!-- ✅ Plot: Show Limits 옆 -->
-          <button class="btn green" id="btnTrendPlot" type="button">Plot</button>
+          <button class="btn green" id="btnTrendPlot" type="button">
+            <span style="margin-right:6px;">📊</span>Plot
+          </button>
         </div>
 
-        <div class="kpiTrendStatus">
-          Status: <b id="trendStatus">Ready</b>
-        </div>
+        <!-- ✅ Export: 오른쪽 끝 -->
+        <button class="btn green" id="btnTrendExport" type="button">
+          <span style="margin-right:6px;">⬇️</span>Export
+        </button>
+      </div>
 
-        <div class="kpiChartWrap mt10">
-          <canvas id="trendChart" height="160"></canvas>
-          <div class="muted" id="trendEmpty" style="margin-top:8px;" hidden>
-            No data in selected range
-          </div>
+      <!-- Trend 차트 타이틀 (사진처럼 차트 내부 상단에 작게) -->
+      <div class="trendTitleRow">
+        <span class="trendTitleIcon">📈</span>
+        <span class="trendTitleText">Trend Chart</span>
+      </div>
+
+      <div class="kpiChartWrap">
+        <canvas id="trendChart" height="160"></canvas>
+        <div class="muted" id="trendEmpty" style="margin-top:8px;" hidden>
+          No data in selected range
         </div>
       </div>
 
-      <!-- ✅ (Event Viewer는 네가 말한대로 제거된 상태라고 가정) -->
-      <div class="contentCard">
-        <div class="kpiHeader">
-          <div class="k">Info</div>
-        </div>
-        <div class="muted mt10">Event Viewer removed.</div>
+      <div class="kpiTrendStatus">
+        Status: <b id="trendStatus">Ready</b>
       </div>
     </div>
 
