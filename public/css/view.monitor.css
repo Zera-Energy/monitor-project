@@ -222,7 +222,142 @@
   color:#fff;
 }
 
-/* 반응형 */
+/* =========================================================
+   ✅ (추가) Trend 아래 4개 카드(trendQuad) 스타일
+   - 사진처럼 2x2 배치 + 카드 내부 헤더/툴/차트 영역
+========================================================= */
+
+.trendQuad{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+/* 4개 카드 상단(셀렉트/날짜/Export) */
+.miniHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.miniLeft{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* EVENT VIEWER 상단은 좌 타이틀 + 우 날짜 */
+.miniTitleRow{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+}
+.miniRightDates{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 작은 select/date/input 크기 */
+.miniSel{
+  height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.miniDate{
+  height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+  min-width: 140px;
+}
+.miniBtn{
+  height: 34px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* 카드 제목(색 점 + 타이틀) */
+.miniTitle{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* 색 점 */
+.dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display:inline-block;
+}
+.greenDot{ background:#22c55e; }
+.orangeDot{ background:#f97316; }
+.grayDot{ background:#9ca3af; }
+
+/* 미니 차트 영역 */
+.miniChartWrap{
+  margin-top: 10px;
+  min-height: 220px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 10px;
+
+  display:flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.miniChartWrap canvas{
+  width: 100%;
+  display:block;
+}
+.miniEmpty{
+  text-align:center;
+  opacity: 0.7;
+  margin-top: 10px;
+}
+
+/* EVENT VIEWER 도구줄 */
+.eventTools{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.eventLeftTools,
+.eventRightTools{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 이벤트 검색 input */
+.miniSearch{
+  height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+  min-width: 160px;
+}
+
+/* Event table 영역 스크롤 + 최소 폭 */
+.eventTableWrap{
+  overflow: auto;
+}
+.eventTableWrap .table{
+  min-width: 720px;
+}
+
+/* =========================================================
+   ✅ 반응형
+========================================================= */
 @media (max-width: 1100px){
   .kpiGrid5{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
   .kpiGrid3{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
@@ -232,4 +367,12 @@
   .trendControlsLeft .input{
     min-width: 160px;
   }
+
+  /* ✅ 4개 카드: 모바일에서는 1열로 */
+  .trendQuad{
+    grid-template-columns: 1fr;
+  }
+
+  .miniDate{ min-width: 160px; }
+  .miniSearch{ min-width: 180px; }
 }

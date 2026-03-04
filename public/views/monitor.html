@@ -30,7 +30,6 @@
 
     <!-- =====================================================
          ✅ (분리 1) Trend 상단 섹션만 별도 카드
-         - 사진처럼 위에 따로
     ====================================================== -->
     <div class="contentCard mt12">
       <div class="trendTopBar">
@@ -98,7 +97,7 @@
         </button>
       </div>
 
-      <!-- Trend 차트 타이틀 (사진처럼 차트 내부 상단에 작게) -->
+      <!-- Trend 차트 타이틀 -->
       <div class="trendTitleRow">
         <span class="trendTitleIcon">📈</span>
         <span class="trendTitleText">Trend Chart</span>
@@ -115,6 +114,154 @@
         Status: <b id="trendStatus">Ready</b>
       </div>
     </div>
+
+    <!-- =====================================================
+         ✅ (추가) Trend 차트 아래 4개 카드 (2x2)
+         - 사진처럼 분리된 카드들
+    ====================================================== -->
+    <div class="trendQuad mt12">
+
+      <!-- 1) Energy Trend (KWH) -->
+      <div class="contentCard">
+        <div class="miniHead">
+          <div class="miniLeft">
+            <select class="select miniSel" id="energyTrendInterval">
+              <option value="day" selected>Day</option>
+              <option value="hour">Hour</option>
+              <option value="month">Month</option>
+            </select>
+            <input class="input miniDate" id="energyTrendDate" type="date" />
+          </div>
+          <button class="btn green miniBtn" id="btnEnergyTrendExport" type="button">
+            <span style="margin-right:6px;">⬇️</span>Export
+          </button>
+        </div>
+
+        <div class="miniTitle">
+          <span class="dot greenDot"></span>
+          <b>Energy Trend (KWH)</b>
+        </div>
+
+        <div class="miniChartWrap">
+          <canvas id="energyTrendChart" height="140"></canvas>
+          <div class="muted miniEmpty">No data in selected range</div>
+        </div>
+      </div>
+
+      <!-- 2) Energy Cost (THB) -->
+      <div class="contentCard">
+        <div class="miniHead">
+          <div class="miniLeft">
+            <select class="select miniSel" id="energyCostInterval">
+              <option value="day" selected>Day</option>
+              <option value="hour">Hour</option>
+              <option value="month">Month</option>
+            </select>
+            <input class="input miniDate" id="energyCostDate" type="date" />
+          </div>
+          <button class="btn green miniBtn" id="btnEnergyCostExport" type="button">
+            <span style="margin-right:6px;">⬇️</span>Export
+          </button>
+        </div>
+
+        <div class="miniTitle">
+          <span class="dot greenDot"></span>
+          <b>Energy Cost (THB)</b>
+        </div>
+
+        <div class="miniChartWrap">
+          <canvas id="energyCostChart" height="140"></canvas>
+          <div class="muted miniEmpty">No data in selected range</div>
+        </div>
+      </div>
+
+      <!-- 3) Energy Historical (KWH) -->
+      <div class="contentCard">
+        <div class="miniHead">
+          <div class="miniLeft">
+            <select class="select miniSel" id="energyHistInterval">
+              <option value="hour" selected>Hour</option>
+              <option value="day">Day</option>
+              <option value="month">Month</option>
+            </select>
+            <input class="input miniDate" id="energyHistFrom" type="date" />
+            <input class="input miniDate" id="energyHistTo" type="date" />
+          </div>
+          <button class="btn green miniBtn" id="btnEnergyHistExport" type="button">
+            <span style="margin-right:6px;">⬇️</span>Export
+          </button>
+        </div>
+
+        <div class="miniTitle">
+          <span class="dot orangeDot"></span>
+          <b>ENERGY HISTORICAL (KWH)</b>
+        </div>
+
+        <div class="miniChartWrap">
+          <canvas id="energyHistChart" height="140"></canvas>
+          <div class="muted miniEmpty">No data in selected range</div>
+        </div>
+      </div>
+
+      <!-- 4) Event Viewer -->
+      <div class="contentCard">
+        <div class="miniHead">
+          <div class="miniTitleRow">
+            <span class="dot grayDot"></span>
+            <b>EVENT VIEWER</b>
+          </div>
+          <div class="miniRightDates">
+            <input class="input miniDate" id="eventFrom" type="date" />
+            <input class="input miniDate" id="eventTo" type="date" />
+          </div>
+        </div>
+
+        <div class="eventTools mt10">
+          <div class="eventLeftTools">
+            <span class="muted">Show</span>
+            <select class="select miniSel" id="eventShowCount">
+              <option>8</option>
+              <option>16</option>
+              <option>32</option>
+            </select>
+            <span class="muted">entries</span>
+          </div>
+
+          <div class="eventRightTools">
+            <select class="select miniSel" id="eventTypeSel">
+              <option value="all">All Types</option>
+            </select>
+            <input class="input miniSearch" id="eventSearch" placeholder="Search..." />
+          </div>
+        </div>
+
+        <div class="eventTableWrap mt10">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Data</th>
+                <th>Type</th>
+                <th>Message</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="eventTbody">
+              <tr>
+                <td colspan="6" class="empty">No data available in table</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="muted mt10" style="font-size:12px;">
+          Showing 0 to 0 of 0 entries
+        </div>
+      </div>
+
+    </div>
+    <!-- ===================================================== -->
 
     <!-- Voltage L-L -->
     <div class="kpiSection mt12">
