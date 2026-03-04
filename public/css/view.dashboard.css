@@ -1,9 +1,11 @@
 /* /css/view.dashboard.css */
+
 .dash { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 .dash h1 { margin: 0 0 12px; font-size: 18px; }
 
 .row { display:flex; gap:12px; flex-wrap:wrap; align-items:stretch; }
 
+/* ✅ 기존 .card는 유지 (다른 화면/구역 영향 최소) */
 .card {
   background:#fff; border:1px solid #e6e6e6; border-radius:12px;
   padding:12px 14px; box-shadow:0 1px 2px rgba(0,0,0,.04);
@@ -43,3 +45,232 @@
 
 @media (max-width: 980px){ .grid4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 680px){ .grid3 { grid-template-columns: 1fr; } .grid4 { grid-template-columns: 1fr; } }
+
+/* =========================================================
+   ✅ NEW DASHBOARD UI (스샷 스타일)
+   - 기존 카드/그리드에 영향 없게 .dashNew 범위로만 적용
+========================================================= */
+.dashNew { padding: 18px; }
+.dashNew .muted { opacity: .75; }
+
+/* HERO */
+.dashHero{
+  background: linear-gradient(90deg, #0aa36b, #0a8f69);
+  border-radius: 18px;
+  padding: 22px 22px;
+  color: #fff;
+  display:flex;
+  justify-content:space-between;
+  gap: 16px;
+  align-items: stretch;
+}
+.dashHeroLeft{ display:flex; flex-direction:column; gap:10px; }
+.dashBrandPill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.14);
+  width: fit-content;
+  font-size: 12px;
+}
+.dotMini{ width:8px; height:8px; border-radius:999px; background: rgba(255,255,255,.45); display:inline-block; }
+.dashHeroTitle{ font-size: 34px; font-weight: 900; line-height: 1; }
+.dashHeroSub{ font-size: 13px; opacity: .9; }
+
+.dashHeroRight{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+}
+.heroStat{
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 14px;
+  padding: 10px 14px;
+  min-width: 86px;
+  text-align:center;
+}
+.heroStatNum{ font-size: 20px; font-weight: 900; line-height: 1; }
+.heroStatLabel{ font-size: 11px; opacity: .9; margin-top: 4px; }
+.heroRefresh{
+  width: 44px; height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.12);
+  color:#fff;
+  cursor:pointer;
+}
+
+/* 4 SUMMARY */
+.dashSummary4{
+  margin-top: 16px;
+  display:grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 14px;
+}
+.sumCard{
+  border-radius: 16px;
+  padding: 16px;
+  color: #fff;
+  position: relative;
+  overflow:hidden;
+}
+.sumCard::after{
+  content:"";
+  position:absolute; right:-40px; bottom:-40px;
+  width:120px; height:120px; border-radius:999px;
+  background: rgba(255,255,255,.18);
+}
+.sumTop{ display:flex; justify-content:space-between; align-items:center; }
+.sumIcon{ font-size: 18px; opacity: .95; }
+.sumBadge{
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.18);
+}
+.sumNum{ font-size: 34px; font-weight: 900; margin-top: 10px; line-height: 1; }
+.sumLabel{ font-size: 13px; margin-top: 8px; opacity: .95; }
+.sumSmall{ font-size: 12px; margin-top: 8px; opacity: .9; }
+.sumBar{ height: 8px; border-radius: 999px; background: rgba(255,255,255,.22); margin-top: 10px; overflow:hidden; }
+.sumBarFill{ height: 100%; background: rgba(255,255,255,.75); border-radius: 999px; }
+
+.sumCard.blue{ background: #2f6fe8; }
+.sumCard.green{ background: #10b981; }
+.sumCard.red{ background: #ef3340; }
+.sumCard.orange{ background: #ff9b1a; }
+
+/* MID 2 PANEL */
+.dashMid2{
+  margin-top: 16px;
+  display:grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+
+/* ✅ contentCard가 없을 수도 있어서 안전하게 정의 */
+.dashNew .contentCard{
+  background:#fff;
+  border:1px solid #e6e6e6;
+  border-radius:16px;
+  padding:16px;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+
+.dashPanel{ border-radius: 16px; padding: 16px; }
+
+.panelHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap: 10px;
+}
+.panelTitle{ display:flex; align-items:center; gap: 8px; }
+.panelIcon{ opacity: .9; }
+.panelHint{ font-size: 12px; opacity: .7; }
+
+.panelSubTitle{ margin-top: 12px; font-size: 12px; opacity: .8; }
+
+.healthBar{ height: 10px; border-radius: 999px; background: #f2f2f2; overflow:hidden; margin-top: 8px; }
+.healthBarFill{ height: 100%; background: #22c55e; border-radius: 999px; }
+.healthPct{ text-align:right; font-size: 12px; opacity: .75; margin-top: 6px; }
+
+.health2Cards{
+  margin-top: 12px;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.healthCard{
+  border-radius: 14px;
+  padding: 14px;
+}
+.healthCard.ok{ background: #eafff3; border: 1px solid #c7f9dd; }
+.healthCard.bad{ background: #fff0f0; border: 1px solid #ffd0d0; }
+.healthCardNum{ font-size: 26px; font-weight: 900; }
+.healthCardLabel{ margin-top: 4px; font-size: 12px; opacity: .8; }
+
+.healthPills{ margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
+.pill{
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+.softGreen{ background:#eafff3; border:1px solid #c7f9dd; }
+.softOrange{ background:#fff3e6; border:1px solid #ffd6b0; }
+
+/* QUICK ACTIONS */
+.quickList{ margin-top: 10px; display:flex; flex-direction:column; gap: 8px; }
+.quickItem{
+  display:flex; align-items:center; justify-content:space-between;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #eee;
+  text-decoration:none;
+  color: inherit;
+}
+.quickIcon{
+  width: 34px; height: 34px; border-radius: 10px;
+  display:flex; align-items:center; justify-content:center;
+}
+.quickIcon.blue{ background:#eaf2ff; }
+.quickIcon.purple{ background:#f1ecff; }
+.quickIcon.mint{ background:#e8fff9; }
+.quickIcon.gray{ background:#f3f4f6; }
+.quickText{ flex:1; }
+.quickTitle{ font-weight: 900; }
+.quickSub{ font-size: 12px; opacity: .7; margin-top: 2px; }
+.quickArrow{ opacity: .5; font-size: 18px; }
+
+/* RECENT */
+.dashRecent{ margin-top: 16px; border-radius: 16px; padding: 16px; }
+.recentHead{ display:flex; justify-content:space-between; align-items:center; }
+.recentTitle{ display:flex; align-items:center; gap: 10px; }
+.recentDot{ width: 10px; height: 10px; border-radius: 3px; background:#10b981; display:inline-block; }
+.recentCount{ opacity:.7; font-size: 12px; }
+.recentLink{ text-decoration:none; font-size: 12px; color:#0aa36b; font-weight: 900; }
+
+.recentGrid{
+  margin-top: 12px;
+  display:grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.recentCard{
+  border-radius: 14px;
+  padding: 14px;
+  border: 1px solid #ffd0d0;
+  background:#fff;
+}
+.recentCard.on{ border-color:#c7f9dd; }
+
+.recentCardTop{ display:flex; justify-content:space-between; align-items:center; }
+.recentName{ font-weight: 900; font-size: 16px; }
+.recentStatusIcon{ opacity:.7; }
+
+.recentRows{ margin-top: 10px; }
+.recentRows .r{
+  display:flex; justify-content:space-between; align-items:center;
+  padding: 10px 0;
+  border-top: 1px solid #f1f1f1;
+}
+.recentRows .rk{ opacity:.85; font-size: 13px; display:flex; gap:8px; align-items:center; }
+.recentRows .rv{ font-weight: 900; opacity:.85; }
+.recentRows .unit{ font-size: 11px; opacity:.6; margin-left: 6px; font-weight: 900; }
+
+.recentFoot{
+  margin-top: 10px;
+  display:flex; justify-content:space-between; align-items:center;
+  border-top: 1px solid #f1f1f1;
+  padding-top: 10px;
+}
+.recentLast{ color:#ef3340; font-size: 12px; }
+.recentEdit{ opacity:.5; }
+
+@media (max-width: 1100px){
+  .dashSummary4{ grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+  .dashMid2{ grid-template-columns: 1fr; }
+  .recentGrid{ grid-template-columns: 1fr; }
+}
