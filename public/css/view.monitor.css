@@ -2,10 +2,11 @@
 
 .monitorView #selDevice { min-width: 260px; }
 
-.mt10 { margin-top: 10px; }
-.mt12 { margin-top: 12px; }
+/* ✅ (수정) 세로 여백(위/아래) 살짝 줄이기 */
+.mt10 { margin-top: 8px; }
+.mt12 { margin-top: 8px; }
 .mb6 { margin-bottom: 6px; }
-.mb12 { margin-bottom: 12px; }
+.mb12 { margin-bottom: 10px; }
 .ml10 { margin-left: 10px; }
 
 .toolbarLeft.wrap {
@@ -77,19 +78,25 @@
 }
 
 .kpiTrendStatus{
-  margin-top: 10px;
+  /* ✅ (수정) 아래쪽 공간 조금 줄임 */
+  margin-top: 6px;
   font-size: 14px;
   opacity: 0.85;
 }
 
 .kpiChartWrap{
-  min-height: 260px;
+  /* ✅ (핵심 수정) Trend 차트 카드 “세로”를 조금만 줄임 */
+  min-height: 200px;
+
   display: flex;
   flex-direction: column;
   justify-content: center;
+
   border-top: 1px solid #f0f0f0;
-  margin-top: 10px;
-  padding-top: 10px;
+
+  /* ✅ (수정) 위/아래 여백 살짝 줄임 */
+  margin-top: 6px;
+  padding-top: 6px;
 }
 
 .kpiSectionTitle{
@@ -209,7 +216,10 @@
   display:flex;
   align-items:center;
   gap:8px;
-  margin-top: 12px;
+
+  /* ✅ (수정) 제목 위 여백 조금 줄임 */
+  margin-top: 8px;
+
   opacity: 0.85;
   font-weight: 800;
 }
@@ -303,10 +313,15 @@
 
 /* 미니 차트 영역 */
 .miniChartWrap{
-  margin-top: 10px;
-  min-height: 220px;
+  margin-top: 8px;
+
+  /* ✅ (핵심 수정) 아래 4개 카드 차트 높이도 살짝 줄임 */
+  min-height: 180px;
+
   border-top: 1px solid #f0f0f0;
-  padding-top: 10px;
+
+  /* ✅ (수정) 위/아래 여백 조금 줄임 */
+  padding-top: 8px;
 
   display:flex;
   flex-direction: column;
