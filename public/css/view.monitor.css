@@ -99,17 +99,17 @@
   opacity: 0.85;
 }
 
-/* 그리드 시스템 */
+/* ✅ (수정) KPI 그리드 “조금 컴팩트” */
 .kpiGrid{ display: grid; gap: 12px; }
-.kpiGrid2{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
-.kpiGrid3{ grid-template-columns: repeat(3, minmax(240px, 1fr)); }
-.kpiGrid5{ grid-template-columns: repeat(5, minmax(190px, 1fr)); }
+.kpiGrid2{ grid-template-columns: repeat(2, minmax(220px, 1fr)); } /* 240 -> 220 */
+.kpiGrid3{ grid-template-columns: repeat(3, minmax(200px, 1fr)); } /* 240 -> 200 */
+.kpiGrid5{ grid-template-columns: repeat(5, minmax(160px, 1fr)); } /* 190 -> 160 */
 
-/* KPI 타일 */
+/* ✅ (수정) KPI 타일 padding 약간 감소 */
 .kpiTile{
   border: 1px solid #e9e9e9;
   border-radius: 14px;
-  padding: 14px 14px 12px;
+  padding: 12px 12px 10px; /* 14/14/12 -> 12/12/10 */
   background: #fff;
   min-height: 86px;
 
@@ -224,13 +224,17 @@
 
 /* =========================================================
    ✅ (추가) Trend 아래 4개 카드(trendQuad) 스타일
-   - 사진처럼 2x2 배치 + 카드 내부 헤더/툴/차트 영역
 ========================================================= */
 
+/* ✅ (수정 핵심) 4개 카드 “너무 넓음” 해결:
+   - minmax 320 -> 260
+   - max-width 추가(너무 퍼지지 않게)
+*/
 .trendQuad{
   display: grid;
-  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, minmax(260px, 1fr)); /* 320 -> 260 */
   gap: 12px;
+  max-width: 1200px; /* 추가: 전체가 과하게 넓어지는 느낌 방지 */
 }
 
 /* 4개 카드 상단(셀렉트/날짜/Export) */
@@ -359,9 +363,10 @@
    ✅ 반응형
 ========================================================= */
 @media (max-width: 1100px){
-  .kpiGrid5{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
-  .kpiGrid3{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
-  .kpiGrid2{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
+  /* ✅ (수정) KPI도 모바일에서 너무 커 보이지 않게 */
+  .kpiGrid5{ grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+  .kpiGrid3{ grid-template-columns: repeat(1, minmax(220px, 1fr)); }
+  .kpiGrid2{ grid-template-columns: repeat(1, minmax(220px, 1fr)); }
 
   .trendControlsLeft .select,
   .trendControlsLeft .input{
@@ -371,6 +376,7 @@
   /* ✅ 4개 카드: 모바일에서는 1열로 */
   .trendQuad{
     grid-template-columns: 1fr;
+    max-width: 100%;
   }
 
   .miniDate{ min-width: 160px; }
