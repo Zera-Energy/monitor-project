@@ -26,9 +26,36 @@
   let __selectedKey = "";
   let __selectedLabel = "";
 
+  // ✅ Trend 상단 섹션(사진 스타일)
+  const trendDeviceSel = $("trendDeviceSel");
+  const btnTrendRefresh = $("btnTrendRefresh");
+  const trendLocationTextEl = $("trendLocationText");
+
   function selectDeviceByKey(key, label){
     __selectedKey = String(key || "");
     __selectedLabel = String(label || __selectedKey || "");
+
+    // ✅ Trend 상단 드롭다운도 같이 동기화
+    if (trendDeviceSel) {
+      trendDeviceSel.value = __selectedKey || "";
+    }
+
+    // ✅ 위치 pill 텍스트 갱신
+    try {
+      const d = devices.find(x => deviceKey(x) === __selectedKey) || null;
+      const loc =
+        d?.site_name ??
+        d?.site ??
+        d?.location ??
+        d?.place ??
+        d?.site_id ??
+        d?.country ??
+        "-";
+      if (trendLocationTextEl) trendLocationTextEl.textContent = String(loc || "-");
+    } catch {
+      if (trendLocationTextEl) trendLocationTextEl.textContent = "-";
+    }
+
     try {
       setTrendStatus(__selectedKey ? `Selected: ${__selectedLabel}` : "Ready");
     } catch {}
@@ -103,7 +130,7 @@
   }
 
   /* =========================================================
-     ✅ KPI BOARD helpers (사진 스타일 타일 채우기)
+     ✅ KPI BOARD helpers
   ========================================================= */
   function setTile(id, title, valueText, unit, sub){
     const el = document.getElementById(id);
@@ -222,24 +249,24 @@
   const trendBuf = { labels: [], values: [] };
   const TREND_MAX = 240;
 
-  // ✅✅✅ 여기 수정됨: 사진 드롭다운 항목 + Energy Saved 추가 + PF 라벨 변경
   function initTrendMetricOptions(){
     if (!trendMetricEl) return;
 
+    // ✅ 사진 드롭박스 항목 + Energy Saved 추가
     const items = [
-      { value: "v_ln1",     label: "Voltage LN1 (V)" },
-      { value: "v_ln2",     label: "Voltage LN2 (V)" },
-      { value: "v_ln3",     label: "Voltage LN3 (V)" },
-      { value: "a_l1",      label: "Current L1 (A)" },
-      { value: "a_l2",      label: "Current L2 (A)" },
-      { value: "a_l3",      label: "Current L3 (A)" },
-      { value: "kw",        label: "Active Power (kW)" },
-      { value: "kvar",      label: "Reactive Power (kVAr)" },
-      { value: "kva",       label: "Apparent Power (kVA)" },
-      { value: "pf",        label: "Power Factor" },          // ✅ 라벨 수정
-      { value: "hz",        label: "Frequency (Hz)" },
-      { value: "kwh",       label: "Energy (kWh)" },
-      { value: "kwh_saved", label: "Energy Saved (kWh)" },    // ✅ 추가
+      { value: "v_ln1", label: "Voltage LN1 (V)" },
+      { value: "v_ln2", label: "Voltage LN2 (V)" },
+      { value: "v_ln3", label: "Voltage LN3 (V)" },
+      { value: "a_l1",  label: "Current L1 (A)" },
+      { value: "a_l2",  label: "Current L2 (A)" },
+      { value: "a_l3",  label: "Current L3 (A)" },
+      { value: "kw",    label: "Active Power (kW)" },
+      { value: "kvar",  label: "Reactive Power (kVAr)" },
+      { value: "kva",   label: "Apparent Power (kVA)" },
+      { value: "pf",    label: "Power Factor" },
+      { value: "hz",    label: "Frequency (Hz)" },
+      { value: "kwh",   label: "Energy (kWh)" },
+      { value: "kwh_saved", label: "Energy Saved (kWh)" },
     ];
 
     trendMetricEl.innerHTML = items.map(x => `<option value="${x.value}">${x.label}</option>`).join("");
@@ -306,23 +333,23 @@
     const s = msg?.summary || {};
     const p = msg?.payload || {};
 
-    // ✅✅✅ 여기 수정됨: kwh_saved 매핑 추가
     const directMap = {
-      kw:        ["kw","kw_total","total_kw","p_kw_total"],
-      kvar:      ["kvar","q_kvar","reactive_kvar"],
-      kva:       ["kva","s_kva","apparent_kva"],
-      pf:        ["pf","power_factor"],
-      hz:        ["hz","freq","frequency"],
-      kwh:       ["kwh","energy_kwh"],
-      kwh_saved: ["kwh_saved","energy_saved_kwh","saved_kwh","saving_kwh"],
+      kw:   ["kw","kw_total","total_kw","p_kw_total"],
+      kvar: ["kvar","q_kvar","reactive_kvar"],
+      kva:  ["kva","s_kva","apparent_kva"],
+      pf:   ["pf","power_factor"],
+      hz:   ["hz","freq","frequency"],
+      kwh:  ["kwh","energy_kwh"],
+      // ✅ Energy Saved
+      kwh_saved: ["kwh_saved","energy_saved_kwh"],
 
-      v_ln1:     ["v1","v_l1","v_ln1","vL1N","v_l1n"],
-      v_ln2:     ["v2","v_l2","v_ln2","vL2N","v_l2n"],
-      v_ln3:     ["v3","v_l3","v_ln3","vL3N","v_l3n"],
+      v_ln1:["v1","v_l1","v_ln1","vL1N","v_l1n"],
+      v_ln2:["v2","v_l2","v_ln2","vL2N","v_l2n"],
+      v_ln3:["v3","v_l3","v_ln3","vL3N","v_l3n"],
 
-      a_l1:      ["a1","i1","amp1"],
-      a_l2:      ["a2","i2","amp2"],
-      a_l3:      ["a3","i3","amp3"],
+      a_l1: ["a1","i1","amp1"],
+      a_l2: ["a2","i2","amp2"],
+      a_l3: ["a3","i3","amp3"],
     };
 
     const keys = directMap[metricKey];
@@ -412,6 +439,9 @@
 
   btnTrendPlot?.addEventListener("click", () => { loadTrendSeries(); });
 
+  // ✅ refresh 버튼도 Plot처럼 동작
+  btnTrendRefresh?.addEventListener("click", () => { loadTrendSeries(); });
+
   btnTrendExport?.addEventListener("click", () => {
     if (!trendBuf.labels.length) return;
 
@@ -435,12 +465,7 @@
   setTrendStatus("Ready");
 
   /* =========================================================
-     ✅ Selected Device Panel 삭제됨
-     - 선택은 카드/테이블 클릭으로만 유지
-  ========================================================= */
-
-  /* =========================================================
-     ✅ Device list / overview (기존 유지)
+     ✅ Device list / overview
   ========================================================= */
   let paused = false;
   let updateCount = 0;
@@ -471,6 +496,36 @@
     updateCount = 0;
     if (updateCountEl) updateCountEl.textContent = "0";
     if (lastAtEl) lastAtEl.textContent = "-";
+  });
+
+  // ✅ Trend 상단 Device dropdown 옵션 구성
+  function setTrendDeviceOptions(items){
+    if (!trendDeviceSel) return;
+    const current = trendDeviceSel.value || "";
+    const opts = [`<option value="">Select Device</option>`];
+    for (const d of items) {
+      const key = deviceKey(d);
+      const label = deviceLabel(d);
+      opts.push(`<option value="${key}">${label}</option>`);
+    }
+    trendDeviceSel.innerHTML = opts.join("");
+
+    // 현재 선택 유지
+    if (__selectedKey) trendDeviceSel.value = __selectedKey;
+    else if (current) trendDeviceSel.value = current;
+  }
+
+  // ✅ Trend 상단 dropdown으로 선택 가능
+  trendDeviceSel?.addEventListener("change", () => {
+    const key = trendDeviceSel.value || "";
+    if (!key) {
+      selectDeviceByKey("", "");
+      resetTrend();
+      return;
+    }
+    const d = devices.find(x => deviceKey(x) === key) || null;
+    selectDeviceByKey(key, d ? deviceLabel(d) : key);
+    resetTrend();
   });
 
   function ensureAutoCard(key) {
@@ -602,6 +657,9 @@
     for (const x of (items || [])) devices.push(x);
     __devicesCache = devices;
 
+    // ✅ Trend 드롭다운 옵션 업데이트
+    setTrendDeviceOptions(devices);
+
     if (!__selectedKey && devices.length) {
       const d0 = devices[0];
       selectDeviceByKey(deviceKey(d0), deviceLabel(d0));
@@ -619,7 +677,6 @@
 
   /* =========================================================
      ✅ WebSocket 실시간 연결
-     - 선택된 장비의 telemetry면: KPI 타일 업데이트 + TrendChart(실시간) 업데이트
   ========================================================= */
   let __ws = null;
   let __wsClosedByUser = false;
@@ -715,7 +772,7 @@
   })();
 
   /* =========================================================
-     ✅ Devices Overview Modal (기존)
+     ✅ Devices Overview Modal
   ========================================================= */
   function openDevOv(){
     if (!back || !modal) return;
