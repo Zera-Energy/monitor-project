@@ -8,10 +8,8 @@
 
   const logEl = $("mqttLog");
 
-  // ✅ (수정) 기존 mqttWsStatus는 "API 상태"로 그대로 두고,
-  // Realtime Chart 영역의 WS 상태는 rtWsStatus로 분리
-  const apiStatusEl = $("mqttWsStatus");     // API/기타 상태 표시용(기존)
-  const rtWsStatusEl = $("rtWsStatus");      // WS 상태 표시용(추가)
+  // ✅ mqttWsStatus는 계속 사용 (API/WS 상태 표시)
+  const apiStatusEl = $("mqttWsStatus");
 
   const lastAtEl = $("mqttLastAt");
   const updateCountEl = $("mqttMsgCount");
@@ -29,8 +27,16 @@
   // ✅ Select data 버튼(있으면 사용)
   const btnSelectData = $("btnSelectData");
 
-  // ✅ Realtime Chart 리셋 버튼(HTML에 있으면 사용)
-  const btnRtReset = $("btnRtReset");
+  // ✅ KPI BOARD Trend controls
+  const trendMetricEl = $("trendMetric");
+  const trendIntervalEl = $("trendInterval");
+  const trendFromEl = $("trendFrom");
+  const trendToEl = $("trendTo");
+  const trendShowLimitsEl = $("trendShowLimits");
+  const trendStatusEl = $("trendStatus");
+  const btnTrendPlot = $("btnTrendPlot");
+  const btnTrendExport = $("btnTrendExport");
+  const trendEmptyEl = $("trendEmpty");
 
   // ✅ 기존 cleanup 체인
   const prevCleanup = window.__viewCleanup__;
@@ -41,6 +47,10 @@
   // ===== utils =====
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
+
+  function setTrendStatus(v){
+    if (trendStatusEl) trendStatusEl.textContent = v;
+  }
 
   // ✅ topic 우선 key/label
   function deviceKey(d){
@@ -84,9 +94,7 @@
 
   /* =========================================================
      ✅ KPI BOARD helpers (사진 스타일 타일 채우기)
-     - monitor.html에 추가한 tileV12/tileA1/... 등에 값 주입
   ========================================================= */
-
   function setTile(id, title, valueText, unit, sub){
     const el = document.getElementById(id);
     if (!el) return;
@@ -116,7 +124,7 @@
     }) || null;
   }
 
-  // voltage line-to-line는 term이 다를 수 있어서 조금 넓게 찾기
+  // voltage line-to-line는 term/phase가 제각각인 경우가 있어서 넓게 탐색
   function findVll(channels, phase){
     if (!Array.isArray(channels)) return null;
     const want = String(phase).toUpperCase(); // "L1-L2"
@@ -130,7 +138,6 @@
 
   function updateKpiFromTelemetry(msg){
     const nowText = new Date().toLocaleTimeString();
-
     const channels = msg?.channels || (msg?.payload?.channels || []);
 
     // -------- Voltage (L-L)
@@ -203,9 +210,242 @@
     setTile("tileCO2",   "CO₂ SAVED",     co2   !== null ? co2.toFixed(2) : "-", "kg",  nowText);
   }
 
-  // =========================
-  // ✅ 0) Selected device detail panel (6채널 + 절감)
-  // =========================
+  /* =========================================================
+     ✅ Trend Chart (사진 상단 Trend Chart)
+  ========================================================= */
+  let trendChart = null;
+  const trendBuf = { labels: [], values: [] };
+  const TREND_MAX = 240;
+
+  function initTrendMetricOptions(){
+    if (!trendMetricEl) return;
+
+    // ✅ 기본 목록(사진 느낌). 실제 서버 metric 키가 있으면 value만 맞춰주면 됨.
+    const items = [
+      { value: "v_ln1", label: "Voltage LN1 (V)" },
+      { value: "v_ln2", label: "Voltage LN2 (V)" },
+      { value: "v_ln3", label: "Voltage LN3 (V)" },
+      { value: "a_l1",  label: "Current L1 (A)" },
+      { value: "a_l2",  label: "Current L2 (A)" },
+      { value: "a_l3",  label: "Current L3 (A)" },
+      { value: "kw",    label: "Active Power (kW)" },
+      { value: "kvar",  label: "Reactive Power (kVAr)" },
+      { value: "kva",   label: "Apparent Power (kVA)" },
+      { value: "pf",    label: "Power Factor (PF)" },
+      { value: "hz",    label: "Frequency (Hz)" },
+      { value: "kwh",   label: "Energy (kWh)" },
+    ];
+
+    trendMetricEl.innerHTML = items.map(x => `<option value="${x.value}">${x.label}</option>`).join("");
+  }
+
+  function initTrendChart(){
+    const canvas = document.getElementById("trendChart");
+    if (!canvas) return;
+    if (!window.Chart) return;
+    if (trendChart) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    trendChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [{
+          label: "Trend",
+          data: [],
+          tension: 0.2,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { display: true } },
+        scales: { x: { display: true }, y: { display: true } }
+      }
+    });
+  }
+
+  function resetTrend(){
+    trendBuf.labels = [];
+    trendBuf.values = [];
+    if (trendChart) {
+      trendChart.data.labels = [];
+      trendChart.data.datasets[0].data = [];
+      trendChart.update();
+    }
+    if (trendEmptyEl) trendEmptyEl.hidden = true;
+  }
+
+  function pushTrendPoint(label, value){
+    if (value === null || value === undefined) return;
+
+    trendBuf.labels.push(label);
+    trendBuf.values.push(value);
+
+    while (trendBuf.labels.length > TREND_MAX) trendBuf.labels.shift();
+    while (trendBuf.values.length > TREND_MAX) trendBuf.values.shift();
+
+    if (!trendChart) return;
+    trendChart.data.labels = trendBuf.labels.slice();
+    trendChart.data.datasets[0].data = trendBuf.values.slice();
+    trendChart.update();
+  }
+
+  // ✅ “현재 들어오는 telemetry에서” metric 하나 골라서 값 뽑기
+  function pickTrendValueFromTelemetry(msg, metricKey){
+    const channels = msg?.channels || (msg?.payload?.channels || []);
+    const s = msg?.summary || {};
+    const p = msg?.payload || {};
+
+    // summary/payload 우선 키들
+    const directMap = {
+      kw:   ["kw","kw_total","total_kw","p_kw_total"],
+      kvar: ["kvar","q_kvar","reactive_kvar"],
+      kva:  ["kva","s_kva","apparent_kva"],
+      pf:   ["pf","power_factor"],
+      hz:   ["hz","freq","frequency"],
+      kwh:  ["kwh","energy_kwh"],
+
+      v_ln1:["v1","v_l1","v_ln1","vL1N","v_l1n"],
+      v_ln2:["v2","v_l2","v_ln2","vL2N","v_l2n"],
+      v_ln3:["v3","v_l3","v_ln3","vL3N","v_l3n"],
+
+      a_l1: ["a1","i1","amp1"],
+      a_l2: ["a2","i2","amp2"],
+      a_l3: ["a3","i3","amp3"],
+    };
+
+    const keys = directMap[metricKey];
+    if (keys) {
+      for (const k of keys) {
+        const x = n(s[k] ?? p[k]);
+        if (x !== null) return x;
+      }
+    }
+
+    // channels fallback (너 프로젝트 채널 구조에 맞춘 기본 추정)
+    if (metricKey === "a_l1") return n(findChannel(channels, "in", "L1")?.a ?? findChannel(channels, "in", "L1")?.amp ?? findChannel(channels, "in", "L1")?.current);
+    if (metricKey === "a_l2") return n(findChannel(channels, "in", "L2")?.a ?? findChannel(channels, "in", "L2")?.amp ?? findChannel(channels, "in", "L2")?.current);
+    if (metricKey === "a_l3") return n(findChannel(channels, "in", "L3")?.a ?? findChannel(channels, "in", "L3")?.amp ?? findChannel(channels, "in", "L3")?.current);
+
+    // v_ln1/2/3도 channels에 들어오는 경우 대비
+    if (metricKey === "v_ln1") return n(findChannel(channels, "in", "L1")?.v ?? findChannel(channels, "in", "L1")?.volt ?? findChannel(channels, "in", "L1")?.voltage);
+    if (metricKey === "v_ln2") return n(findChannel(channels, "in", "L2")?.v ?? findChannel(channels, "in", "L2")?.volt ?? findChannel(channels, "in", "L2")?.voltage);
+    if (metricKey === "v_ln3") return n(findChannel(channels, "in", "L3")?.v ?? findChannel(channels, "in", "L3")?.volt ?? findChannel(channels, "in", "L3")?.voltage);
+
+    return null;
+  }
+
+  // ✅ Plot 버튼: 기간 조회 API (엔드포인트는 프로젝트에 맞게 수정)
+  async function loadTrendSeries(){
+    const deviceKeySel = selDevice?.value || "";
+    if (!deviceKeySel) {
+      setTrendStatus("Select Device");
+      if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = "Select Device first"; }
+      return;
+    }
+
+    const metric = trendMetricEl?.value || "kw";
+    const interval = trendIntervalEl?.value || "day";
+    const from = trendFromEl?.value || "";
+    const to = trendToEl?.value || "";
+    const showLimits = !!trendShowLimitsEl?.checked;
+
+    setTrendStatus("Loading...");
+    if (trendEmptyEl) trendEmptyEl.hidden = true;
+
+    // ✅ 기본 엔드포인트 가정:
+    // GET /api/series?device=...&metric=...&from=...&to=...&interval=...
+    // -> { points: [{t:"2026-03-03T12:00:00Z", v: 123.4}, ...], limits?:{min,max}}
+    const url =
+      `${API_BASE}/api/series` +
+      `?device=${encodeURIComponent(deviceKeySel)}` +
+      `&metric=${encodeURIComponent(metric)}` +
+      `&from=${encodeURIComponent(from)}` +
+      `&to=${encodeURIComponent(to)}` +
+      `&interval=${encodeURIComponent(interval)}` +
+      `&limits=${showLimits ? "1" : "0"}`;
+
+    resetTrend();
+    initTrendChart();
+
+    try {
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      const pts = Array.isArray(data?.points) ? data.points : [];
+      if (!pts.length) {
+        setTrendStatus("No data");
+        if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = "No data in selected range"; }
+        return;
+      }
+
+      // 채우기
+      const labels = [];
+      const values = [];
+      for (const p of pts) {
+        const v = n(p?.v ?? p?.value);
+        if (v === null) continue;
+        const t = p?.t ?? p?.time ?? "";
+        labels.push(String(t).slice(0, 19).replace("T"," "));
+        values.push(v);
+      }
+
+      trendBuf.labels = labels.slice(-TREND_MAX);
+      trendBuf.values = values.slice(-TREND_MAX);
+
+      trendChart.data.labels = trendBuf.labels.slice();
+      trendChart.data.datasets[0].label = metric;
+      trendChart.data.datasets[0].data = trendBuf.values.slice();
+      trendChart.update();
+
+      setTrendStatus("Ready");
+    } catch (e) {
+      setTrendStatus("Error");
+      if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = `Load failed (${String(e?.message || e)})`; }
+    }
+  }
+
+  btnTrendPlot?.addEventListener("click", () => { loadTrendSeries(); });
+
+  btnTrendExport?.addEventListener("click", () => {
+    // 프로젝트마다 export 방식이 달라서 일단 현재 차트 버퍼를 CSV로 뽑는 기본형
+    if (!trendBuf.labels.length) return;
+
+    const rows = [["time","value"]];
+    for (let i=0;i<trendBuf.labels.length;i++){
+      rows.push([trendBuf.labels[i], String(trendBuf.values[i])]);
+    }
+    const csv = rows.map(r => r.map(x => `"${String(x).replaceAll('"','""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `trend_${(trendMetricEl?.value || "metric")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // 초기 세팅
+  initTrendMetricOptions();
+  initTrendChart();
+  setTrendStatus("Ready");
+
+  selDevice?.addEventListener("change", () => {
+    try { renderDetailPanelBySelected(__devicesCache); } catch {}
+    try { resetTrend(); } catch {}
+    setTrendStatus("Ready");
+  });
+
+  /* =========================================================
+     ✅ Selected device detail panel (6채널 + 절감) - 유지
+  ========================================================= */
   function ensureDetailPanel(){
     let el = document.getElementById("monDetailPanel");
     if (el) return el;
@@ -317,80 +557,9 @@
       makeTr("OUT", outRow, outKw);
   }
 
-  // =========================
-  // ✅ Realtime Chart
-  // =========================
-  let rtChart = null;
-  const rtBuf = { labels: [], values: [] };
-  const RT_MAX = 120;
-
-  function initRealtimeChart(){
-    const canvas = document.getElementById("rtChart");
-    if (!canvas) return;
-    if (!window.Chart) return;
-    if (rtChart) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    rtChart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: [],
-        datasets: [{
-          label: "kW",
-          data: [],
-          tension: 0.2,
-          pointRadius: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        animation: false,
-        interaction: { mode: "index", intersect: false },
-        plugins: { legend: { display: true } },
-        scales: { x: { display: true }, y: { display: true } }
-      }
-    });
-  }
-
-  function resetRealtimeChart(){
-    rtBuf.labels = [];
-    rtBuf.values = [];
-    if (rtChart) {
-      rtChart.data.labels = [];
-      rtChart.data.datasets[0].data = [];
-      rtChart.update();
-    }
-  }
-
-  function pushRealtimePoint(label, value){
-    if (value === null || value === undefined) return;
-
-    rtBuf.labels.push(label);
-    rtBuf.values.push(value);
-
-    while (rtBuf.labels.length > RT_MAX) rtBuf.labels.shift();
-    while (rtBuf.values.length > RT_MAX) rtBuf.values.shift();
-
-    if (!rtChart) return;
-    rtChart.data.labels = rtBuf.labels.slice();
-    rtChart.data.datasets[0].data = rtBuf.values.slice();
-    rtChart.update();
-  }
-
-  // ✅ 초기 chart 준비 + Reset 버튼 연결
-  initRealtimeChart();
-  btnRtReset?.addEventListener("click", resetRealtimeChart);
-
-  selDevice?.addEventListener("change", () => {
-    try { renderDetailPanelBySelected(__devicesCache); } catch {}
-    try { resetRealtimeChart(); } catch {}
-  });
-
-  // =========================
-  // ✅ 2) 서버(API) 기준 장비 목록 → 화면 렌더
-  // =========================
+  /* =========================================================
+     ✅ Device list / overview (기존 유지)
+  ========================================================= */
   let paused = false;
   let updateCount = 0;
 
@@ -401,9 +570,8 @@
     if (apiStatusEl) apiStatusEl.textContent = v;
   }
   function setWsStatus(v){
-    // ✅ (수정) WS 상태는 rtWsStatus에 찍기 (없으면 기존 mqttWsStatus에 fallback)
-    if (rtWsStatusEl) rtWsStatusEl.textContent = v;
-    else if (apiStatusEl) apiStatusEl.textContent = v;
+    // WS 상태도 mqttWsStatus에 그대로 표시
+    if (apiStatusEl) apiStatusEl.textContent = v;
   }
 
   function appendLog(line) {
@@ -579,15 +747,15 @@
     renderDevOv();
 
     try { renderDetailPanelBySelected(devices); } catch {}
-    try { initRealtimeChart(); } catch {}
   };
 
   setApiStatus("waiting...");
   setWsStatus("WS connecting...");
 
-  // =========================
-  // ✅ 4) WebSocket 실시간 연결
-  // =========================
+  /* =========================================================
+     ✅ WebSocket 실시간 연결
+     - 선택된 장비의 telemetry면: KPI 타일 업데이트 + TrendChart(실시간) 업데이트
+  ========================================================= */
   let __ws = null;
   let __wsClosedByUser = false;
 
@@ -617,9 +785,7 @@
         let msg;
         try { msg = JSON.parse(ev.data); } catch { return; }
 
-        // ping은 무시(원하면 상태만 찍어도 됨)
         if (msg.type === "ping") return;
-
         if (msg.type !== "telemetry") return;
 
         const key = msg.key;
@@ -653,15 +819,16 @@
         if (updateCountEl) updateCountEl.textContent = String(updateCount);
         if (lastAtEl) lastAtEl.textContent = new Date().toLocaleTimeString();
 
-        // ✅ 실시간 차트 업데이트: 선택 장비만
+        // ✅ 선택 장비만 KPI/Trend 실시간 반영
         if (selectedKey && selectedKey === key) {
-          const kw = n(msg?.summary?.kw ?? msg?.payload?.kw);
-          const t = new Date().toLocaleTimeString();
-          initRealtimeChart();
-          pushRealtimePoint(t, kw);
-
-          // ✅ (추가) KPI 타일 업데이트: 선택 장비만
           try { updateKpiFromTelemetry(msg); } catch {}
+
+          // ✅ Trend는 선택 metric 기준으로 실시간 push
+          const metric = trendMetricEl?.value || "kw";
+          const v = pickTrendValueFromTelemetry(msg, metric);
+          const t = new Date().toLocaleTimeString();
+          initTrendChart();
+          pushTrendPoint(t, v);
         }
       };
 
@@ -680,9 +847,9 @@
     connect();
   })();
 
-  // =========================
-  // ✅ 3) Devices Overview Modal (기존)
-  // =========================
+  /* =========================================================
+     ✅ Devices Overview Modal (기존)
+  ========================================================= */
   function openDevOv(){
     if (!back || !modal) return;
     back.hidden = false;
@@ -751,9 +918,9 @@
     } catch {}
     __ws = null;
 
-    // ✅ realtime chart 정리
-    try { rtChart && rtChart.destroy && rtChart.destroy(); } catch {}
-    rtChart = null;
+    // ✅ trend chart 정리
+    try { trendChart && trendChart.destroy && trendChart.destroy(); } catch {}
+    trendChart = null;
 
     try { if (typeof prevCleanup === "function") prevCleanup(); } catch {}
   };

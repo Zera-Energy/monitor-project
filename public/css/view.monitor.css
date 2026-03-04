@@ -67,6 +67,14 @@
   gap: 12px;
 }
 
+/* Trend/Event 카드 안에서 canvas가 폭 꽉 차게 */
+#trendChart,
+#anaChart,
+#rtChart{
+  width: 100%;
+  display: block;
+}
+
 /* 섹션 타이틀(Voltage/Current/Power...) */
 .kpiSectionTitle{
   font-weight: 900;
@@ -79,7 +87,8 @@
 .kpiGrid{ display: grid; gap: 12px; }
 .kpiGrid2{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
 .kpiGrid3{ grid-template-columns: repeat(3, minmax(240px, 1fr)); }
-.kpiGrid5{ grid-template-columns: repeat(5, minmax(210px, 1fr)); }
+/* ✅ (수정) 5칸 그리드가 너무 빡빡한 화면에서 줄바꿈 자연스럽게 */
+.kpiGrid5{ grid-template-columns: repeat(5, minmax(190px, 1fr)); }
 
 /* KPI 카드 헤더(Trend/Event 위에 버튼 붙는 부분) */
 .kpiHeader{
@@ -102,6 +111,11 @@
   padding: 14px 14px 12px;
   background: #fff;
   min-height: 86px;
+
+  /* ✅ (수정) 타일 내부 레이아웃 안정화 */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .kpiTile .t{
@@ -163,6 +177,11 @@
 /* Event table 영역 스크롤 */
 .eventTableWrap{
   overflow: auto;
+}
+
+/* ✅ (수정) Event table이 컬럼 많아도 안 깨지게 최소 폭 확보 */
+.eventTableWrap .table{
+  min-width: 780px;
 }
 
 /* 반응형: 화면 좁으면 1열로 내려주기 */

@@ -27,113 +27,13 @@
     </div>
   </div>
 
-  <!-- ✅ Period Analysis -->
-  <section class="card big mt12">
-    <div class="cardTitle">Period Analysis (Skeleton)</div>
-
-    <div class="toolbar mt10">
-      <div class="toolbarLeft wrap">
-        <div class="field">
-          <span class="fieldLabel">From</span>
-          <input class="input" id="anaFrom" type="date" />
-        </div>
-
-        <div class="field">
-          <span class="fieldLabel">To</span>
-          <input class="input" id="anaTo" type="date" />
-        </div>
-
-        <div class="field">
-          <span class="fieldLabel">Group</span>
-          <select class="select" id="anaGroup">
-            <option value="day">Daily</option>
-            <option value="week">Weekly</option>
-            <option value="month">Monthly</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <span class="fieldLabel">Metric</span>
-          <select class="select" id="anaMetric">
-            <option value="kwh">Energy (kWh)</option>
-            <option value="kw">Power (kW)</option>
-            <option value="pf">Power Factor (PF)</option>
-            <option value="v">Voltage (V)</option>
-            <option value="a">Current (A)</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <span class="fieldLabel">Series</span>
-          <div class="seriesChecks">
-            <label class="chk">
-              <input type="checkbox" class="anaSeriesChk" value="l1" checked />
-              L1
-            </label>
-            <label class="chk">
-              <input type="checkbox" class="anaSeriesChk" value="l2" />
-              L2
-            </label>
-            <label class="chk">
-              <input type="checkbox" class="anaSeriesChk" value="l3" />
-              L3
-            </label>
-          </div>
-        </div>
-
-        <button class="btn primary" id="btnLoadSeries" type="button">Load</button>
-        <button class="btn" id="btnDownloadCsv" type="button">Download CSV</button>
-        <button class="btn" id="btnDownloadXlsx" type="button">Download XLSX</button>
-      </div>
-
-      <div class="toolbarRight">
-        <span class="muted">Status: <b id="anaStatus">Ready</b></span>
-      </div>
-    </div>
-
-    <div class="contentCard mt12">
-      <div class="k">Chart</div>
-      <div class="muted desc">
-        Load를 누르면 선택한 Metric + (L1/L2/L3 체크된 것들)로 기간 데이터를 불러와 라인 차트로 표시합니다.
-      </div>
-      <canvas id="anaChart" height="120"></canvas>
-    </div>
-
-    <div class="contentCard mt12">
-      <div class="k">Preview (first 10 rows)</div>
-      <pre id="anaPreview" class="preview">-</pre>
-    </div>
-  </section>
-
-  <!-- ✅ Realtime Chart (추가) -->
-  <section class="card big mt12">
-    <div class="cardTitle">Realtime Chart</div>
-
-    <div class="muted mt10 mb6">
-      Selected Device 실시간 데이터(WS 수신)를 바로 차트로 표시합니다.
-      <span class="muted ml10">WS: <b id="rtWsStatus">-</b></span>
-      <button class="btn ml10" id="btnRtReset" type="button">Reset</button>
-    </div>
-
-    <div class="contentCard mt10">
-      <div class="k">Realtime (kW)</div>
-      <div class="muted desc">
-        장비를 선택(selDevice)한 상태에서 MQTT 메시지가 들어오면 라인 차트가 업데이트됩니다.
-      </div>
-      <canvas id="rtChart" height="120"></canvas>
-    </div>
-
-    <div class="muted mt10" style="font-size:12px;">
-      * 차트가 안 움직이면: (1) 장비 선택했는지, (2) WS 연결 상태가 WS connected인지, (3) MQTT 메시지가 실제로 들어오는지 확인하세요.
-    </div>
-  </section>
-
   <!-- ✅ KPI BOARD (사진 스타일) -->
   <section class="card big mt12" id="kpiBoard">
     <div class="cardTitle">Real-time electrical measurements</div>
 
     <!-- 상단: Trend + Event -->
     <div class="kpiTop mt10">
+      <!-- Trend -->
       <div class="contentCard">
         <div class="kpiHeader">
           <div class="k">Trend Chart</div>
@@ -142,10 +42,39 @@
             <button class="btn" id="btnTrendExport" type="button">Export</button>
           </div>
         </div>
-        <canvas id="trendChart" height="120"></canvas>
-        <div class="muted" id="trendEmpty" style="margin-top:8px;">No data in selected range</div>
+
+        <!-- ✅ (추가) Trend 컨트롤바: 사진처럼 -->
+        <div class="kpiTrendBar mt10">
+          <select class="select" id="trendMetric"></select>
+
+          <select class="select" id="trendInterval">
+            <option value="minute">Minute</option>
+            <option value="hour">Hour</option>
+            <option value="day" selected>Day</option>
+          </select>
+
+          <input class="input" id="trendFrom" type="date" />
+          <input class="input" id="trendTo" type="date" />
+
+          <label class="chk" style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="trendShowLimits" />
+            <span>Show Limits</span>
+          </label>
+
+          <span class="muted" style="margin-left:auto;">
+            Status: <b id="trendStatus">Ready</b>
+          </span>
+        </div>
+
+        <div class="kpiChartWrap mt10">
+          <canvas id="trendChart" height="120"></canvas>
+          <div class="muted" id="trendEmpty" style="margin-top:8px;" hidden>
+            No data in selected range
+          </div>
+        </div>
       </div>
 
+      <!-- Event -->
       <div class="contentCard">
         <div class="kpiHeader">
           <div class="k">Event Viewer</div>
@@ -154,7 +83,7 @@
           </div>
         </div>
 
-        <div class="eventTableWrap">
+        <div class="eventTableWrap mt10">
           <table class="table">
             <thead>
               <tr>
