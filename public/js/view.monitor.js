@@ -2,9 +2,10 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
-  const btnOpen = $("btnDevicesOverview");
-  const back = $("devOvBack");
-  const modal = $("devOvModal");
+  // ✅ (삭제) Devices Overview modal 관련 요소들
+  // const btnOpen = $("btnDevicesOverview");
+  // const back = $("devOvBack");
+  // const modal = $("devOvModal");
 
   const logEl = $("mqttLog");
 
@@ -17,9 +18,11 @@
   const btnClearLog = $("btnClearLog");
   const autoGrid = $("mqttAutoGrid");
 
-  const devOvFilterSel = $("devOvFilterSel");
-  const devOvCount = $("devOvCount");
-  const devOvContent = $("devOvContent");
+  // ✅ (삭제) Devices Overview 내부 요소들
+  // const devOvFilterSel = $("devOvFilterSel");
+  // const devOvCount = $("devOvCount");
+  // const devOvContent = $("devOvContent");
+
   const deviceTbody = $("deviceTbody");
 
   // ✅ 선택된 장비 (Select Device 드롭다운 삭제 → 카드/테이블 클릭으로 선택)
@@ -252,7 +255,6 @@
   function initTrendMetricOptions(){
     if (!trendMetricEl) return;
 
-    // ✅ 사진 드롭박스 항목 + Energy Saved 추가
     const items = [
       { value: "v_ln1", label: "Voltage LN1 (V)" },
       { value: "v_ln2", label: "Voltage LN2 (V)" },
@@ -340,7 +342,6 @@
       pf:   ["pf","power_factor"],
       hz:   ["hz","freq","frequency"],
       kwh:  ["kwh","energy_kwh"],
-      // ✅ Energy Saved
       kwh_saved: ["kwh_saved","energy_saved_kwh"],
 
       v_ln1:["v1","v_l1","v_ln1","vL1N","v_l1n"],
@@ -465,7 +466,7 @@
   setTrendStatus("Ready");
 
   /* =========================================================
-     ✅ Device list / overview
+     ✅ Device list
   ========================================================= */
   let paused = false;
   let updateCount = 0;
@@ -604,48 +605,6 @@
     });
   }
 
-  function renderDevOv(){
-    const f = devOvFilterSel ? devOvFilterSel.value : "all";
-    const filtered =
-      (f === "online") ? devices.filter(x => (x.online !== undefined ? !!x.online : x.age_sec < ONLINE_SEC))
-      : (f === "offline") ? devices.filter(x => (x.online !== undefined ? !x.online : x.age_sec >= ONLINE_SEC))
-      : devices;
-
-    if (devOvCount) devOvCount.textContent = `(${filtered.length} devices)`;
-
-    if (!devOvContent) return;
-    devOvContent.innerHTML = "";
-
-    if (!filtered.length) {
-      devOvContent.innerHTML = `<div class="muted">No data</div>`;
-      return;
-    }
-
-    filtered.forEach((d) => {
-      const online = (d.online !== undefined) ? !!d.online : (d.age_sec < ONLINE_SEC);
-
-      const el = document.createElement("div");
-      el.className = "contentCard";
-      el.style.marginBottom = "10px";
-      el.innerHTML = `
-        <div style="display:flex; justify-content:space-between; gap:10px;">
-          <div>
-            <div class="k">Device</div>
-            <div class="v" style="font-size:18px;">${safe(deviceLabel(d))}</div>
-          </div>
-          <div class="muted">${online ? "🟢 Online" : "🔴 Offline"}</div>
-        </div>
-        <div class="muted" style="margin-top:6px;">
-          Topic: ${safe(d.last_topic ?? d.device_topic ?? d.topic)}<br/>
-          Age: ${safe(d.age_sec)}s
-        </div>
-      `;
-      devOvContent.appendChild(el);
-    });
-  }
-
-  devOvFilterSel?.addEventListener("change", renderDevOv);
-
   window.__monitorOnDevices__ = (items) => {
     setApiStatus("ok");
 
@@ -669,7 +628,6 @@
 
     renderAutoCards(devices);
     renderDeviceTable(devices);
-    renderDevOv();
   };
 
   setApiStatus("waiting...");
@@ -772,39 +730,12 @@
   })();
 
   /* =========================================================
-     ✅ Devices Overview Modal
+     ✅ Click handlers
   ========================================================= */
-  function openDevOv(){
-    if (!back || !modal) return;
-    back.hidden = false;
-    modal.classList.add("is-open");
-    modal.setAttribute("aria-hidden", "false");
-    document.documentElement.classList.add("noScroll");
-    document.body.classList.add("noScroll");
-    renderDevOv();
-  }
-
-  function closeDevOv(){
-    if (!back || !modal) return;
-    modal.classList.remove("is-open");
-    modal.setAttribute("aria-hidden", "true");
-    back.hidden = true;
-    document.documentElement.classList.remove("noScroll");
-    document.body.classList.remove("noScroll");
-  }
-
-  if (btnOpen && back && modal) {
-    closeDevOv();
-    btnOpen.addEventListener("click", openDevOv);
-  }
-
   const onDocClick = (e) => {
     const t = e.target;
 
-    if (t?.closest('[data-action="close-devov"]')) closeDevOv();
-    if (t?.id === "devOvBack") closeDevOv();
-
-    const copyBtn = t?.closest('[data-action="copy"]');
+    const copyBtn = t?.closest?.('[data-action="copy"]');
     if (copyBtn) {
       const key = copyBtn.getAttribute("data-key") || "";
       if (!key) return;
@@ -820,9 +751,10 @@
         ta.remove();
         appendLog(`📋 copied: ${key}`);
       }
+      return;
     }
 
-    // ✅ 장비 선택: 카드/테이블 클릭 (Copy 버튼 제외)
+    // ✅ 장비 선택: 카드/테이블 클릭 (버튼 제외)
     const card = t?.closest?.('[data-device-card]');
     if (card && !t?.closest?.('button')) {
       const key = card.getAttribute("data-device-card") || "";
@@ -845,15 +777,8 @@
   };
   document.addEventListener("click", onDocClick);
 
-  const onKeyDown = (e) => {
-    if (e.key === "Escape" && modal?.classList.contains("is-open")) closeDevOv();
-  };
-  window.addEventListener("keydown", onKeyDown);
-
   window.__viewCleanup__ = () => {
-    try { closeDevOv(); } catch {}
     try { document.removeEventListener("click", onDocClick); } catch {}
-    try { window.removeEventListener("keydown", onKeyDown); } catch {}
     try { if (window.__monitorOnDevices__) delete window.__monitorOnDevices__; } catch {}
 
     try {
