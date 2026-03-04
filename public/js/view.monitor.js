@@ -222,22 +222,24 @@
   const trendBuf = { labels: [], values: [] };
   const TREND_MAX = 240;
 
+  // ✅✅✅ 여기 수정됨: 사진 드롭다운 항목 + Energy Saved 추가 + PF 라벨 변경
   function initTrendMetricOptions(){
     if (!trendMetricEl) return;
 
     const items = [
-      { value: "v_ln1", label: "Voltage LN1 (V)" },
-      { value: "v_ln2", label: "Voltage LN2 (V)" },
-      { value: "v_ln3", label: "Voltage LN3 (V)" },
-      { value: "a_l1",  label: "Current L1 (A)" },
-      { value: "a_l2",  label: "Current L2 (A)" },
-      { value: "a_l3",  label: "Current L3 (A)" },
-      { value: "kw",    label: "Active Power (kW)" },
-      { value: "kvar",  label: "Reactive Power (kVAr)" },
-      { value: "kva",   label: "Apparent Power (kVA)" },
-      { value: "pf",    label: "Power Factor (PF)" },
-      { value: "hz",    label: "Frequency (Hz)" },
-      { value: "kwh",   label: "Energy (kWh)" },
+      { value: "v_ln1",     label: "Voltage LN1 (V)" },
+      { value: "v_ln2",     label: "Voltage LN2 (V)" },
+      { value: "v_ln3",     label: "Voltage LN3 (V)" },
+      { value: "a_l1",      label: "Current L1 (A)" },
+      { value: "a_l2",      label: "Current L2 (A)" },
+      { value: "a_l3",      label: "Current L3 (A)" },
+      { value: "kw",        label: "Active Power (kW)" },
+      { value: "kvar",      label: "Reactive Power (kVAr)" },
+      { value: "kva",       label: "Apparent Power (kVA)" },
+      { value: "pf",        label: "Power Factor" },          // ✅ 라벨 수정
+      { value: "hz",        label: "Frequency (Hz)" },
+      { value: "kwh",       label: "Energy (kWh)" },
+      { value: "kwh_saved", label: "Energy Saved (kWh)" },    // ✅ 추가
     ];
 
     trendMetricEl.innerHTML = items.map(x => `<option value="${x.value}">${x.label}</option>`).join("");
@@ -304,21 +306,23 @@
     const s = msg?.summary || {};
     const p = msg?.payload || {};
 
+    // ✅✅✅ 여기 수정됨: kwh_saved 매핑 추가
     const directMap = {
-      kw:   ["kw","kw_total","total_kw","p_kw_total"],
-      kvar: ["kvar","q_kvar","reactive_kvar"],
-      kva:  ["kva","s_kva","apparent_kva"],
-      pf:   ["pf","power_factor"],
-      hz:   ["hz","freq","frequency"],
-      kwh:  ["kwh","energy_kwh"],
+      kw:        ["kw","kw_total","total_kw","p_kw_total"],
+      kvar:      ["kvar","q_kvar","reactive_kvar"],
+      kva:       ["kva","s_kva","apparent_kva"],
+      pf:        ["pf","power_factor"],
+      hz:        ["hz","freq","frequency"],
+      kwh:       ["kwh","energy_kwh"],
+      kwh_saved: ["kwh_saved","energy_saved_kwh","saved_kwh","saving_kwh"],
 
-      v_ln1:["v1","v_l1","v_ln1","vL1N","v_l1n"],
-      v_ln2:["v2","v_l2","v_ln2","vL2N","v_l2n"],
-      v_ln3:["v3","v_l3","v_ln3","vL3N","v_l3n"],
+      v_ln1:     ["v1","v_l1","v_ln1","vL1N","v_l1n"],
+      v_ln2:     ["v2","v_l2","v_ln2","vL2N","v_l2n"],
+      v_ln3:     ["v3","v_l3","v_ln3","vL3N","v_l3n"],
 
-      a_l1: ["a1","i1","amp1"],
-      a_l2: ["a2","i2","amp2"],
-      a_l3: ["a3","i3","amp3"],
+      a_l1:      ["a1","i1","amp1"],
+      a_l2:      ["a2","i2","amp2"],
+      a_l3:      ["a3","i3","amp3"],
     };
 
     const keys = directMap[metricKey];
