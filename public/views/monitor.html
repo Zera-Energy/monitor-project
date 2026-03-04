@@ -104,8 +104,11 @@
       </div>
 
       <div class="kpiChartWrap">
-        <canvas id="trendChart" height="160"></canvas>
-        <div class="muted" id="trendEmpty" style="margin-top:8px;" hidden>
+        <!-- ✅ (핵심 수정) 세로 길이 살짝 축소: 160 -> 120 -->
+        <canvas id="trendChart" height="120"></canvas>
+
+        <!-- ✅ (수정) 아래쪽 여백 줄이기: margin-top 8px -> 4px -->
+        <div class="muted" id="trendEmpty" style="margin-top:4px;" hidden>
           No data in selected range
         </div>
       </div>

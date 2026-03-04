@@ -61,6 +61,9 @@
 #trendChart{
   width: 100%;
   display: block;
+
+  /* ✅ (추가) 차트 자체 높이를 살짝만 제한 (세로 체감 줄임) */
+  max-height: 140px;
 }
 
 .kpiTrendBar{
@@ -86,11 +89,13 @@
 
 .kpiChartWrap{
   /* ✅ (핵심 수정) Trend 차트 카드 “세로”를 조금만 줄임 */
-  min-height: 200px;
+  min-height: 160px;           /* ✅ 200 -> 160 */
 
   display: flex;
   flex-direction: column;
-  justify-content: center;
+
+  /* ✅ (핵심 수정) 가운데 정렬 때문에 위/아래가 더 벌어져 보임 */
+  justify-content: flex-start; /* ✅ center -> flex-start */
 
   border-top: 1px solid #f0f0f0;
 
