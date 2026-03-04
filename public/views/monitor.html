@@ -4,8 +4,6 @@
     <h2 class="pageTitle">Devices Monitor</h2>
   </div>
 
-  <!-- ✅ (삭제됨) toolbar 영역: All Roles / Select data / Devices Overview / Search Criteria / Search -->
-
   <!-- ✅ KPI BOARD -->
   <section class="card big mt12" id="kpiBoard">
     <div class="cardTitle">Real-time electrical measurements</div>
@@ -22,9 +20,20 @@
 
           <button class="btn primary" id="btnTrendRefresh" type="button">refresh</button>
 
+          <!-- ✅ 장소/현장 표시 pill (기존) -->
           <div class="trendPill" id="trendLocationPill">
             <span class="trendPillIcon">📍</span>
             <span id="trendLocationText">-</span>
+          </div>
+
+          <!-- ✅ (추가) 장비 Online/Offline + 마지막 업데이트 시간 -->
+          <!-- ✅ (수정) small 클래스만 추가 + 인라인 스타일 최소화 -->
+          <div class="trendPill small" id="deviceStatusPill" title="Device live status">
+            <span id="deviceOnlineDot"></span>
+            <span id="deviceOnlineText">Offline</span>
+            <span style="margin:0 8px; opacity:.4;">|</span>
+            <span class="muted">Last:</span>
+            <span id="deviceLastUpdateText" style="margin-left:6px;">-</span>
           </div>
         </div>
       </div>
@@ -34,7 +43,6 @@
          ✅ (분리 2) Trend 차트 카드 (컨트롤 + 차트)
     ====================================================== -->
     <div class="contentCard mt12">
-      <!-- 컨트롤 바 + Export (사진처럼 한 줄) -->
       <div class="trendControlsRow">
         <div class="trendControlsLeft">
           <select class="select" id="trendMetric">
@@ -67,19 +75,16 @@
             <span>Show Limits</span>
           </label>
 
-          <!-- ✅ Plot: Show Limits 옆 -->
           <button class="btn green" id="btnTrendPlot" type="button">
             <span style="margin-right:6px;">📊</span>Plot
           </button>
         </div>
 
-        <!-- ✅ Export: 오른쪽 끝 -->
         <button class="btn green" id="btnTrendExport" type="button">
           <span style="margin-right:6px;">⬇️</span>Export
         </button>
       </div>
 
-      <!-- Trend 차트 타이틀 -->
       <div class="trendTitleRow">
         <span class="trendTitleIcon">📈</span>
         <span class="trendTitleText">Trend Chart</span>
