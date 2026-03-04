@@ -2,70 +2,26 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
-  // ✅ (삭제) Devices Overview modal 관련 요소들
-  // const btnOpen = $("btnDevicesOverview");
-  // const back = $("devOvBack");
-  // const modal = $("devOvModal");
-
-  const logEl = $("mqttLog");
-
-  // ✅ mqttWsStatus는 계속 사용 (API/WS 상태 표시)
-  const apiStatusEl = $("mqttWsStatus");
-
-  const lastAtEl = $("mqttLastAt");
-  const updateCountEl = $("mqttMsgCount");
-  const btnPauseLog = $("btnPauseLog");
-  const btnClearLog = $("btnClearLog");
-  const autoGrid = $("mqttAutoGrid");
-
-  // ✅ (삭제) Devices Overview 내부 요소들
-  // const devOvFilterSel = $("devOvFilterSel");
-  // const devOvCount = $("devOvCount");
-  // const devOvContent = $("devOvContent");
+  // ✅ (삭제) Device List 상단 상태줄/로그/auto cards를 HTML에서 제거했으므로
+  // 이 요소들은 없어도 동작하도록 "있으면 쓰고 없으면 무시" 형태로 둡니다.
+  const apiStatusEl = $("mqttWsStatus");  // (없어도 OK)
+  const lastAtEl = $("mqttLastAt");       // (없어도 OK)
+  const updateCountEl = $("mqttMsgCount");// (없어도 OK)
+  const logEl = $("mqttLog");             // (없어도 OK)
+  const btnPauseLog = $("btnPauseLog");   // (없어도 OK)
+  const btnClearLog = $("btnClearLog");   // (없어도 OK)
+  const autoGrid = $("mqttAutoGrid");     // (없어도 OK)
 
   const deviceTbody = $("deviceTbody");
 
-  // ✅ 선택된 장비 (Select Device 드롭다운 삭제 → 카드/테이블 클릭으로 선택)
+  // ✅ 선택된 장비
   let __selectedKey = "";
   let __selectedLabel = "";
 
-  // ✅ Trend 상단 섹션(사진 스타일)
+  // ✅ Trend 상단 섹션
   const trendDeviceSel = $("trendDeviceSel");
   const btnTrendRefresh = $("btnTrendRefresh");
   const trendLocationTextEl = $("trendLocationText");
-
-  function selectDeviceByKey(key, label){
-    __selectedKey = String(key || "");
-    __selectedLabel = String(label || __selectedKey || "");
-
-    // ✅ Trend 상단 드롭다운도 같이 동기화
-    if (trendDeviceSel) {
-      trendDeviceSel.value = __selectedKey || "";
-    }
-
-    // ✅ 위치 pill 텍스트 갱신
-    try {
-      const d = devices.find(x => deviceKey(x) === __selectedKey) || null;
-      const loc =
-        d?.site_name ??
-        d?.site ??
-        d?.location ??
-        d?.place ??
-        d?.site_id ??
-        d?.country ??
-        "-";
-      if (trendLocationTextEl) trendLocationTextEl.textContent = String(loc || "-");
-    } catch {
-      if (trendLocationTextEl) trendLocationTextEl.textContent = "-";
-    }
-
-    try {
-      setTrendStatus(__selectedKey ? `Selected: ${__selectedLabel}` : "Ready");
-    } catch {}
-  }
-
-  // ✅ Select data 버튼(있으면 사용)
-  const btnSelectData = $("btnSelectData");
 
   // ✅ KPI BOARD Trend controls
   const trendMetricEl = $("trendMetric");
@@ -92,6 +48,30 @@
     if (trendStatusEl) trendStatusEl.textContent = v;
   }
 
+  function setApiStatus(v){
+    if (apiStatusEl) apiStatusEl.textContent = v;
+  }
+  function setWsStatus(v){
+    if (apiStatusEl) apiStatusEl.textContent = v;
+  }
+
+  // 로그/버튼은 HTML에서 빠졌을 수 있으니 안전하게 no-op
+  let paused = false;
+  function appendLog(line) {
+    if (!logEl || paused) return;
+    logEl.textContent += line + "\n";
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  btnPauseLog?.addEventListener("click", () => {
+    paused = !paused;
+    if (btnPauseLog) btnPauseLog.textContent = paused ? "Resume" : "Pause";
+  });
+  btnClearLog?.addEventListener("click", () => {
+    if (logEl) logEl.textContent = "";
+    if (updateCountEl) updateCountEl.textContent = "0";
+    if (lastAtEl) lastAtEl.textContent = "-";
+  });
+
   // ✅ topic 우선 key/label
   function deviceKey(d){
     if (!d) return "";
@@ -105,31 +85,34 @@
     return String(d?.device_display ?? d?.device_short ?? deviceKey(d));
   }
 
-  function pickChannels(payloadOrItem){
-    const ch = payloadOrItem?.channels;
-    return Array.isArray(ch) ? ch : [];
-  }
-  function pickMetricFromCh(c){
-    const A  = c?.a ?? c?.amp ?? c?.current ?? c?.value;
-    const kW = c?.kw ?? c?.p_kw ?? c?.power_kw ?? c?.p;
-    const V  = c?.v ?? c?.volt ?? c?.voltage;
-    return { A:n(A), kW:n(kW), V:n(V) };
-  }
-  function fmtCell(c){
-    if (!c) return "-";
-    const m = pickMetricFromCh(c);
-    const parts = [];
-    if (m.A !== null) parts.push(`${m.A.toFixed(2)}A`);
-    if (m.kW !== null) parts.push(`${m.kW.toFixed(2)}kW`);
-    if (m.V !== null) parts.push(`${m.V.toFixed(1)}V`);
-    return parts.length ? parts.join(" · ") : "-";
-  }
-  function sumKwByTerm(channels, term){
-    const xs = channels
-      .filter(c => c?.term === term)
-      .map(c => n(c?.kw ?? c?.p_kw ?? c?.power_kw ?? c?.p))
-      .filter(x => x !== null);
-    return xs.length ? xs.reduce((a,b)=>a+b,0) : null;
+  function selectDeviceByKey(key, label){
+    __selectedKey = String(key || "");
+    __selectedLabel = String(label || __selectedKey || "");
+
+    // Trend 상단 드롭다운 동기화
+    if (trendDeviceSel) {
+      trendDeviceSel.value = __selectedKey || "";
+    }
+
+    // 위치 pill 텍스트 갱신
+    try {
+      const d = devices.find(x => deviceKey(x) === __selectedKey) || null;
+      const loc =
+        d?.site_name ??
+        d?.site ??
+        d?.location ??
+        d?.place ??
+        d?.site_id ??
+        d?.country ??
+        "-";
+      if (trendLocationTextEl) trendLocationTextEl.textContent = String(loc || "-");
+    } catch {
+      if (trendLocationTextEl) trendLocationTextEl.textContent = "-";
+    }
+
+    try {
+      setTrendStatus(__selectedKey ? `Selected: ${__selectedLabel}` : "Ready");
+    } catch {}
   }
 
   /* =========================================================
@@ -375,7 +358,7 @@
   async function loadTrendSeries(){
     const deviceKeySel = __selectedKey || "";
     if (!deviceKeySel) {
-      setTrendStatus("Select Device (click a card/table row)");
+      setTrendStatus("Select Device (click a table row)");
       if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = "Select Device first"; }
       return;
     }
@@ -439,8 +422,6 @@
   }
 
   btnTrendPlot?.addEventListener("click", () => { loadTrendSeries(); });
-
-  // ✅ refresh 버튼도 Plot처럼 동작
   btnTrendRefresh?.addEventListener("click", () => { loadTrendSeries(); });
 
   btnTrendExport?.addEventListener("click", () => {
@@ -468,36 +449,10 @@
   /* =========================================================
      ✅ Device list
   ========================================================= */
-  let paused = false;
   let updateCount = 0;
 
   const devices = [];
   let __devicesCache = devices;
-
-  function setApiStatus(v){
-    if (apiStatusEl) apiStatusEl.textContent = v;
-  }
-  function setWsStatus(v){
-    if (apiStatusEl) apiStatusEl.textContent = v;
-  }
-
-  function appendLog(line) {
-    if (!logEl || paused) return;
-    logEl.textContent += line + "\n";
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-
-  btnPauseLog?.addEventListener("click", () => {
-    paused = !paused;
-    if (btnPauseLog) btnPauseLog.textContent = paused ? "Resume" : "Pause";
-  });
-
-  btnClearLog?.addEventListener("click", () => {
-    if (logEl) logEl.textContent = "";
-    updateCount = 0;
-    if (updateCountEl) updateCountEl.textContent = "0";
-    if (lastAtEl) lastAtEl.textContent = "-";
-  });
 
   // ✅ Trend 상단 Device dropdown 옵션 구성
   function setTrendDeviceOptions(items){
@@ -529,56 +484,20 @@
     resetTrend();
   });
 
-  function ensureAutoCard(key) {
-    if (!autoGrid) return null;
-    let card = autoGrid.querySelector(`[data-device-card="${key}"]`);
-    if (card) return card;
-
-    card = document.createElement("div");
-    card.className = "contentCard";
-    card.setAttribute("data-device-card", key);
-
-    card.innerHTML = `
-      <div class="k">Device</div>
-      <div style="font-weight:900; margin-top:4px; word-break:break-all;" data-title>${key}</div>
-      <div class="k" style="margin-top:10px;">Status</div>
-      <div class="muted" data-status>-</div>
-      <div class="k" style="margin-top:10px;">Last Topic</div>
-      <div class="muted" style="word-break:break-all;" data-topic>-</div>
-      <div class="k" style="margin-top:10px;">Age</div>
-      <div class="muted" data-age>-</div>
-    `;
-    autoGrid.prepend(card);
-    return card;
-  }
-
+  // ✅ Auto cards는 HTML에서 제거했으니, 있으면만 렌더(없으면 그냥 무시)
   function renderAutoCards(items){
     if (!autoGrid) return;
-
-    for (const d of items) {
-      const key = deviceKey(d);
-      const card = ensureAutoCard(key);
-      if (!card) continue;
-
-      const online = (d.online !== undefined) ? !!d.online : (d.age_sec < ONLINE_SEC);
-      const statusEl = card.querySelector("[data-status]");
-      const topicEl = card.querySelector("[data-topic]");
-      const ageEl = card.querySelector("[data-age]");
-      const titleEl = card.querySelector("[data-title]");
-
-      if (titleEl) titleEl.textContent = deviceLabel(d);
-      if (statusEl) statusEl.textContent = online ? "🟢 ONLINE" : "🔴 OFFLINE";
-      if (topicEl) topicEl.textContent = safe(d.last_topic ?? d.device_topic ?? d.topic);
-      if (ageEl) ageEl.textContent = `${safe(d.age_sec)}s`;
-    }
+    // auto cards 쓰고 싶으면 HTML에 mqttAutoGrid 다시 넣으면 됨
+    // 지금은 화면에서 삭제했으니 기본은 아무것도 안 함
   }
 
+  // ✅ 테이블: 6컬럼(No, Name, Type, RAW Data, Last Update, Status)
   function renderDeviceTable(items){
     if (!deviceTbody) return;
     deviceTbody.innerHTML = "";
 
     if (!items.length) {
-      deviceTbody.innerHTML = `<tr><td colspan="8" class="empty">No data available in table</td></tr>`;
+      deviceTbody.innerHTML = `<tr><td colspan="6" class="empty">No data available in table</td></tr>`;
       return;
     }
 
@@ -591,12 +510,8 @@
       tr.style.cursor = "pointer";
       tr.innerHTML = `
         <td>${idx + 1}</td>
-        <td>
-          <button class="btn" type="button" data-action="copy" data-key="${key}">Copy</button>
-        </td>
         <td style="font-weight:900;">${safe(deviceLabel(d))}</td>
         <td>${safe(d.last_type || "meter")}</td>
-        <td>-</td>
         <td style="max-width:360px; word-break:break-all;">${safe(d.last_topic ?? d.device_topic ?? d.topic)}</td>
         <td>${safe(d.age_sec)}s</td>
         <td>${online ? "🟢 Online" : "🔴 Offline"}</td>
@@ -616,7 +531,6 @@
     for (const x of (items || [])) devices.push(x);
     __devicesCache = devices;
 
-    // ✅ Trend 드롭다운 옵션 업데이트
     setTrendDeviceOptions(devices);
 
     if (!__selectedKey && devices.length) {
@@ -735,38 +649,9 @@
   const onDocClick = (e) => {
     const t = e.target;
 
-    const copyBtn = t?.closest?.('[data-action="copy"]');
-    if (copyBtn) {
-      const key = copyBtn.getAttribute("data-key") || "";
-      if (!key) return;
-      try {
-        navigator.clipboard?.writeText(key);
-        appendLog(`📋 copied: ${key}`);
-      } catch {
-        const ta = document.createElement("textarea");
-        ta.value = key;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        ta.remove();
-        appendLog(`📋 copied: ${key}`);
-      }
-      return;
-    }
-
-    // ✅ 장비 선택: 카드/테이블 클릭 (버튼 제외)
-    const card = t?.closest?.('[data-device-card]');
-    if (card && !t?.closest?.('button')) {
-      const key = card.getAttribute("data-device-card") || "";
-      if (key) {
-        const d = devices.find(x => deviceKey(x) === key) || null;
-        selectDeviceByKey(key, d ? deviceLabel(d) : key);
-        resetTrend();
-      }
-    }
-
+    // ✅ 장비 선택: 테이블 클릭 (버튼 제외)
     const row = t?.closest?.("tr[data-key]");
-    if (row && !t?.closest?.('button')) {
+    if (row && !t?.closest?.("button")) {
       const key = row.getAttribute("data-key") || "";
       if (key) {
         const d = devices.find(x => deviceKey(x) === key) || null;
