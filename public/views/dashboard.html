@@ -1,9 +1,198 @@
-<!-- /views/dashboard.html (HTML만) -->
-<section class="dash">
-  <h1>⚡ Power Monitor Dashboard</h1>
+<!-- /views/dashboard.html -->
+<section class="dash dashNew">
 
-  <!-- ✅ 장비 선택 -->
-  <div class="row dashTop">
+  <!-- =========================
+       HERO HEADER (Green)
+  ========================== -->
+  <section class="dashHero">
+    <div class="dashHeroLeft">
+      <div class="dashBrandPill">
+        <span class="dotMini"></span>
+        <span>K Energy Save System</span>
+      </div>
+
+      <div class="dashHeroTitle">대시보드</div>
+      <div class="dashHeroSub" id="dashNowText">-</div>
+    </div>
+
+    <div class="dashHeroRight">
+      <div class="heroStat">
+        <div class="heroStatNum" id="heroDevices">0</div>
+        <div class="heroStatLabel">Devices</div>
+      </div>
+
+      <div class="heroStat">
+        <div class="heroStatNum" id="heroOnlinePct">0%</div>
+        <div class="heroStatLabel">Online</div>
+      </div>
+
+      <div class="heroStat">
+        <div class="heroStatNum" id="heroKwhSaved">0</div>
+        <div class="heroStatLabel">kWh Saved</div>
+      </div>
+
+      <button class="heroRefresh" id="btnDashRefresh" type="button" title="Refresh">⟳</button>
+    </div>
+  </section>
+
+  <!-- =========================
+       4 Summary Cards
+  ========================== -->
+  <section class="dashSummary4">
+    <div class="sumCard blue">
+      <div class="sumTop">
+        <div class="sumIcon">▦</div>
+        <div class="sumBadge">total</div>
+      </div>
+      <div class="sumNum" id="sumTotalDevices">0</div>
+      <div class="sumLabel">전체 기기</div>
+    </div>
+
+    <div class="sumCard green">
+      <div class="sumTop">
+        <div class="sumIcon">📶</div>
+        <div class="sumBadge">Live</div>
+      </div>
+      <div class="sumNum" id="sumOnlineDevices">0</div>
+      <div class="sumLabel">온라인 기기</div>
+      <div class="sumBar">
+        <div class="sumBarFill" id="sumOnlineBar" style="width:0%"></div>
+      </div>
+      <div class="sumSmall" id="sumOnlineText">0% online</div>
+    </div>
+
+    <div class="sumCard red">
+      <div class="sumTop">
+        <div class="sumIcon">🚫</div>
+        <div class="sumBadge">Alert</div>
+      </div>
+      <div class="sumNum" id="sumOfflineDevices">0</div>
+      <div class="sumLabel">오프라인 기기</div>
+      <div class="sumSmall" id="sumOfflineText">0 devices need attention</div>
+    </div>
+
+    <div class="sumCard orange">
+      <div class="sumTop">
+        <div class="sumIcon">⚡</div>
+        <div class="sumBadge">kWh</div>
+      </div>
+      <div class="sumNum" id="sumKwhSaved">0</div>
+      <div class="sumLabel">이번 달 절약 에너지</div>
+      <div class="sumSmall">~ 0 kg CO₂</div>
+    </div>
+  </section>
+
+  <!-- =========================
+       Middle Row (2 columns)
+       - System Health / Quick Actions
+  ========================== -->
+  <section class="dashMid2">
+    <!-- System Health -->
+    <div class="contentCard dashPanel">
+      <div class="panelHead">
+        <div class="panelTitle">
+          <span class="panelIcon">🩺</span>
+          <b>System Health</b>
+        </div>
+        <div class="panelHint">Auto-refresh every 60s</div>
+      </div>
+
+      <div class="panelSubTitle">Online Rate</div>
+      <div class="healthBar">
+        <div class="healthBarFill" id="healthOnlineBar" style="width:0%"></div>
+      </div>
+      <div class="healthPct" id="healthOnlinePct">0%</div>
+
+      <div class="health2Cards">
+        <div class="healthCard ok">
+          <div class="healthCardNum" id="healthOnlineCount">0</div>
+          <div class="healthCardLabel">Online</div>
+        </div>
+
+        <div class="healthCard bad">
+          <div class="healthCardNum" id="healthOfflineCount">0</div>
+          <div class="healthCardLabel">Offline</div>
+        </div>
+      </div>
+
+      <div class="healthPills">
+        <div class="pill softGreen">CO₂ ~ 0 kg reduced</div>
+        <div class="pill softOrange">0 kWh saved</div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="contentCard dashPanel">
+      <div class="panelHead">
+        <div class="panelTitle">
+          <span class="panelIcon">⚡</span>
+          <b>Quick Actions</b>
+        </div>
+      </div>
+
+      <div class="quickList">
+        <a class="quickItem" href="#/monitor">
+          <div class="quickIcon blue">📺</div>
+          <div class="quickText">
+            <div class="quickTitle">Live Monitor</div>
+            <div class="quickSub">Real-time data</div>
+          </div>
+          <div class="quickArrow">›</div>
+        </a>
+
+        <a class="quickItem" href="#/dashboard-setting">
+          <div class="quickIcon purple">📊</div>
+          <div class="quickText">
+            <div class="quickTitle">Analytics</div>
+            <div class="quickSub">Charts & Reports</div>
+          </div>
+          <div class="quickArrow">›</div>
+        </a>
+
+        <a class="quickItem" href="#/devices">
+          <div class="quickIcon mint">🧾</div>
+          <div class="quickText">
+            <div class="quickTitle">Devices</div>
+            <div class="quickSub">All devices</div>
+          </div>
+          <div class="quickArrow">›</div>
+        </a>
+
+        <a class="quickItem" href="#/developer">
+          <div class="quickIcon gray">⚙️</div>
+          <div class="quickText">
+            <div class="quickTitle">Settings</div>
+            <div class="quickSub">System config</div>
+          </div>
+          <div class="quickArrow">›</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================
+       Recent Devices (2 cards)
+  ========================== -->
+  <section class="contentCard dashRecent">
+    <div class="recentHead">
+      <div class="recentTitle">
+        <span class="recentDot"></span>
+        <b>최근 기기</b>
+        <span class="recentCount" id="recentCount">(0)</span>
+      </div>
+      <a class="recentLink" href="#/devices">전체 보기 →</a>
+    </div>
+
+    <div class="recentGrid" id="recentDevicesGrid"></div>
+  </section>
+
+  <!-- =========================
+       (유지) 장비 선택/기존 상세 패널은 숨김 처리 가능
+       - 필요하면 아래 블록을 유지하거나, 나중에 별도 페이지로 빼도 됨
+  ========================== -->
+
+  <!-- (선택) 기존 구조 유지하려면 그대로 두고 CSS로 숨겨도 됨 -->
+  <div class="row dashTop" style="display:none;">
     <div class="card dashDeviceCard">
       <div class="k">장비 선택</div>
       <div class="dashDeviceRow">
@@ -18,88 +207,22 @@
     </div>
   </div>
 
-  <!-- ✅ 상단 요약 -->
-  <div class="row">
-    <div class="card">
-      <div class="k">통신 상태</div>
-      <div class="v" id="commStatus">-</div>
-      <div class="small">마지막 수신: <span id="lastSeen">-</span></div>
-    </div>
+  <!-- (선택) 기존 값 표시 영역(필요 시 사용) -->
+  <div style="display:none;">
+    <div id="commStatus"></div>
+    <div id="lastSeen"></div>
+    <div id="kwNow"></div>
+    <div id="kwhTotal"></div>
+    <div id="pfAvg"></div>
+    <div id="pfAvgBadge"></div>
+    <div id="vAvg"></div>
+    <div id="aAvg"></div>
 
-    <div class="card">
-      <div class="k">총 유효전력 (kW)</div>
-      <div class="v" id="kwNow">-</div>
-      <div class="small">피크/알람은 추후 추가</div>
-    </div>
+    <div id="vL1"></div><div id="vL2"></div><div id="vL3"></div>
+    <div id="aL1"></div><div id="aL2"></div><div id="aL3"></div>
+    <div id="pfL1"></div><div id="pfL2"></div><div id="pfL3"></div>
 
-    <div class="card">
-      <div class="k">누적 전력량 (kWh)</div>
-      <div class="v" id="kwhTotal">-</div>
-      <div class="small">오늘/월간 분리도 가능</div>
-    </div>
-
-    <div class="card">
-      <div class="k">평균 역률 (PF)</div>
-      <div class="v" id="pfAvg">-</div>
-      <div class="small">0.9 이하 경고(추후)</div>
-    </div>
-
-    <div class="card">
-      <div class="k">평균 전압 (V)</div>
-      <div class="v" id="vAvg">-</div>
-      <div class="small">L1~L3 평균</div>
-    </div>
-
-    <div class="card">
-      <div class="k">평균 전류 (A)</div>
-      <div class="v" id="aAvg">-</div>
-      <div class="small">L1~L3 평균</div>
-    </div>
+    <div id="diGrid"></div>
   </div>
 
-  <!-- ✅ 3상 패널 -->
-  <div class="section">
-    <div class="title">3상 전기 값</div>
-
-    <div class="grid3">
-      <div class="card">
-        <div class="k">전압 (V)</div>
-        <div class="grid3 dashTriple" style="margin-top:10px;">
-          <div><div class="k">L1</div><div class="v" id="vL1">-</div></div>
-          <div><div class="k">L2</div><div class="v" id="vL2">-</div></div>
-          <div><div class="k">L3</div><div class="v" id="vL3">-</div></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="k">전류 (A)</div>
-        <div class="grid3 dashTriple" style="margin-top:10px;">
-          <div><div class="k">L1</div><div class="v" id="aL1">-</div></div>
-          <div><div class="k">L2</div><div class="v" id="aL2">-</div></div>
-          <div><div class="k">L3</div><div class="v" id="aL3">-</div></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="k">역률 (PF)</div>
-        <div class="grid3 dashTriple" style="margin-top:10px;">
-          <div><div class="k">L1</div><div class="v" id="pfL1">-</div></div>
-          <div><div class="k">L2</div><div class="v" id="pfL2">-</div></div>
-          <div><div class="k">L3</div><div class="v" id="pfL3">-</div></div>
-        </div>
-        <div class="small" style="margin-top:8px;">
-          평균 PF: <span class="badge" id="pfAvgBadge">-</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ✅ DI 타일 -->
-  <div class="section">
-    <div class="title">DI 상태</div>
-    <div class="grid4" id="diGrid"></div>
-    <div class="small muted" style="margin-top:6px;">
-      값이 없으면 “-”로 표시됩니다. (서버 수신 시 자동 반영)
-    </div>
-  </div>
 </section>
