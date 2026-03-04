@@ -54,3 +54,121 @@
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 12px;
 }
+
+/* =========================================================
+   ✅ KPI BOARD (사진 스타일)
+   - monitor.html에 추가한 kpiBoard 섹션용
+========================================================= */
+
+/* 상단 Trend + Event 2열 */
+.kpiTop{
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 12px;
+}
+
+/* 섹션 타이틀(Voltage/Current/Power...) */
+.kpiSectionTitle{
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  margin: 4px 0 10px;
+  opacity: 0.85;
+}
+
+/* 그리드 시스템 */
+.kpiGrid{ display: grid; gap: 12px; }
+.kpiGrid2{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+.kpiGrid3{ grid-template-columns: repeat(3, minmax(240px, 1fr)); }
+.kpiGrid5{ grid-template-columns: repeat(5, minmax(210px, 1fr)); }
+
+/* KPI 카드 헤더(Trend/Event 위에 버튼 붙는 부분) */
+.kpiHeader{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.kpiActions{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* KPI 타일(값 카드) */
+.kpiTile{
+  border: 1px solid #e9e9e9;
+  border-radius: 14px;
+  padding: 14px 14px 12px;
+  background: #fff;
+  min-height: 86px;
+}
+
+.kpiTile .t{
+  font-weight: 900;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.kpiTile .v{
+  font-weight: 900;
+  font-size: 28px;
+  margin-top: 8px;
+  line-height: 1.1;
+}
+
+.kpiTile .u{
+  font-size: 12px;
+  margin-left: 6px;
+  opacity: 0.75;
+  font-weight: 800;
+}
+
+.kpiTile .s{
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+/* 사진 느낌의 색상 프리셋 */
+.kpiTile.warn{
+  background: #fff8dc;
+  border-color: #f3d37a;
+}
+.kpiTile.cool{
+  background: #eef6ff;
+  border-color: #7db3ff;
+}
+.kpiTile.hot{
+  background: #fff1e6;
+  border-color: #ff9b5c;
+}
+.kpiTile.violet{
+  background: #f4efff;
+  border-color: #b48cff;
+}
+.kpiTile.ok{
+  background: #effff1;
+  border-color: #7de58a;
+}
+.kpiTile.thdBad{
+  background: #ffecec;
+  border-color: #ff9aa0;
+}
+.kpiTile.thdGood{
+  background: #ecfff1;
+  border-color: #7de58a;
+}
+
+/* Event table 영역 스크롤 */
+.eventTableWrap{
+  overflow: auto;
+}
+
+/* 반응형: 화면 좁으면 1열로 내려주기 */
+@media (max-width: 1100px){
+  .kpiTop{ grid-template-columns: 1fr; }
+  .kpiGrid5{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+  .kpiGrid3{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
+  .kpiGrid2{ grid-template-columns: repeat(1, minmax(240px, 1fr)); }
+}

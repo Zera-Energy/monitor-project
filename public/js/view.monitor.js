@@ -82,6 +82,127 @@
     return xs.length ? xs.reduce((a,b)=>a+b,0) : null;
   }
 
+  /* =========================================================
+     ✅ KPI BOARD helpers (사진 스타일 타일 채우기)
+     - monitor.html에 추가한 tileV12/tileA1/... 등에 값 주입
+  ========================================================= */
+
+  function setTile(id, title, valueText, unit, sub){
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = (valueText === undefined || valueText === null || valueText === "") ? "-" : String(valueText);
+    el.innerHTML = `
+      <div class="t">${title}</div>
+      <div class="v">${v}${unit ? `<span class="u">${unit}</span>` : ""}</div>
+      <div class="s">${sub || ""}</div>
+    `;
+  }
+
+  function pickSummaryNumber(msg, keys){
+    for (const k of keys){
+      const v = msg?.summary?.[k] ?? msg?.payload?.[k];
+      const x = Number(v);
+      if (Number.isFinite(x)) return x;
+    }
+    return null;
+  }
+
+  function findChannel(channels, term, phase){
+    if (!Array.isArray(channels)) return null;
+    return channels.find(c => {
+      const t = String(c?.term ?? "").toLowerCase();
+      const p = String(c?.phase ?? c?.ph ?? "").toUpperCase();
+      return t === String(term).toLowerCase() && p === String(phase).toUpperCase();
+    }) || null;
+  }
+
+  // voltage line-to-line는 term이 다를 수 있어서 조금 넓게 찾기
+  function findVll(channels, phase){
+    if (!Array.isArray(channels)) return null;
+    const want = String(phase).toUpperCase(); // "L1-L2"
+    return channels.find(c => {
+      const p = String(c?.phase ?? c?.ph ?? "").toUpperCase();
+      const name = String(c?.name ?? c?.metric ?? "").toUpperCase();
+      const term = String(c?.term ?? "").toUpperCase();
+      return p === want || name.includes(want) || term.includes(want);
+    }) || null;
+  }
+
+  function updateKpiFromTelemetry(msg){
+    const nowText = new Date().toLocaleTimeString();
+
+    const channels = msg?.channels || (msg?.payload?.channels || []);
+
+    // -------- Voltage (L-L)
+    const v12 = pickSummaryNumber(msg, ["v12","v_l1l2","v_ll12"]) ??
+                n(findVll(channels, "L1-L2")?.v ?? findVll(channels, "L1-L2")?.volt ?? findVll(channels, "L1-L2")?.voltage);
+
+    const v23 = pickSummaryNumber(msg, ["v23","v_l2l3","v_ll23"]) ??
+                n(findVll(channels, "L2-L3")?.v ?? findVll(channels, "L2-L3")?.volt ?? findVll(channels, "L2-L3")?.voltage);
+
+    const v31 = pickSummaryNumber(msg, ["v31","v_l3l1","v_ll31"]) ??
+                n(findVll(channels, "L3-L1")?.v ?? findVll(channels, "L3-L1")?.volt ?? findVll(channels, "L3-L1")?.voltage);
+
+    setTile("tileV12", "VOLTAGE L1–L2", v12 !== null ? v12.toFixed(2) : "-", "V", nowText);
+    setTile("tileV23", "VOLTAGE L2–L3", v23 !== null ? v23.toFixed(2) : "-", "V", nowText);
+    setTile("tileV31", "VOLTAGE L3–L1", v31 !== null ? v31.toFixed(2) : "-", "V", nowText);
+
+    // -------- Current (A)
+    const a1 = pickSummaryNumber(msg, ["a1","i1","amp1"]) ??
+               n(findChannel(channels, "in", "L1")?.a ?? findChannel(channels, "in", "L1")?.amp ?? findChannel(channels, "in", "L1")?.current);
+
+    const a2 = pickSummaryNumber(msg, ["a2","i2","amp2"]) ??
+               n(findChannel(channels, "in", "L2")?.a ?? findChannel(channels, "in", "L2")?.amp ?? findChannel(channels, "in", "L2")?.current);
+
+    const a3 = pickSummaryNumber(msg, ["a3","i3","amp3"]) ??
+               n(findChannel(channels, "in", "L3")?.a ?? findChannel(channels, "in", "L3")?.amp ?? findChannel(channels, "in", "L3")?.current);
+
+    setTile("tileA1", "CURRENT PHASE 1", a1 !== null ? a1.toFixed(2) : "-", "A", nowText);
+    setTile("tileA2", "CURRENT PHASE 2", a2 !== null ? a2.toFixed(2) : "-", "A", nowText);
+    setTile("tileA3", "CURRENT PHASE 3", a3 !== null ? a3.toFixed(2) : "-", "A", nowText);
+
+    // -------- Power (kW / kvar / kva / hz / pf)
+    const kw1 = pickSummaryNumber(msg, ["kw1","p1_kw"]) ??
+                n(findChannel(channels, "in", "L1")?.kw ?? findChannel(channels, "in", "L1")?.p_kw ?? findChannel(channels, "in", "L1")?.power_kw ?? findChannel(channels, "in", "L1")?.p);
+
+    const kw2 = pickSummaryNumber(msg, ["kw2","p2_kw"]) ??
+                n(findChannel(channels, "in", "L2")?.kw ?? findChannel(channels, "in", "L2")?.p_kw ?? findChannel(channels, "in", "L2")?.power_kw ?? findChannel(channels, "in", "L2")?.p);
+
+    const kw3 = pickSummaryNumber(msg, ["kw3","p3_kw"]) ??
+                n(findChannel(channels, "in", "L3")?.kw ?? findChannel(channels, "in", "L3")?.p_kw ?? findChannel(channels, "in", "L3")?.power_kw ?? findChannel(channels, "in", "L3")?.p);
+
+    const kwt = pickSummaryNumber(msg, ["kw","kw_total","p_kw_total","total_kw"]);
+    const kvar = pickSummaryNumber(msg, ["kvar","q_kvar","reactive_kvar"]);
+    const kva  = pickSummaryNumber(msg, ["kva","s_kva","apparent_kva"]);
+    const hz   = pickSummaryNumber(msg, ["hz","freq","frequency"]);
+    const pf   = pickSummaryNumber(msg, ["pf","power_factor"]);
+
+    setTile("tileKW1", "POWER PHASE 1", kw1 !== null ? kw1.toFixed(2) : "-", "kW", nowText);
+    setTile("tileKW2", "POWER PHASE 2", kw2 !== null ? kw2.toFixed(2) : "-", "kW", nowText);
+    setTile("tileKW3", "POWER PHASE 3", kw3 !== null ? kw3.toFixed(2) : "-", "kW", nowText);
+    setTile("tileKWt", "TOTAL POWER",   kwt !== null ? kwt.toFixed(2) : "-", "kW", nowText);
+    setTile("tileKvar","REACTIVE POWER",kvar !== null ? kvar.toFixed(2) : "-", "kVAr", nowText);
+
+    setTile("tileKva", "APPARENT POWER", kva !== null ? kva.toFixed(2) : "-", "kVA", nowText);
+    setTile("tileHz",  "FREQUENCY",      hz  !== null ? hz.toFixed(2) : "-", "Hz", nowText);
+    setTile("tilePF",  "POWER FACTOR",   pf  !== null ? pf.toFixed(2) : "-", "PF", nowText);
+
+    // -------- THD / Energy & Savings
+    const thdb = pickSummaryNumber(msg, ["thd_before","thd_b","thdBefore"]);
+    const thda = pickSummaryNumber(msg, ["thd_after","thd_a","thdAfter"]);
+
+    setTile("tileTHDb", "THD BEFORE", thdb !== null ? thdb.toFixed(2) : "-", "%", "Before K-Save");
+    setTile("tileTHDa", "THD AFTER",  thda !== null ? thda.toFixed(2) : "-", "%", "With K-Save");
+
+    const kwh   = pickSummaryNumber(msg, ["kwh","energy_kwh"]);
+    const saved = pickSummaryNumber(msg, ["kwh_saved","energy_saved_kwh"]);
+    const co2   = pickSummaryNumber(msg, ["co2_saved","co2_kg","co2"]);
+
+    setTile("tileKwh",   "ENERGY",       kwh   !== null ? kwh.toFixed(2) : "-", "kWh", nowText);
+    setTile("tileSaved", "ENERGY SAVED",  saved !== null ? saved.toFixed(2) : "-", "kWh", nowText);
+    setTile("tileCO2",   "CO₂ SAVED",     co2   !== null ? co2.toFixed(2) : "-", "kg",  nowText);
+  }
+
   // =========================
   // ✅ 0) Selected device detail panel (6채널 + 절감)
   // =========================
@@ -538,6 +659,9 @@
           const t = new Date().toLocaleTimeString();
           initRealtimeChart();
           pushRealtimePoint(t, kw);
+
+          // ✅ (추가) KPI 타일 업데이트: 선택 장비만
+          try { updateKpiFromTelemetry(msg); } catch {}
         }
       };
 

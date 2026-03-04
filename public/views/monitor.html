@@ -128,6 +128,113 @@
     </div>
   </section>
 
+  <!-- ✅ KPI BOARD (사진 스타일) -->
+  <section class="card big mt12" id="kpiBoard">
+    <div class="cardTitle">Real-time electrical measurements</div>
+
+    <!-- 상단: Trend + Event -->
+    <div class="kpiTop mt10">
+      <div class="contentCard">
+        <div class="kpiHeader">
+          <div class="k">Trend Chart</div>
+          <div class="kpiActions">
+            <button class="btn" id="btnTrendPlot" type="button">Plot</button>
+            <button class="btn" id="btnTrendExport" type="button">Export</button>
+          </div>
+        </div>
+        <canvas id="trendChart" height="120"></canvas>
+        <div class="muted" id="trendEmpty" style="margin-top:8px;">No data in selected range</div>
+      </div>
+
+      <div class="contentCard">
+        <div class="kpiHeader">
+          <div class="k">Event Viewer</div>
+          <div class="kpiActions">
+            <button class="btn" id="btnEventExport" type="button">Export</button>
+          </div>
+        </div>
+
+        <div class="eventTableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Data</th>
+                <th>Type</th>
+                <th>Message</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="eventTbody">
+              <tr>
+                <td colspan="6" class="empty">No data available in table</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Voltage L-L -->
+    <div class="kpiSection mt12">
+      <div class="kpiSectionTitle">VOLTAGE (LINE-TO-LINE)</div>
+      <div class="kpiGrid kpiGrid3">
+        <div class="kpiTile warn" id="tileV12"></div>
+        <div class="kpiTile warn" id="tileV23"></div>
+        <div class="kpiTile warn" id="tileV31"></div>
+      </div>
+    </div>
+
+    <!-- Current -->
+    <div class="kpiSection mt12">
+      <div class="kpiSectionTitle">CURRENT</div>
+      <div class="kpiGrid kpiGrid3">
+        <div class="kpiTile cool" id="tileA1"></div>
+        <div class="kpiTile cool" id="tileA2"></div>
+        <div class="kpiTile cool" id="tileA3"></div>
+      </div>
+    </div>
+
+    <!-- Power -->
+    <div class="kpiSection mt12">
+      <div class="kpiSectionTitle">POWER</div>
+
+      <div class="kpiGrid kpiGrid5">
+        <div class="kpiTile hot" id="tileKW1"></div>
+        <div class="kpiTile hot" id="tileKW2"></div>
+        <div class="kpiTile hot" id="tileKW3"></div>
+        <div class="kpiTile hot" id="tileKWt"></div>
+        <div class="kpiTile violet" id="tileKvar"></div>
+      </div>
+
+      <div class="kpiGrid kpiGrid3 mt10">
+        <div class="kpiTile violet" id="tileKva"></div>
+        <div class="kpiTile cool" id="tileHz"></div>
+        <div class="kpiTile ok" id="tilePF"></div>
+      </div>
+    </div>
+
+    <!-- THD -->
+    <div class="kpiSection mt12">
+      <div class="kpiSectionTitle">TOTAL HARMONIC DISTORTION (THD)</div>
+      <div class="kpiGrid kpiGrid2">
+        <div class="kpiTile thdBad" id="tileTHDb"></div>
+        <div class="kpiTile thdGood" id="tileTHDa"></div>
+      </div>
+    </div>
+
+    <!-- Energy & Savings -->
+    <div class="kpiSection mt12">
+      <div class="kpiSectionTitle">ENERGY & SAVINGS</div>
+      <div class="kpiGrid kpiGrid3">
+        <div class="kpiTile ok" id="tileKwh"></div>
+        <div class="kpiTile ok" id="tileSaved"></div>
+        <div class="kpiTile ok" id="tileCO2"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ✅ Device List -->
   <section class="card big mt12">
     <div class="cardTitle">Device List</div>
