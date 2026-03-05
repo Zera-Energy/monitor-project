@@ -1,25 +1,45 @@
 // /js/lib/deviceStore.js
 export class DeviceStore {
   constructor({ normalizeItems }) {
-    this.devicesByTopic = new Map(); // topic -> payload
-    this.lastSeenByTopic = new Map(); // topic -> ms
+    this.devicesByKey = new Map();   // ✅ deviceKey -> payload
+    this.lastSeenByKey = new Map();  // ✅ deviceKey -> ms
     this.normalizeItems = normalizeItems || ((x) => x);
 
-    this.OFFLINE_AFTER_MS = 15000; // 필요하면 조정
+    this.OFFLINE_AFTER_MS = 15000;
     this.STALE_AFTER_MS = 8000;
-
     this.__emitTimer = null;
   }
 
-  touch(topic) {
-    if (!topic) return;
-    this.lastSeenByTopic.set(String(topic), Date.now());
+  // ✅ th/site001/pg46/001/meter -> site001/pg46/001
+  // ✅ site001/pg46/001          -> site001/pg46/001
+  topicToDeviceKey(topic) {
+    if (!topic) return "";
+    const parts = String(topic).split("/").filter(Boolean);
+    if (parts[0] === "th") parts.shift(); // remove prefix
+
+    if (parts.length >= 3) return `${parts[0]}/${parts[1]}/${parts[2]}`;
+    return String(topic);
   }
 
-  upsert(topic, payloadObj) {
-    if (!topic) return;
-    this.devicesByTopic.set(String(topic), payloadObj);
-    this.touch(topic);
+  touch(topicOrKey) {
+    const key = this.topicToDeviceKey(topicOrKey);
+    if (!key) return;
+    this.lastSeenByKey.set(key, Date.now());
+  }
+
+  upsert(topicOrKey, payloadObj) {
+    const key = this.topicToDeviceKey(topicOrKey);
+    if (!key) return;
+
+    // ✅ UI가 쓰기 편하게 "통일된 키"를 넣어줌
+    const merged = {
+      ...payloadObj,
+      device_topic: key,
+      topic: key,
+    };
+
+    this.devicesByKey.set(key, merged);
+    this.touch(key);
   }
 
   upsertManyFromApi(rawItems, pickTopicFn) {
@@ -33,8 +53,8 @@ export class DeviceStore {
   attachOnlineStatus(items) {
     const now = Date.now();
     return items.map((it) => {
-      const topic = String(it.device_topic || it.topic || "");
-      const last = this.lastSeenByTopic.get(topic) || 0;
+      const key = this.topicToDeviceKey(it.device_topic || it.topic || "");
+      const last = this.lastSeenByKey.get(key) || 0;
       const age = last ? (now - last) : 99999999;
 
       const is_offline = !last || age >= this.OFFLINE_AFTER_MS;
@@ -42,6 +62,8 @@ export class DeviceStore {
 
       return {
         ...it,
+        device_topic: key,
+        topic: key,
         last_seen_ms: last || null,
         age_ms: age,
         is_offline,
@@ -52,7 +74,7 @@ export class DeviceStore {
   }
 
   getItems() {
-    const raw = Array.from(this.devicesByTopic.values());
+    const raw = Array.from(this.devicesByKey.values());
     let items = this.normalizeItems(raw);
     items = this.attachOnlineStatus(items);
     return items;
