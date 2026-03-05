@@ -18,6 +18,26 @@ body{
   background:#f6f7fb;
   color:var(--text);
 }
+
+/* ✅ (추가) 라우팅 중 깜빡임 방지 */
+body.isRouting #view{
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ✅ (추가) 라우팅 로딩 오버레이 */
+body.isRouting::after{
+  content:"Loading...";
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  background: rgba(240,240,240,0.6);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+}
+
 a{ color:inherit; text-decoration:none; }
 button{ font-family:inherit; }
 

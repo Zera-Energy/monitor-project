@@ -218,19 +218,13 @@ function isLiveRoute(route) {
 
 function emitToView(route, items) {
   if (route === "overview" && typeof window.__overviewOnDevices__ === "function") {
-    try {
-      window.__overviewOnDevices__(items);
-    } catch {}
+    try { window.__overviewOnDevices__(items); } catch {}
   }
   if (route === "monitor" && typeof window.__monitorOnDevices__ === "function") {
-    try {
-      window.__monitorOnDevices__(items);
-    } catch {}
+    try { window.__monitorOnDevices__(items); } catch {}
   }
   if (route === "dashboard" && typeof window.__dashboardOnDevices__ === "function") {
-    try {
-      window.__dashboardOnDevices__(items);
-    } catch {}
+    try { window.__dashboardOnDevices__(items); } catch {}
   }
 }
 
@@ -314,7 +308,6 @@ function startMqtt() {
       __mqttConnected = false;
       restartPollForCurrentRoute();
     },
-
     onOffline: () => {
       __mqttConnected = false;
       restartPollForCurrentRoute();
@@ -348,7 +341,7 @@ function startMqtt() {
 }
 
 /* =========================================================
-   ✅ View CSS 로드 (핵심 수정: 새 CSS 로드 후 기존 제거)
+   ✅ View CSS 로드 (새 CSS 로드 후 기존 제거)
 ========================================================= */
 function loadViewCss(route) {
   return new Promise((resolve) => {
@@ -366,11 +359,10 @@ function loadViewCss(route) {
 
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = href + "?v=" + Date.now(); // 캐시 꼬임 방지
+    link.href = href + "?v=" + Date.now();
     link.setAttribute("data-view-css", "1");
 
     link.onload = () => {
-      // ✅ 새 CSS 적용된 뒤 이전 CSS 제거 -> 깜빡임 최소화
       if (oldLink) {
         try { oldLink.remove(); } catch {}
       }
@@ -379,7 +371,6 @@ function loadViewCss(route) {
     };
 
     link.onerror = () => {
-      // 실패하면 기존 CSS 유지
       try { link.remove(); } catch {}
       resolve();
     };
@@ -393,9 +384,7 @@ function loadViewCss(route) {
 ========================================================= */
 function unloadViewJs() {
   if (currentViewScript) {
-    try {
-      currentViewScript.remove();
-    } catch {}
+    try { currentViewScript.remove(); } catch {}
     currentViewScript = null;
   }
 }
@@ -434,15 +423,17 @@ async function loadView(route) {
     stopViewPoll();
     unloadViewJs();
 
+    // ✅ (추가) 이전 화면 DOM을 빨리 치워서 “잠깐 보였다가 사라짐” 최소화
+    // (CSS에서 body.isRouting이면 #view가 투명이라 사실상 안 보이지만, DOM도 비워두면 더 깔끔)
+    viewEl.innerHTML = "";
+
     const res = await fetch(url, { cache: "no-cache" });
     if (!res.ok) throw new Error(`Failed to load view: ${url}`);
 
     viewEl.innerHTML = await res.text();
 
     if (route === "developer" && typeof window.initDeveloperPage === "function") {
-      try {
-        window.initDeveloperPage();
-      } catch {}
+      try { window.initDeveloperPage(); } catch {}
     }
 
     await loadViewJs(route);
@@ -471,12 +462,23 @@ async function loadView(route) {
 }
 
 /* =========================================================
-   ✅ 라우팅
+   ✅ 라우팅 (핵심 수정: 라우팅 중 로딩 오버레이/숨김 처리)
 ========================================================= */
 async function route() {
   const r = getRouteFromHash();
-  await loadViewCss(r);
-  await loadView(r);
+
+  // ✅ (추가) 라우팅 시작: body에 플래그 -> CSS 오버레이 + #view 숨김
+  document.body.classList.add("isRouting");
+
+  try {
+    await loadViewCss(r);
+    await loadView(r);
+  } finally {
+    // ✅ (추가) 라우팅 끝: 다시 표시
+    requestAnimationFrame(() => {
+      document.body.classList.remove("isRouting");
+    });
+  }
 }
 window.addEventListener("hashchange", route);
 
