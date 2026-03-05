@@ -21,7 +21,7 @@ const ROUTES = {
   "dashboard-setting": "./views/dashboard-setting.html",
   products: "./views/overview.html",
 
-  // ✅ FIX
+  // ✅ profile은 profile.html
   profile: "./views/profile.html",
 };
 
@@ -36,8 +36,6 @@ const VIEW_CSS = {
   developer: "./css/view.developer.css",
   "dashboard-setting": "./css/view.pm.css",
   dashboard: "./css/view.dashboard.css",
-
-  // ✅ FIX
   profile: "./css/view.profile.css",
 };
 
@@ -50,9 +48,10 @@ const VIEW_JS = {
   monitor: "./js/view.monitor.js",
   location: "./js/view.location.js",
   "dashboard-setting": "./js/view.pm.js",
-
-  // ✅ FIX
   profile: "./js/view.profile.js",
+
+  // notifications 같은 건 JS 없으면 그냥 생략 가능
+  // notifications: "./js/view.notifications.js",
 };
 
 let currentCssLink = null;
@@ -68,6 +67,62 @@ window.API_BASE =
     : "https://monitor-project.onrender.com");
 
 const API_BASE = window.API_BASE;
+
+/* =========================================================
+   ✅ Route Loading Overlay (FOUC 방지용)
+========================================================= */
+function ensureRouteOverlay() {
+  if (document.getElementById("routeOverlay")) return;
+
+  const style = document.createElement("style");
+  style.setAttribute("data-route-overlay-style", "1");
+  style.textContent = `
+    #routeOverlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,.55);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    #routeOverlay.show{ display:flex; }
+    .routeSpinner{
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 4px solid rgba(0,0,0,.12);
+      border-top-color: rgba(0,0,0,.55);
+      animation: rsSpin 0.85s linear infinite;
+    }
+    @keyframes rsSpin { to { transform: rotate(360deg); } }
+
+    /* 새 화면 교체 순간을 자연스럽게 */
+    #view.routeSwapIn{
+      animation: routeFadeIn .12s ease-out;
+    }
+    @keyframes routeFadeIn { from{opacity:.75} to{opacity:1} }
+  `;
+  document.head.appendChild(style);
+
+  const ov = document.createElement("div");
+  ov.id = "routeOverlay";
+  ov.innerHTML = `<div class="routeSpinner" aria-label="loading"></div>`;
+  document.body.appendChild(ov);
+}
+ensureRouteOverlay();
+
+function showRouteOverlay() {
+  const ov = document.getElementById("routeOverlay");
+  if (!ov) return;
+  ov.classList.add("show");
+}
+function hideRouteOverlay() {
+  const ov = document.getElementById("routeOverlay");
+  if (!ov) return;
+  ov.classList.remove("show");
+}
 
 /* =========================================================
    ✅ Topbar Chips
@@ -230,6 +285,7 @@ function emitToView(route, items) {
 
 /* =========================
    ✅ 해시 라우트 파싱
+   - #/monitor -> monitor
 ========================= */
 function getRouteFromHash() {
   const raw = (location.hash || "#overview").replace("#", "").trim();
@@ -341,17 +397,17 @@ function startMqtt() {
 }
 
 /* =========================================================
-   ✅ View CSS 로드 (새 CSS 로드 후 기존 제거)
+   ✅ View CSS 로드 (새 CSS 로드 완료 후 교체)
 ========================================================= */
 function loadViewCss(route) {
   return new Promise((resolve) => {
     const href = VIEW_CSS[route];
 
-    // 새 CSS가 없으면 기존 유지
+    // 새 CSS가 없으면 그냥 진행
     if (!href) return resolve();
 
     // 이미 같은 CSS면 스킵
-    if (currentCssLink && currentCssLink.href && currentCssLink.href.includes(href)) {
+    if (currentCssLink && currentCssLink.getAttribute("data-href") === href) {
       return resolve();
     }
 
@@ -359,10 +415,12 @@ function loadViewCss(route) {
 
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = href + "?v=" + Date.now();
+    link.href = href + "?v=" + Date.now(); // 캐시 꼬임 방지
     link.setAttribute("data-view-css", "1");
+    link.setAttribute("data-href", href);
 
     link.onload = () => {
+      // ✅ 새 CSS 적용 확인 후 이전 CSS 제거
       if (oldLink) {
         try { oldLink.remove(); } catch {}
       }
@@ -371,6 +429,7 @@ function loadViewCss(route) {
     };
 
     link.onerror = () => {
+      // 실패하면 새 링크 제거하고 기존 CSS 유지
       try { link.remove(); } catch {}
       resolve();
     };
@@ -409,35 +468,76 @@ function loadViewJs(route) {
 }
 
 /* =========================================================
-   ✅ View 로딩 (HTML만)
+   ✅ View 로딩 (FOUC 최소화 버전)
+   - 기존 화면 유지
+   - HTML fetch + CSS load 완료 후 한 번에 교체
+   - 로딩 중 overlay만 표시
 ========================================================= */
+let __routeSeq = 0;
+let __viewFetchAbort = null;
+
 async function loadView(route) {
   const url = ROUTES[route] || ROUTES.overview;
 
+  // 라우팅 요청 순번 (늦게 온 응답 무시)
+  const seq = ++__routeSeq;
+
+  // 이전 fetch가 있으면 취소
+  try { __viewFetchAbort?.abort(); } catch {}
+  __viewFetchAbort = new AbortController();
+
+  // 로딩 오버레이 ON (살짝만)
+  showRouteOverlay();
+
   try {
+    // ✅ 기존 view cleanup은 "교체 직전"에 실행해야 깜빡임이 줄어듦.
+    // 그래서 여기서 바로 cleanup 하지 않고, HTML/CSS 준비 완료 후 실행.
+
+    // live poll은 바로 멈춰도 됨(리소스 절약)
+    stopViewPoll();
+
+    // 1) HTML 먼저 받아오기 (기존 화면은 유지)
+    const res = await fetch(url + "?v=" + Date.now(), {
+      cache: "no-store",
+      signal: __viewFetchAbort.signal,
+    });
+    if (!res.ok) throw new Error(`Failed to load view: ${url}`);
+    const htmlText = await res.text();
+
+    // 다른 라우팅이 이미 시작됐으면 중단
+    if (seq !== __routeSeq) return;
+
+    // 2) CSS 로드 완료까지 기다리기 (FOUC 방지 핵심)
+    await loadViewCss(route);
+
+    if (seq !== __routeSeq) return;
+
+    // ✅ 교체 직전에 이전 페이지 정리(이때 기존 DOM은 아직 살아있음)
     try {
       if (typeof window.__viewCleanup__ === "function") window.__viewCleanup__();
     } catch {}
     window.__viewCleanup__ = null;
 
-    stopViewPoll();
+    // 3) 기존 view JS 제거 후, HTML 한 번에 교체
     unloadViewJs();
+    viewEl.innerHTML = htmlText;
 
-    // ✅ (추가) 이전 화면 DOM을 빨리 치워서 “잠깐 보였다가 사라짐” 최소화
-    // (CSS에서 body.isRouting이면 #view가 투명이라 사실상 안 보이지만, DOM도 비워두면 더 깔끔)
-    viewEl.innerHTML = "";
+    // 교체 애니메이션(짧게)
+    viewEl.classList.remove("routeSwapIn");
+    void viewEl.offsetWidth;
+    viewEl.classList.add("routeSwapIn");
 
-    const res = await fetch(url, { cache: "no-cache" });
-    if (!res.ok) throw new Error(`Failed to load view: ${url}`);
+    // 4) 새 view JS 로드
+    await loadViewJs(route);
 
-    viewEl.innerHTML = await res.text();
+    if (seq !== __routeSeq) return;
 
+    // developer 특별 init
     if (route === "developer" && typeof window.initDeveloperPage === "function") {
       try { window.initDeveloperPage(); } catch {}
     }
 
-    await loadViewJs(route);
-
+    // 5) live 화면이면 poll 재시작 + 캐시 emit
     if (isLiveRoute(route)) {
       startViewPoll(route, __mqttConnected ? 30000 : 3000);
       store.scheduleEmit((items) => emitToView(route, items));
@@ -449,7 +549,14 @@ async function loadView(route) {
         try { if (typeof prev === "function") prev(); } catch {}
       };
     }
+
+    // 스크롤 위로(원하면 제거 가능)
+    try { window.scrollTo(0, 0); } catch {}
+
   } catch (err) {
+    // fetch abort는 조용히 무시
+    if (String(err?.name || "").toLowerCase().includes("abort")) return;
+
     console.error(err);
     viewEl.innerHTML = `
       <div class="contentCard">
@@ -458,27 +565,18 @@ async function loadView(route) {
         <div class="muted" style="margin-top:8px;">${String(err)}</div>
       </div>
     `;
+  } finally {
+    // 최신 요청일 때만 overlay 숨김
+    if (seq === __routeSeq) hideRouteOverlay();
   }
 }
 
 /* =========================================================
-   ✅ 라우팅 (핵심 수정: 라우팅 중 로딩 오버레이/숨김 처리)
+   ✅ 라우팅
 ========================================================= */
 async function route() {
   const r = getRouteFromHash();
-
-  // ✅ (추가) 라우팅 시작: body에 플래그 -> CSS 오버레이 + #view 숨김
-  document.body.classList.add("isRouting");
-
-  try {
-    await loadViewCss(r);
-    await loadView(r);
-  } finally {
-    // ✅ (추가) 라우팅 끝: 다시 표시
-    requestAnimationFrame(() => {
-      document.body.classList.remove("isRouting");
-    });
-  }
+  await loadView(r);
 }
 window.addEventListener("hashchange", route);
 
