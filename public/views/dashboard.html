@@ -131,6 +131,7 @@
       </div>
 
       <div class="quickList">
+        <!-- ✅ Live Monitor -> monitor -->
         <a class="quickItem" href="#/monitor">
           <div class="quickIcon blue">📺</div>
           <div class="quickText">
@@ -140,29 +141,32 @@
           <div class="quickArrow">›</div>
         </a>
 
-        <a class="quickItem" href="#/dashboard-setting">
-          <div class="quickIcon purple">📊</div>
+        <!-- ✅ (수정) Analytics -> Location -->
+        <a class="quickItem" href="#/location">
+          <div class="quickIcon purple">📍</div>
           <div class="quickText">
-            <div class="quickTitle">Analytics</div>
-            <div class="quickSub">Charts & Reports</div>
+            <div class="quickTitle">Location</div>
+            <div class="quickSub">Site & location management</div>
           </div>
           <div class="quickArrow">›</div>
         </a>
 
-        <a class="quickItem" href="#/devices">
+        <!-- ✅ Devices -> devices overview (overview) -->
+        <a class="quickItem" href="#/overview">
           <div class="quickIcon mint">🧾</div>
           <div class="quickText">
             <div class="quickTitle">Devices</div>
-            <div class="quickSub">All devices</div>
+            <div class="quickSub">Devices overview</div>
           </div>
           <div class="quickArrow">›</div>
         </a>
 
-        <a class="quickItem" href="#/developer">
+        <!-- ✅ Settings -> user profile (profile) -->
+        <a class="quickItem" href="#/profile">
           <div class="quickIcon gray">⚙️</div>
           <div class="quickText">
             <div class="quickTitle">Settings</div>
-            <div class="quickSub">System config</div>
+            <div class="quickSub">User profile</div>
           </div>
           <div class="quickArrow">›</div>
         </a>
@@ -180,16 +184,13 @@
         <b>최근 기기</b>
         <span class="recentCount" id="recentCount">(0)</span>
       </div>
-      <a class="recentLink" href="#/devices">전체 보기 →</a>
+
+      <!-- ✅ (수정) 전체 보기 -> devices overview (overview) -->
+      <a class="recentLink" href="#/overview">전체 보기 →</a>
     </div>
 
     <div class="recentGrid" id="recentDevicesGrid"></div>
   </section>
-
-  <!-- =========================
-       (유지) 장비 선택/기존 상세 패널은 숨김 처리 가능
-       - 필요하면 아래 블록을 유지하거나, 나중에 별도 페이지로 빼도 됨
-  ========================== -->
 
   <!-- (선택) 기존 구조 유지하려면 그대로 두고 CSS로 숨겨도 됨 -->
   <div class="row dashTop" style="display:none;">
