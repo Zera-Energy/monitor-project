@@ -18,27 +18,45 @@ body{
   background:#f6f7fb;
   color:var(--text);
 }
+a{ color:inherit; text-decoration:none; }
+button{ font-family:inherit; }
 
-/* ✅ (추가) 라우팅 중 깜빡임 방지 */
+.muted{ color:var(--muted); }
+
+/* =========================================================
+   ✅ (추가) 라우팅 중 화면 깜빡임 방지
+   - app.js에서 body에 isRouting 붙는 동안,
+     #view를 숨기고(렌더링 안 보이게), 오버레이 표시
+========================================================= */
+
+/* 라우팅 중에는 기존 화면이 잠깐 보이지 않게 */
 body.isRouting #view{
   opacity: 0;
   pointer-events: none;
 }
 
-/* ✅ (추가) 라우팅 로딩 오버레이 */
-body.isRouting::after{
-  content:"Loading...";
+/* 라우팅 오버레이 */
+body.isRouting::before{
+  content: "";
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  background: rgba(240,240,240,0.6);
-  backdrop-filter: blur(2px);
-  z-index: 9999;
+  background: rgba(246,247,251,.85); /* body 배경과 비슷하게 */
+  z-index: 9998;
 }
 
-a{ color:inherit; text-decoration:none; }
-button{ font-family:inherit; }
-
-.muted{ color:var(--muted); }
+/* 로딩 스피너 */
+body.isRouting::after{
+  content: "Loading…";
+  position: fixed;
+  left: 50%;
+  top: calc(var(--topbarH) + 24px);
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  z-index: 9999;
+  color: var(--muted);
+  font-size: 14px;
+}
