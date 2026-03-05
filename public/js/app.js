@@ -228,8 +228,14 @@ function emitToView(route, items) {
   }
 }
 
+/* =========================
+   ✅ (핵심 수정) 해시 라우트 파싱
+   - #/monitor  -> monitor
+   - #monitor   -> monitor
+========================= */
 function getRouteFromHash() {
-  const r = (location.hash || "#overview").replace("#", "").trim();
+  const raw = (location.hash || "#overview").replace("#", "").trim();
+  const r = (raw || "overview").replace(/^\/+/, ""); // ✅ 앞의 / 제거
   return r || "overview";
 }
 
@@ -287,8 +293,6 @@ function startMqtt() {
     mqttUrl: url,
     username,
     password,
-
-    // chip 상태 표시 (createMqttClient 내부에서 connect/reconnect/offline 같은 걸 호출할 수 있음)
     onChip: setMqttChip,
 
     onConnect: (client) => {
@@ -302,17 +306,14 @@ function startMqtt() {
         console.warn("MQTT subscribe fail:", e);
       }
 
-      // ✅ 연결되면 폴링을 즉시 30초 백업으로 전환
       restartPollForCurrentRoute();
     },
 
-    // ✅ (추가) reconnect 중이면 연결 false로 두고, 폴링은 3초 유지
     onReconnect: () => {
       __mqttConnected = false;
       restartPollForCurrentRoute();
     },
 
-    // ✅ (추가) offline/close/error면 즉시 3초 폴링으로 복귀
     onOffline: () => {
       __mqttConnected = false;
       restartPollForCurrentRoute();
@@ -429,11 +430,8 @@ async function loadView(route) {
 
     await loadViewJs(route);
 
-    // ✅ live 화면이면 폴링 시작 (MQTT 연결이면 30초 백업 / 아니면 3초)
     if (isLiveRoute(route)) {
       startViewPoll(route, __mqttConnected ? 30000 : 3000);
-
-      // 진입 즉시 캐시 반영
       store.scheduleEmit((items) => emitToView(route, items));
 
       const prev = window.__viewCleanup__;
@@ -475,22 +473,18 @@ window.addEventListener("hashchange", route);
    ✅ 부팅
 ========================================================= */
 async function boot() {
-  // Logout 버튼
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bindTopLogout);
   } else {
     bindTopLogout();
   }
 
-  // 로그인 확인
   if (!isLoggedIn()) return goLoginPage();
 
-  // me 로드(Topbar)
   fetchJson(`${API_BASE}/api/auth/me`)
     .then((me) => setTopUserUI(me))
     .catch((e) => console.warn("me failed:", e?.message || e));
 
-  // MQTT 시작
   startMqtt();
 
   if (!location.hash) location.hash = "#dashboard";
