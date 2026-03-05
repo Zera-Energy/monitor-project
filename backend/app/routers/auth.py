@@ -22,10 +22,10 @@ def login(body: LoginRequest):
         }
     )
 
-    # ✅ 프론트에서 token/access_token 둘 다 처리하지만,
-    #    지금은 access_token을 표준으로 유지
+    # ✅ 프론트 호환성: access_token + token 둘 다 내려줌
     return {
         "access_token": token,
+        "token": token,              # ✅ 추가
         "token_type": "bearer",
         "role": user["role"],
     }

@@ -19,11 +19,7 @@ const ROUTES = {
   developer: "./views/developer.html",
   dashboard: "./views/dashboard.html",
   "dashboard-setting": "./views/dashboard-setting.html",
-
-  // ✅ FIX: products 페이지로 연결
   products: "./views/products.html",
-
-  // ✅ profile은 profile.html
   profile: "./views/profile.html",
 };
 
@@ -39,8 +35,6 @@ const VIEW_CSS = {
   "dashboard-setting": "./css/view.pm.css",
   dashboard: "./css/view.dashboard.css",
   profile: "./css/view.profile.css",
-
-  // ✅ FIX: products css 추가
   products: "./css/view.products.css",
 };
 
@@ -54,8 +48,6 @@ const VIEW_JS = {
   location: "./js/view.location.js",
   "dashboard-setting": "./js/view.pm.js",
   profile: "./js/view.profile.js",
-
-  // ✅ FIX: products js 추가
   products: "./js/view.products.js",
 };
 
@@ -74,7 +66,7 @@ window.API_BASE =
 const API_BASE = window.API_BASE;
 
 /* =========================================================
-   ✅ Route Loading Overlay (FOUC 방지용)
+   ✅ Route Loading Overlay
 ========================================================= */
 function ensureRouteOverlay() {
   if (document.getElementById("routeOverlay")) return;
@@ -102,11 +94,7 @@ function ensureRouteOverlay() {
       animation: rsSpin 0.85s linear infinite;
     }
     @keyframes rsSpin { to { transform: rotate(360deg); } }
-
-    /* 새 화면 교체 순간을 자연스럽게 */
-    #view.routeSwapIn{
-      animation: routeFadeIn .12s ease-out;
-    }
+    #view.routeSwapIn{ animation: routeFadeIn .12s ease-out; }
     @keyframes routeFadeIn { from{opacity:.75} to{opacity:1} }
   `;
   document.head.appendChild(style);
@@ -144,7 +132,6 @@ function setMqttChip(state, detail = "") {
   el.title = detail || "";
 }
 
-// ✅ (추가) API 상태칩
 function setApiChip(state, detail = "") {
   const el = document.getElementById("apiStatusChip");
   if (!el) return;
@@ -156,20 +143,14 @@ function setApiChip(state, detail = "") {
   el.title = detail || "";
 }
 
-/* =========================================================
-   ✅ (추가) API 401 처리 유틸
-========================================================= */
 function isUnauthorizedError(e) {
   const msg = String(e?.message || e || "");
-  // fetchJson이 "HTTP 401 ..."처럼 던질 가능성이 큼
   return msg.includes("401") || msg.toLowerCase().includes("not authenticated");
 }
 
 function handleApiError(e) {
   if (isUnauthorizedError(e)) {
     setApiChip("offline", "401 Unauthorized");
-    // ✅ 세션 만료/쿠키 없음이면 로그인으로
-    try { goLoginPage(); } catch {}
     return true;
   }
   setApiChip("offline", String(e?.message || e));
@@ -177,7 +158,7 @@ function handleApiError(e) {
 }
 
 /* =========================================================
-   ✅ (그대로 유지) 장비 토픽 + 채널 정규화
+   ✅ normalize
 ========================================================= */
 function splitTopicLike(v) {
   if (v == null) return null;
@@ -299,9 +280,6 @@ function normalizeItems(items) {
   return items.map(normalizeOne);
 }
 
-/* =========================================================
-   ✅ MQTT 토픽 -> 장비키 통일
-========================================================= */
 function topicToDeviceKey(topic) {
   if (!topic) return "";
   const parts = String(topic).split("/").filter(Boolean);
@@ -310,7 +288,7 @@ function topicToDeviceKey(topic) {
 }
 
 /* =========================================================
-   ✅ DeviceStore (단일 소스)
+   ✅ DeviceStore
 ========================================================= */
 const store = new DeviceStore({ normalizeItems });
 
@@ -330,9 +308,6 @@ function emitToView(route, items) {
   }
 }
 
-/* =========================
-   ✅ 해시 라우트 파싱
-========================= */
 function getRouteFromHash() {
   const raw = (location.hash || "#overview").replace("#", "").trim();
   const r = (raw || "overview").replace(/^\/+/, "");
@@ -340,7 +315,7 @@ function getRouteFromHash() {
 }
 
 /* =========================================================
-   ✅ API Poll (백업)
+   ✅ API Poll
 ========================================================= */
 let __pollTimer = null;
 
@@ -374,7 +349,7 @@ function startViewPoll(route, intervalMs = 3000) {
 }
 
 /* =========================================================
-   ✅ MQTT (실시간) + 오프라인 감지
+   ✅ MQTT
 ========================================================= */
 let __mqttConnected = false;
 
@@ -411,23 +386,6 @@ function startMqtt() {
       restartPollForCurrentRoute();
     },
 
-    onReconnect: () => {
-      __mqttConnected = false;
-      restartPollForCurrentRoute();
-    },
-    onOffline: () => {
-      __mqttConnected = false;
-      restartPollForCurrentRoute();
-    },
-    onClose: () => {
-      __mqttConnected = false;
-      restartPollForCurrentRoute();
-    },
-    onError: () => {
-      __mqttConnected = false;
-      restartPollForCurrentRoute();
-    },
-
     onMessage: (topic, payload) => {
       let obj = null;
       try {
@@ -458,12 +416,11 @@ function startMqtt() {
 }
 
 /* =========================================================
-   ✅ View CSS 로드 (새 CSS 로드 완료 후 교체)
+   ✅ View CSS
 ========================================================= */
 function loadViewCss(route) {
   return new Promise((resolve) => {
     const href = VIEW_CSS[route];
-
     if (!href) return resolve();
 
     if (currentCssLink && currentCssLink.getAttribute("data-href") === href) {
@@ -496,7 +453,7 @@ function loadViewCss(route) {
 }
 
 /* =========================================================
-   ✅ View JS 로드/언로드
+   ✅ View JS
 ========================================================= */
 function unloadViewJs() {
   if (currentViewScript) {
@@ -525,14 +482,13 @@ function loadViewJs(route) {
 }
 
 /* =========================================================
-   ✅ View 로딩 (FOUC 최소화 버전)
+   ✅ View 로딩
 ========================================================= */
 let __routeSeq = 0;
 let __viewFetchAbort = null;
 
 async function loadView(route) {
   const url = ROUTES[route] || ROUTES.overview;
-
   const seq = ++__routeSeq;
 
   try { __viewFetchAbort?.abort(); } catch {}
@@ -553,7 +509,6 @@ async function loadView(route) {
     if (seq !== __routeSeq) return;
 
     await loadViewCss(route);
-
     if (seq !== __routeSeq) return;
 
     try {
@@ -569,7 +524,6 @@ async function loadView(route) {
     viewEl.classList.add("routeSwapIn");
 
     await loadViewJs(route);
-
     if (seq !== __routeSeq) return;
 
     if (route === "developer" && typeof window.initDeveloperPage === "function") {
@@ -589,7 +543,6 @@ async function loadView(route) {
     }
 
     try { window.scrollTo(0, 0); } catch {}
-
   } catch (err) {
     if (String(err?.name || "").toLowerCase().includes("abort")) return;
 
@@ -627,17 +580,35 @@ async function boot() {
 
   if (!isLoggedIn()) return goLoginPage();
 
-  // ✅ 부팅 시 API 상태 확인(401이면 login으로)
+  // ✅ 부팅 시 API 상태 확인 (401이면 1회 재시도 후 로그인으로)
   setApiChip("checking", "checking /api/auth/me");
-  fetchJson(`${API_BASE}/api/auth/me`)
-    .then((me) => {
+  let tried = false;
+
+  const checkMe = async () => {
+    try {
+      const me = await fetchJson(`${API_BASE}/api/auth/me`);
       setApiChip("connected", "OK");
       setTopUserUI(me);
-    })
-    .catch((e) => {
-      handleApiError(e);
+    } catch (e) {
+      const unauth = handleApiError(e);
+
+      if (unauth && !tried) {
+        tried = true;
+        // 쿠키/세션 준비 지연 대비(짧게 한번만 재시도)
+        setTimeout(checkMe, 700);
+        return;
+      }
+
+      if (unauth) {
+        try { goLoginPage(); } catch {}
+        return;
+      }
+
       console.warn("me failed:", e?.message || e);
-    });
+    }
+  };
+
+  checkMe();
 
   startMqtt();
 
