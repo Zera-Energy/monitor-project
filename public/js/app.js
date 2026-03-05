@@ -9,8 +9,6 @@ const viewEl = document.getElementById("view");
 
 /* =========================
    ✅ 라우트 -> HTML
-   (핵심 수정)
-   - profile은 overview가 아니라 profile.html로
 ========================= */
 const ROUTES = {
   overview: "./views/overview.html",
@@ -29,7 +27,6 @@ const ROUTES = {
 
 /* =========================
    ✅ 라우트 -> 뷰 전용 CSS
-   (핵심 수정) profile 추가
 ========================= */
 const VIEW_CSS = {
   overview: "./css/view.overview.css",
@@ -46,7 +43,6 @@ const VIEW_CSS = {
 
 /* =========================
    ✅ 라우트 -> 뷰 전용 JS
-   (핵심 수정) profile 추가
 ========================= */
 const VIEW_JS = {
   overview: "./js/view.overview.js",
@@ -200,9 +196,7 @@ function normalizeOne(item) {
   if (out.summary_value == null) {
     const inL1 = out.channels?.find((c) => c.term === "in" && c.phase === "L1");
     out.summary_value =
-      (inL1 && (inL1.value ?? inL1.current ?? inL1.amp ?? null)) ??
-      out.value ??
-      null;
+      (inL1 && (inL1.value ?? inL1.current ?? inL1.amp ?? null)) ?? out.value ?? null;
   }
 
   return out;
@@ -241,9 +235,7 @@ function emitToView(route, items) {
 }
 
 /* =========================
-   ✅ (그대로 유지) 해시 라우트 파싱
-   - #/monitor  -> monitor
-   - #monitor   -> monitor
+   ✅ 해시 라우트 파싱
 ========================= */
 function getRouteFromHash() {
   const raw = (location.hash || "#overview").replace("#", "").trim();
@@ -356,27 +348,43 @@ function startMqtt() {
 }
 
 /* =========================================================
-   ✅ View CSS 로드
+   ✅ View CSS 로드 (핵심 수정: 새 CSS 로드 후 기존 제거)
 ========================================================= */
 function loadViewCss(route) {
   return new Promise((resolve) => {
     const href = VIEW_CSS[route];
 
-    if (currentCssLink) {
-      currentCssLink.remove();
-      currentCssLink = null;
-    }
+    // 새 CSS가 없으면 기존 유지
     if (!href) return resolve();
+
+    // 이미 같은 CSS면 스킵
+    if (currentCssLink && currentCssLink.href && currentCssLink.href.includes(href)) {
+      return resolve();
+    }
+
+    const oldLink = currentCssLink;
 
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = href;
+    link.href = href + "?v=" + Date.now(); // 캐시 꼬임 방지
     link.setAttribute("data-view-css", "1");
-    link.onload = () => resolve();
-    link.onerror = () => resolve();
+
+    link.onload = () => {
+      // ✅ 새 CSS 적용된 뒤 이전 CSS 제거 -> 깜빡임 최소화
+      if (oldLink) {
+        try { oldLink.remove(); } catch {}
+      }
+      currentCssLink = link;
+      resolve();
+    };
+
+    link.onerror = () => {
+      // 실패하면 기존 CSS 유지
+      try { link.remove(); } catch {}
+      resolve();
+    };
 
     document.head.appendChild(link);
-    currentCssLink = link;
   });
 }
 
@@ -445,15 +453,9 @@ async function loadView(route) {
 
       const prev = window.__viewCleanup__;
       window.__viewCleanup__ = () => {
-        try {
-          stopViewPoll();
-        } catch {}
-        try {
-          unloadViewJs();
-        } catch {}
-        try {
-          if (typeof prev === "function") prev();
-        } catch {}
+        try { stopViewPoll(); } catch {}
+        try { unloadViewJs(); } catch {}
+        try { if (typeof prev === "function") prev(); } catch {}
       };
     }
   } catch (err) {
