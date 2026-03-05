@@ -19,7 +19,9 @@ const ROUTES = {
   developer: "./views/developer.html",
   dashboard: "./views/dashboard.html",
   "dashboard-setting": "./views/dashboard-setting.html",
-  products: "./views/overview.html",
+
+  // ✅ FIX: products 페이지로 연결
+  products: "./views/products.html",
 
   // ✅ profile은 profile.html
   profile: "./views/profile.html",
@@ -37,6 +39,9 @@ const VIEW_CSS = {
   "dashboard-setting": "./css/view.pm.css",
   dashboard: "./css/view.dashboard.css",
   profile: "./css/view.profile.css",
+
+  // ✅ FIX: products css 추가
+  products: "./css/view.products.css",
 };
 
 /* =========================
@@ -49,6 +54,9 @@ const VIEW_JS = {
   location: "./js/view.location.js",
   "dashboard-setting": "./js/view.pm.js",
   profile: "./js/view.profile.js",
+
+  // ✅ FIX: products js 추가
+  products: "./js/view.products.js",
 
   // notifications 같은 건 JS 없으면 그냥 생략 가능
   // notifications: "./js/view.notifications.js",
@@ -403,10 +411,8 @@ function loadViewCss(route) {
   return new Promise((resolve) => {
     const href = VIEW_CSS[route];
 
-    // 새 CSS가 없으면 그냥 진행
     if (!href) return resolve();
 
-    // 이미 같은 CSS면 스킵
     if (currentCssLink && currentCssLink.getAttribute("data-href") === href) {
       return resolve();
     }
@@ -415,12 +421,11 @@ function loadViewCss(route) {
 
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = href + "?v=" + Date.now(); // 캐시 꼬임 방지
+    link.href = href + "?v=" + Date.now();
     link.setAttribute("data-view-css", "1");
     link.setAttribute("data-href", href);
 
     link.onload = () => {
-      // ✅ 새 CSS 적용 확인 후 이전 CSS 제거
       if (oldLink) {
         try { oldLink.remove(); } catch {}
       }
@@ -429,7 +434,6 @@ function loadViewCss(route) {
     };
 
     link.onerror = () => {
-      // 실패하면 새 링크 제거하고 기존 CSS 유지
       try { link.remove(); } catch {}
       resolve();
     };
@@ -479,24 +483,16 @@ let __viewFetchAbort = null;
 async function loadView(route) {
   const url = ROUTES[route] || ROUTES.overview;
 
-  // 라우팅 요청 순번 (늦게 온 응답 무시)
   const seq = ++__routeSeq;
 
-  // 이전 fetch가 있으면 취소
   try { __viewFetchAbort?.abort(); } catch {}
   __viewFetchAbort = new AbortController();
 
-  // 로딩 오버레이 ON (살짝만)
   showRouteOverlay();
 
   try {
-    // ✅ 기존 view cleanup은 "교체 직전"에 실행해야 깜빡임이 줄어듦.
-    // 그래서 여기서 바로 cleanup 하지 않고, HTML/CSS 준비 완료 후 실행.
-
-    // live poll은 바로 멈춰도 됨(리소스 절약)
     stopViewPoll();
 
-    // 1) HTML 먼저 받아오기 (기존 화면은 유지)
     const res = await fetch(url + "?v=" + Date.now(), {
       cache: "no-store",
       signal: __viewFetchAbort.signal,
@@ -504,40 +500,32 @@ async function loadView(route) {
     if (!res.ok) throw new Error(`Failed to load view: ${url}`);
     const htmlText = await res.text();
 
-    // 다른 라우팅이 이미 시작됐으면 중단
     if (seq !== __routeSeq) return;
 
-    // 2) CSS 로드 완료까지 기다리기 (FOUC 방지 핵심)
     await loadViewCss(route);
 
     if (seq !== __routeSeq) return;
 
-    // ✅ 교체 직전에 이전 페이지 정리(이때 기존 DOM은 아직 살아있음)
     try {
       if (typeof window.__viewCleanup__ === "function") window.__viewCleanup__();
     } catch {}
     window.__viewCleanup__ = null;
 
-    // 3) 기존 view JS 제거 후, HTML 한 번에 교체
     unloadViewJs();
     viewEl.innerHTML = htmlText;
 
-    // 교체 애니메이션(짧게)
     viewEl.classList.remove("routeSwapIn");
     void viewEl.offsetWidth;
     viewEl.classList.add("routeSwapIn");
 
-    // 4) 새 view JS 로드
     await loadViewJs(route);
 
     if (seq !== __routeSeq) return;
 
-    // developer 특별 init
     if (route === "developer" && typeof window.initDeveloperPage === "function") {
       try { window.initDeveloperPage(); } catch {}
     }
 
-    // 5) live 화면이면 poll 재시작 + 캐시 emit
     if (isLiveRoute(route)) {
       startViewPoll(route, __mqttConnected ? 30000 : 3000);
       store.scheduleEmit((items) => emitToView(route, items));
@@ -550,11 +538,9 @@ async function loadView(route) {
       };
     }
 
-    // 스크롤 위로(원하면 제거 가능)
     try { window.scrollTo(0, 0); } catch {}
 
   } catch (err) {
-    // fetch abort는 조용히 무시
     if (String(err?.name || "").toLowerCase().includes("abort")) return;
 
     console.error(err);
@@ -566,7 +552,6 @@ async function loadView(route) {
       </div>
     `;
   } finally {
-    // 최신 요청일 때만 overlay 숨김
     if (seq === __routeSeq) hideRouteOverlay();
   }
 }

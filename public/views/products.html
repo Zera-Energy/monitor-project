@@ -1,0 +1,114 @@
+<!-- /views/products.html -->
+<section class="productsPage">
+
+  <div class="pageHeader productsHead">
+    <h2 class="pageTitle">Our Products</h2>
+    <div class="muted">Choose the right solution for your site</div>
+  </div>
+
+  <section class="productsGrid">
+
+    <!-- Card 1 -->
+    <article class="pCard">
+      <header class="pCardTop">
+        <div class="pTitle">K-SAVER 10</div>
+        <div class="pSub">Residential Solution</div>
+      </header>
+
+      <div class="pImageWrap">
+        <!-- ✅ 이미지 경로만 네 프로젝트에 맞게 바꿔줘 -->
+        <img class="pImage" src="./assets/products/ksaver10.png" alt="K-SAVER 10" />
+      </div>
+
+      <div class="pBody">
+        <div class="pDesc">Perfect for homes and small offices</div>
+        <div class="pSpec">Up to <b>10kW</b> capacity</div>
+
+        <div class="pMeta">
+          <div class="pMetaRow"><span>Use case</span><b>Home / Small office</b></div>
+          <div class="pMetaRow"><span>Install</span><b>Wall mounted</b></div>
+          <div class="pMetaRow"><span>Target</span><b>Single / small loads</b></div>
+        </div>
+
+        <div class="pActions">
+          <button class="btn" type="button" id="btnProd10">View details</button>
+        </div>
+      </div>
+    </article>
+
+    <!-- Card 2 -->
+    <article class="pCard">
+      <header class="pCardTop">
+        <div class="pTitle">K-SAVER 30</div>
+        <div class="pSub">Commercial Solution</div>
+      </header>
+
+      <div class="pImageWrap">
+        <img class="pImage" src="./assets/products/ksaver30.png" alt="K-SAVER 30" />
+      </div>
+
+      <div class="pBody">
+        <div class="pDesc">Ideal for commercial spaces</div>
+        <div class="pSpec">Up to <b>30kW</b> capacity</div>
+
+        <div class="pMeta">
+          <div class="pMetaRow"><span>Use case</span><b>Store / Building</b></div>
+          <div class="pMetaRow"><span>Install</span><b>Floor standing</b></div>
+          <div class="pMetaRow"><span>Target</span><b>Medium loads</b></div>
+        </div>
+
+        <div class="pActions">
+          <button class="btn" type="button" id="btnProd30">View details</button>
+        </div>
+      </div>
+    </article>
+
+    <!-- Card 3 -->
+    <article class="pCard">
+      <header class="pCardTop">
+        <div class="pTitle">K-SAVER Max</div>
+        <div class="pSub">Industrial Solution</div>
+      </header>
+
+      <div class="pImageWrap">
+        <img class="pImage" src="./assets/products/ksaverMax.png" alt="K-SAVER Max" />
+      </div>
+
+      <div class="pBody">
+        <div class="pDesc">High-capacity industrial applications</div>
+        <div class="pSpec"><b>Customizable</b> capacity</div>
+
+        <div class="pMeta">
+          <div class="pMetaRow"><span>Use case</span><b>Factory / Plant</b></div>
+          <div class="pMetaRow"><span>Install</span><b>Panel / Cabinet</b></div>
+          <div class="pMetaRow"><span>Target</span><b>High loads</b></div>
+        </div>
+
+        <div class="pActions">
+          <button class="btn" type="button" id="btnProdMax">View details</button>
+        </div>
+      </div>
+    </article>
+
+  </section>
+
+  <!-- ✅ 상세 모달 -->
+  <div class="pModalBack" id="pModalBack" style="display:none;">
+    <div class="pModal">
+      <div class="pModalHead">
+        <div class="pModalTitle" id="pModalTitle">Product</div>
+        <button class="pModalClose" id="pModalClose" type="button">✕</button>
+      </div>
+
+      <div class="pModalBody" id="pModalBody">
+        <!-- JS에서 내용 채움 -->
+      </div>
+
+      <div class="pModalFoot">
+        <button class="btn ghost" id="pModalCancel" type="button">Close</button>
+        <a class="btn" href="#/devices">Go Devices</a>
+      </div>
+    </div>
+  </div>
+
+</section>
