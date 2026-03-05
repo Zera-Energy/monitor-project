@@ -57,9 +57,6 @@ const VIEW_JS = {
 
   // ✅ FIX: products js 추가
   products: "./js/view.products.js",
-
-  // notifications 같은 건 JS 없으면 그냥 생략 가능
-  // notifications: "./js/view.notifications.js",
 };
 
 let currentCssLink = null;
@@ -145,6 +142,38 @@ function setMqttChip(state, detail = "") {
   else el.textContent = "MQTT: …";
 
   el.title = detail || "";
+}
+
+// ✅ (추가) API 상태칩
+function setApiChip(state, detail = "") {
+  const el = document.getElementById("apiStatusChip");
+  if (!el) return;
+
+  if (state === "connected") el.textContent = "API: 🟢";
+  else if (state === "checking") el.textContent = "API: …";
+  else el.textContent = "API: 🔴";
+
+  el.title = detail || "";
+}
+
+/* =========================================================
+   ✅ (추가) API 401 처리 유틸
+========================================================= */
+function isUnauthorizedError(e) {
+  const msg = String(e?.message || e || "");
+  // fetchJson이 "HTTP 401 ..."처럼 던질 가능성이 큼
+  return msg.includes("401") || msg.toLowerCase().includes("not authenticated");
+}
+
+function handleApiError(e) {
+  if (isUnauthorizedError(e)) {
+    setApiChip("offline", "401 Unauthorized");
+    // ✅ 세션 만료/쿠키 없음이면 로그인으로
+    try { goLoginPage(); } catch {}
+    return true;
+  }
+  setApiChip("offline", String(e?.message || e));
+  return false;
 }
 
 /* =========================================================
@@ -271,6 +300,16 @@ function normalizeItems(items) {
 }
 
 /* =========================================================
+   ✅ MQTT 토픽 -> 장비키 통일
+========================================================= */
+function topicToDeviceKey(topic) {
+  if (!topic) return "";
+  const parts = String(topic).split("/").filter(Boolean);
+  if (parts[0] === "th") parts.shift();
+  return parts.length >= 3 ? `${parts[0]}/${parts[1]}/${parts[2]}` : String(topic);
+}
+
+/* =========================================================
    ✅ DeviceStore (단일 소스)
 ========================================================= */
 const store = new DeviceStore({ normalizeItems });
@@ -293,7 +332,6 @@ function emitToView(route, items) {
 
 /* =========================
    ✅ 해시 라우트 파싱
-   - #/monitor -> monitor
 ========================= */
 function getRouteFromHash() {
   const raw = (location.hash || "#overview").replace("#", "").trim();
@@ -315,15 +353,20 @@ function startViewPoll(route, intervalMs = 3000) {
   stopViewPoll();
 
   const tick = async () => {
+    setApiChip("checking", "polling /api/devices");
     try {
       const data = await fetchJson(`${API_BASE}/api/devices`);
+      setApiChip("connected", "OK");
+
       const rawItems = data?.items || [];
       store.upsertManyFromApi(rawItems, pickTopic);
 
       if (isLiveRoute(route)) {
         store.scheduleEmit((items) => emitToView(route, items));
       }
-    } catch {}
+    } catch (e) {
+      handleApiError(e);
+    }
   };
 
   tick();
@@ -393,8 +436,18 @@ function startMqtt() {
         return;
       }
 
-      const item = { topic, ...obj };
-      store.upsert(topic, item);
+      const deviceKey = topicToDeviceKey(topic);
+      const metric = String(topic).split("/").filter(Boolean).pop() || "meter";
+
+      const item = {
+        topic: deviceKey,
+        device_topic: deviceKey,
+        last_topic: String(topic),
+        last_type: metric,
+        ...obj,
+      };
+
+      store.upsert(deviceKey, item);
 
       const route = getRouteFromHash();
       if (isLiveRoute(route)) {
@@ -473,9 +526,6 @@ function loadViewJs(route) {
 
 /* =========================================================
    ✅ View 로딩 (FOUC 최소화 버전)
-   - 기존 화면 유지
-   - HTML fetch + CSS load 완료 후 한 번에 교체
-   - 로딩 중 overlay만 표시
 ========================================================= */
 let __routeSeq = 0;
 let __viewFetchAbort = null;
@@ -577,9 +627,17 @@ async function boot() {
 
   if (!isLoggedIn()) return goLoginPage();
 
+  // ✅ 부팅 시 API 상태 확인(401이면 login으로)
+  setApiChip("checking", "checking /api/auth/me");
   fetchJson(`${API_BASE}/api/auth/me`)
-    .then((me) => setTopUserUI(me))
-    .catch((e) => console.warn("me failed:", e?.message || e));
+    .then((me) => {
+      setApiChip("connected", "OK");
+      setTopUserUI(me);
+    })
+    .catch((e) => {
+      handleApiError(e);
+      console.warn("me failed:", e?.message || e);
+    });
 
   startMqtt();
 
