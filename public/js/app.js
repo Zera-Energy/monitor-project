@@ -9,6 +9,8 @@ const viewEl = document.getElementById("view");
 
 /* =========================
    ✅ 라우트 -> HTML
+   (핵심 수정)
+   - profile은 overview가 아니라 profile.html로
 ========================= */
 const ROUTES = {
   overview: "./views/overview.html",
@@ -20,11 +22,14 @@ const ROUTES = {
   dashboard: "./views/dashboard.html",
   "dashboard-setting": "./views/dashboard-setting.html",
   products: "./views/overview.html",
-  profile: "./views/overview.html",
+
+  // ✅ FIX
+  profile: "./views/profile.html",
 };
 
 /* =========================
    ✅ 라우트 -> 뷰 전용 CSS
+   (핵심 수정) profile 추가
 ========================= */
 const VIEW_CSS = {
   overview: "./css/view.overview.css",
@@ -34,10 +39,14 @@ const VIEW_CSS = {
   developer: "./css/view.developer.css",
   "dashboard-setting": "./css/view.pm.css",
   dashboard: "./css/view.dashboard.css",
+
+  // ✅ FIX
+  profile: "./css/view.profile.css",
 };
 
 /* =========================
    ✅ 라우트 -> 뷰 전용 JS
+   (핵심 수정) profile 추가
 ========================= */
 const VIEW_JS = {
   overview: "./js/view.overview.js",
@@ -45,6 +54,9 @@ const VIEW_JS = {
   monitor: "./js/view.monitor.js",
   location: "./js/view.location.js",
   "dashboard-setting": "./js/view.pm.js",
+
+  // ✅ FIX
+  profile: "./js/view.profile.js",
 };
 
 let currentCssLink = null;
@@ -229,13 +241,13 @@ function emitToView(route, items) {
 }
 
 /* =========================
-   ✅ (핵심 수정) 해시 라우트 파싱
+   ✅ (그대로 유지) 해시 라우트 파싱
    - #/monitor  -> monitor
    - #monitor   -> monitor
 ========================= */
 function getRouteFromHash() {
   const raw = (location.hash || "#overview").replace("#", "").trim();
-  const r = (raw || "overview").replace(/^\/+/, ""); // ✅ 앞의 / 제거
+  const r = (raw || "overview").replace(/^\/+/, "");
   return r || "overview";
 }
 
@@ -269,7 +281,7 @@ function startViewPoll(route, intervalMs = 3000) {
 }
 
 /* =========================================================
-   ✅ MQTT (실시간) + 오프라인 감지(핵심 수정)
+   ✅ MQTT (실시간) + 오프라인 감지
 ========================================================= */
 let __mqttConnected = false;
 
@@ -277,10 +289,7 @@ function restartPollForCurrentRoute() {
   const route = getRouteFromHash();
   if (!isLiveRoute(route)) return;
 
-  // ✅ MQTT 연결이면 30초 백업, 끊기면 3초로 즉시 복귀
   startViewPoll(route, __mqttConnected ? 30000 : 3000);
-
-  // 화면이 live면 캐시도 즉시 1번 뿌려주기
   store.scheduleEmit((items) => emitToView(route, items));
 }
 

@@ -1,0 +1,119 @@
+/* /css/view.profile.css */
+
+.profileView .pageHeader {
+  margin-bottom: 12px;
+}
+
+.profileCard {
+  max-width: 980px;
+}
+
+.profileForm {
+  display: grid;
+  gap: 18px;
+}
+
+/* 한 줄(라벨 + 입력) */
+.pfRow {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.pfLabel {
+  font-weight: 800;
+  opacity: 0.9;
+  padding-top: 8px;
+}
+
+/* 사진 영역 */
+.pfPhotoBox {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pfAvatarWrap {
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background: #eef2ff;
+  border: 1px solid #e5e7eb;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.pfAvatarFallback {
+  color: #2563eb;
+  opacity: 0.95;
+}
+
+.pfAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pfPhotoActions {
+  display: grid;
+  gap: 6px;
+}
+
+.pfUploadBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+}
+
+.pfPhotoHint {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.pfInput,
+.pfSelect,
+.pfTextarea {
+  width: 100%;
+}
+
+/* textarea 좀 더 보기 좋게 */
+.pfTextarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+/* 하단 버튼 */
+.pfFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.pfStatus {
+  font-size: 12px;
+  margin-top: -8px;
+}
+
+/* 모바일 */
+@media (max-width: 720px) {
+  .pfRow {
+    grid-template-columns: 1fr;
+  }
+  .pfLabel {
+    padding-top: 0;
+  }
+  .pfFooter {
+    justify-content: stretch;
+  }
+  .pfFooter .btn {
+    flex: 1;
+  }
+}

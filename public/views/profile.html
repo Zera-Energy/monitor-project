@@ -1,0 +1,94 @@
+<!-- /views/profile.html -->
+<section class="profileView">
+  <div class="pageHeader">
+    <h2 class="pageTitle">프로필 설정</h2>
+  </div>
+
+  <section class="contentCard profileCard">
+    <form id="profileForm" class="profileForm">
+      <!-- 프로필 사진 -->
+      <div class="pfRow">
+        <div class="pfLabel">프로필 사진</div>
+
+        <div class="pfPhotoBox">
+          <div class="pfAvatarWrap">
+            <img id="pfAvatarImg" class="pfAvatarImg" alt="profile avatar" hidden />
+            <div id="pfAvatarFallback" class="pfAvatarFallback" aria-hidden="true">
+              <!-- 심플 사람 아이콘 -->
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+                <path d="M12 12c2.761 0 5-2.239 5-5S14.761 2 12 2 7 4.239 7 7s2.239 5 5 5Z" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M20 22a8 8 0 1 0-16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="pfPhotoActions">
+            <label class="btn primary pfUploadBtn">
+              사진 변경
+              <input id="pfPhotoInput" type="file" accept="image/jpeg,image/png" hidden />
+            </label>
+            <div class="pfPhotoHint">JPG 또는 PNG, 최대 2MB</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 이름 -->
+      <div class="pfRow">
+        <label class="pfLabel" for="pfName">이름</label>
+        <input class="input pfInput" id="pfName" type="text" placeholder="이름" />
+      </div>
+
+      <!-- 이메일 -->
+      <div class="pfRow">
+        <label class="pfLabel" for="pfEmail">이메일</label>
+        <input class="input pfInput" id="pfEmail" type="email" placeholder="example@email.com" />
+      </div>
+
+      <!-- 전화번호 -->
+      <div class="pfRow">
+        <label class="pfLabel" for="pfPhone">전화번호</label>
+        <input class="input pfInput" id="pfPhone" type="tel" placeholder="010-0000-0000" />
+      </div>
+
+      <!-- 부서 -->
+      <div class="pfRow">
+        <label class="pfLabel" for="pfDept">부서</label>
+        <select class="select pfSelect" id="pfDept">
+          <option value="">선택</option>
+          <option value="관리부">관리부</option>
+          <option value="기술팀">기술팀</option>
+          <option value="영업팀">영업팀</option>
+          <option value="운영팀">운영팀</option>
+        </select>
+      </div>
+
+      <!-- 직급 -->
+      <div class="pfRow">
+        <label class="pfLabel" for="pfRole">직급</label>
+        <select class="select pfSelect" id="pfRole">
+          <option value="">선택</option>
+          <option value="사원">사원</option>
+          <option value="대리">대리</option>
+          <option value="과장">과장</option>
+          <option value="팀장">팀장</option>
+          <option value="관리자">관리자</option>
+          <option value="최고관리자">최고관리자</option>
+        </select>
+      </div>
+
+      <!-- 소개 -->
+      <div class="pfRow">
+        <label class="pfLabel" for="pfBio">소개</label>
+        <textarea class="input pfTextarea" id="pfBio" rows="5" placeholder="간단한 소개를 입력하세요."></textarea>
+      </div>
+
+      <!-- 하단 버튼 -->
+      <div class="pfFooter">
+        <button class="btn" type="button" id="btnPfCancel">취소</button>
+        <button class="btn primary" type="submit" id="btnPfSave">변경사항 저장</button>
+      </div>
+
+      <div class="pfStatus muted" id="pfStatus" aria-live="polite"></div>
+    </form>
+  </section>
+</section>
