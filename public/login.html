@@ -25,7 +25,6 @@
 </head>
 <body>
 
-  <!-- ✅ form으로 감싸고 submit 막아서 GET 405 튀는 것 차단 -->
   <form id="loginForm" class="contentCard" style="max-width:420px;margin:40px auto;">
     <div class="pageHeader" style="margin-bottom:14px;">
       <h2 class="pageTitle" style="margin:0;">Login</h2>
@@ -44,7 +43,6 @@
       </div>
 
       <div style="display:flex;gap:10px;align-items:center;">
-        <!-- ✅ submit 방지: type="button" 유지 -->
         <button class="btn primary" id="btnLogin" type="button" style="min-width:120px;">Login</button>
         <button class="btn" id="btnLogout" type="button" title="Clear token">Logout</button>
         <div class="k" id="loginStatus" style="margin-left:auto;"></div>
@@ -60,7 +58,10 @@
     </div>
   </form>
 
-  <script>
+  <script type="module">
+    // ✅ auth.js 재사용 (중복 로직 제거)
+    import { setToken, getToken, logout } from "/js/lib/auth.js";
+
     const API_BASE =
       window.API_BASE ||
       (location.hostname === "localhost" || location.hostname === "127.0.0.1"
@@ -73,51 +74,39 @@
     function setStatus(t) { $("loginStatus").textContent = t || ""; }
 
     function hasToken() {
-      return !!localStorage.getItem("token");
+      // ✅ token/access_token 둘 다 커버 (auth.js 기준)
+      return !!getToken();
     }
 
-    // ✅ 폼 submit(엔터 포함)로 GET /api/auth/login 튀는 것 차단
-    $("loginForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-    });
+    // ✅ submit(엔터 포함)로 GET 튀는 것 차단
+    $("loginForm").addEventListener("submit", (e) => e.preventDefault());
 
     setStatus(hasToken() ? "Token exists (press Login or Logout)" : "");
 
-    // ✅ 공통: 토큰 문자열 정리(따옴표 제거 + Bearer 제거)
+    // ✅ 공통: 토큰 문자열 정리
     function cleanToken(t) {
       let s = String(t || "").trim();
-      s = s.replace(/^"+|"+$/g, "");              // 앞뒤 따옴표 제거
-      s = s.replace(/^bearer\s+/i, "").trim();   // "Bearer " 제거(있다면)
+      s = s.replace(/^"+|"+$/g, "");
+      s = s.replace(/^bearer\s+/i, "").trim();
       return s;
     }
 
-    // ✅ (수정 핵심) 서버 응답이 JSON이든 문자열이든 "JWT만" 뽑아내기
     function extractJwt(rawText) {
       const t = String(rawText || "").trim();
       if (!t) return "";
 
-      // 1) JSON 파싱이 되는 경우 (대부분 여기로 옴)
       try {
         const j = JSON.parse(t);
-
-        // 서버가 그냥 "tokenstring"만 줄 수도 있음
         if (typeof j === "string") return cleanToken(j);
-
-        // 서버가 {access_token, token_type, role} 형태
         if (j && typeof j === "object") {
           const cand = j.access_token || j.token || j.jwt || "";
           return cleanToken(cand);
         }
-      } catch {
-        // JSON 아니면 아래로 계속
-      }
+      } catch {}
 
-      // 2) JSON이 아니라 그냥 토큰 문자열로 오는 경우
-      //    (JWT는 보통 xxx.yyy.zzz 형태)
       const direct = cleanToken(t);
       if (direct.includes(".") && direct.split(".").length >= 3) return direct;
 
-      // 3) 그 외: 토큰으로 보기 애매하면 빈값
       return "";
     }
 
@@ -132,14 +121,11 @@
       const raw = await res.text().catch(() => "");
 
       if (!res.ok) {
-        // 서버가 {"detail":"..."} 같이 줄 수도 있어서 그대로 보여줌
         throw new Error(raw || `Login failed (HTTP ${res.status})`);
       }
 
       const jwt = extractJwt(raw);
-      if (!jwt) {
-        console.log("[login] raw response =", raw);
-      }
+      if (!jwt) console.log("[login] raw response =", raw);
       return jwt;
     }
 
@@ -154,11 +140,11 @@
         const jwt = await doLogin(email, pass);
         if (!jwt) throw new Error("No token returned from server");
 
-        // ✅ localStorage에는 무조건 JWT 문자열만 저장
-        localStorage.setItem("token", jwt);
+        // ✅ 저장 통일 (token + access_token 둘 다 세팅)
+        setToken(jwt);
 
         setStatus("OK");
-        location.replace("/#dashboard"); // or "/#overview"
+        location.replace("/#dashboard");
       } catch (e) {
         setStatus("");
         setMsg(e?.message || "Login error");
@@ -167,7 +153,6 @@
 
     $("btnLogin").addEventListener("click", handleLogin);
 
-    // ✅ Enter 키 → 로그인 실행(네비게이션/submit X)
     $("loginEmail").addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); handleLogin(); }
     });
@@ -175,11 +160,9 @@
       if (e.key === "Enter") { e.preventDefault(); handleLogin(); }
     });
 
+    // ✅ 로그아웃도 auth.js로 통일(토큰 키들 싹 정리)
     $("btnLogout").addEventListener("click", () => {
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
-      setStatus("Token cleared");
-      setMsg("");
+      logout();
     });
   </script>
 </body>

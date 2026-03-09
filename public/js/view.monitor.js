@@ -37,7 +37,25 @@
   const trendStatusEl = $("trendStatus");
   const btnTrendPlot = $("btnTrendPlot");
   const btnTrendExport = $("btnTrendExport");
+  const trendExportFormatEl = $("trendExportFormat");
   const trendEmptyEl = $("trendEmpty");
+
+  // ✅ 미니 카드 export 요소
+  const energyTrendIntervalEl = $("energyTrendInterval");
+  const energyTrendDateEl = $("energyTrendDate");
+  const energyTrendExportFormatEl = $("energyTrendExportFormat");
+  const btnEnergyTrendExport = $("btnEnergyTrendExport");
+
+  const energyCostIntervalEl = $("energyCostInterval");
+  const energyCostDateEl = $("energyCostDate");
+  const energyCostExportFormatEl = $("energyCostExportFormat");
+  const btnEnergyCostExport = $("btnEnergyCostExport");
+
+  const energyHistIntervalEl = $("energyHistInterval");
+  const energyHistFromEl = $("energyHistFrom");
+  const energyHistToEl = $("energyHistTo");
+  const energyHistExportFormatEl = $("energyHistExportFormat");
+  const btnEnergyHistExport = $("btnEnergyHistExport");
 
   // ✅ 기존 cleanup 체인
   const prevCleanup = window.__viewCleanup__;
@@ -50,8 +68,14 @@
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
 
   function nowTime(){
-    // ✅ 13:21:15 스타일(24h)
     return new Date().toLocaleTimeString("en-GB", { hour12: false });
+  }
+
+  function safeFileName(v){
+    return String(v || "")
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, "_")
+      .replace(/\s+/g, "_");
   }
 
   function setTrendStatus(v){
@@ -136,12 +160,10 @@
     __selectedKey = String(key || "");
     __selectedLabel = String(label || __selectedKey || "");
 
-    // Trend 상단 드롭다운 동기화
     if (trendDeviceSel) {
       trendDeviceSel.value = __selectedKey || "";
     }
 
-    // 위치 pill 텍스트 갱신
     try {
       const d = devices.find(x => deviceKey(x) === __selectedKey) || null;
       const loc =
@@ -157,7 +179,6 @@
       if (trendLocationTextEl) trendLocationTextEl.textContent = "-";
     }
 
-    // ✅ 장비 바꿨으면 상단 Live 정보는 일단 초기화(실제 telemetry 오면 Online)
     setDeviceLiveStatus(false, "-");
 
     try {
@@ -168,8 +189,6 @@
   /* =========================================================
      ✅ KPI BOARD helpers
   ========================================================= */
-
-  // ✅ (수정) 값이 없어도 "NO DATA / Waiting telemetry..." + LIVE 시간 텍스트 표시
   function setTile(id, title, valueText, unit, sub){
     const el = document.getElementById(id);
     if (!el) return;
@@ -188,11 +207,9 @@
       <div class="s">${subText}</div>
     `;
 
-    // ✅ 값 없을 때 회색 처리(클래스가 없으면 그냥 무시됨)
     if (!hasValue) el.classList.add("kpiNoData");
     else el.classList.remove("kpiNoData");
 
-    // ✅ 업데이트 반짝(클래스 없으면 그냥 무시됨)
     el.classList.remove("kpiUpdated");
     void el.offsetWidth;
     el.classList.add("kpiUpdated");
@@ -218,7 +235,7 @@
 
   function findVll(channels, phase){
     if (!Array.isArray(channels)) return null;
-    const want = String(phase).toUpperCase(); // "L1-L2"
+    const want = String(phase).toUpperCase();
     return channels.find(c => {
       const p = String(c?.phase ?? c?.ph ?? "").toUpperCase();
       const name = String(c?.name ?? c?.metric ?? "").toUpperCase();
@@ -302,6 +319,9 @@
   ========================================================= */
   let trendChart = null;
   const trendBuf = { labels: [], values: [] };
+  const energyTrendBuf = { labels: [], values: [] };
+  const energyCostBuf = { labels: [], values: [] };
+  const energyHistBuf = { labels: [], values: [] };
   const TREND_MAX = 240;
 
   function initTrendMetricOptions(){
@@ -490,32 +510,238 @@
     }
   }
 
+  function buildTrendRows(){
+    const metric = trendMetricEl?.value || "metric";
+    const interval = trendIntervalEl?.value || "";
+    const from = trendFromEl?.value || "";
+    const to = trendToEl?.value || "";
+    const exportedAt = new Date().toLocaleString("ko-KR");
+
+    const rows = [];
+    rows.push(["Device", __selectedKey || ""]);
+    rows.push(["Label", __selectedLabel || ""]);
+    rows.push(["Metric", metric]);
+    rows.push(["Interval", interval]);
+    rows.push(["From", from]);
+    rows.push(["To", to]);
+    rows.push(["Exported At", exportedAt]);
+    rows.push([]);
+    rows.push(["time", "device", "metric", "value"]);
+
+    for (let i = 0; i < trendBuf.labels.length; i++) {
+      rows.push([
+        trendBuf.labels[i],
+        __selectedKey || "",
+        metric,
+        trendBuf.values[i],
+      ]);
+    }
+
+    return rows;
+  }
+
+  function buildMiniRows(title, metric, labels, values, extraInfo = []) {
+    const rows = [];
+    rows.push(["Device", __selectedKey || ""]);
+    rows.push(["Label", __selectedLabel || ""]);
+    rows.push(["Card", title]);
+    rows.push(["Metric", metric || ""]);
+    rows.push(["Exported At", new Date().toLocaleString("ko-KR")]);
+
+    for (const row of extraInfo) rows.push(row);
+
+    rows.push([]);
+    rows.push(["time", "device", "metric", "value"]);
+
+    for (let i = 0; i < labels.length; i++) {
+      rows.push([
+        labels[i],
+        __selectedKey || "",
+        metric || "",
+        values[i],
+      ]);
+    }
+
+    return rows;
+  }
+
+  function exportRowsAsCsv(rows, fileBase) {
+    const csv = rows
+      .map(r => r.map(x => `"${String(x ?? "").replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${fileBase}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function exportRowsAsXlsx(rows, fileBase, sheetName = "Sheet1") {
+    if (!window.XLSX) {
+      alert("XLSX library not loaded");
+      return;
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 24 },
+      { wch: 18 },
+      { wch: 14 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, `${fileBase}.xlsx`);
+  }
+
+  function exportMiniBuffer({
+    title,
+    metric,
+    labels,
+    values,
+    format,
+    fileBase,
+    extraInfo = [],
+    sheetName = "Sheet1",
+  }) {
+    if (!labels.length || !values.length) return;
+
+    const rows = buildMiniRows(title, metric, labels, values, extraInfo);
+
+    if (format === "csv") {
+      exportRowsAsCsv(rows, fileBase);
+      return;
+    }
+
+    exportRowsAsXlsx(rows, fileBase, sheetName);
+  }
+
+  function exportTrendAsCsv(){
+    if (!trendBuf.labels.length) return;
+
+    const rows = buildTrendRows();
+    const metric = trendMetricEl?.value || "metric";
+    const safeDevice = safeFileName(__selectedKey || "device");
+    const safeMetric = safeFileName(metric);
+
+    const csv = rows
+      .map(r => r.map(x => `"${String(x ?? "").replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `trend_${safeDevice}_${safeMetric}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function exportTrendAsXlsx(){
+    if (!trendBuf.labels.length) return;
+
+    if (!window.XLSX) {
+      alert("XLSX library not loaded");
+      return;
+    }
+
+    const rows = buildTrendRows();
+    const metric = trendMetricEl?.value || "metric";
+    const safeDevice = safeFileName(__selectedKey || "device");
+    const safeMetric = safeFileName(metric);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 24 },
+      { wch: 18 },
+      { wch: 14 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Trend");
+    XLSX.writeFile(wb, `trend_${safeDevice}_${safeMetric}.xlsx`);
+  }
+
   btnTrendPlot?.addEventListener("click", () => { loadTrendSeries(); });
   btnTrendRefresh?.addEventListener("click", () => { loadTrendSeries(); });
 
   btnTrendExport?.addEventListener("click", () => {
     if (!trendBuf.labels.length) return;
 
-    const rows = [["time","value"]];
-    for (let i=0;i<trendBuf.labels.length;i++){
-      rows.push([trendBuf.labels[i], String(trendBuf.values[i])]);
+    const format = trendExportFormatEl?.value || "xlsx";
+
+    if (format === "csv") {
+      exportTrendAsCsv();
+      return;
     }
-    const csv = rows.map(r => r.map(x => `"${String(x).replaceAll('"','""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `trend_${(__selectedKey || "device")}_${(trendMetricEl?.value || "metric")}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(a.href);
+
+    exportTrendAsXlsx();
+  });
+
+  btnEnergyTrendExport?.addEventListener("click", () => {
+    const format = energyTrendExportFormatEl?.value || "xlsx";
+    exportMiniBuffer({
+      title: "Energy Trend (KWH)",
+      metric: "kwh",
+      labels: energyTrendBuf.labels,
+      values: energyTrendBuf.values,
+      format,
+      fileBase: `energy_trend_${safeFileName(__selectedKey || "device")}`,
+      extraInfo: [
+        ["Interval", energyTrendIntervalEl?.value || ""],
+        ["Date", energyTrendDateEl?.value || ""],
+      ],
+      sheetName: "EnergyTrend",
+    });
+  });
+
+  btnEnergyCostExport?.addEventListener("click", () => {
+    const format = energyCostExportFormatEl?.value || "xlsx";
+    exportMiniBuffer({
+      title: "Energy Cost (THB)",
+      metric: "thb",
+      labels: energyCostBuf.labels,
+      values: energyCostBuf.values,
+      format,
+      fileBase: `energy_cost_${safeFileName(__selectedKey || "device")}`,
+      extraInfo: [
+        ["Interval", energyCostIntervalEl?.value || ""],
+        ["Date", energyCostDateEl?.value || ""],
+      ],
+      sheetName: "EnergyCost",
+    });
+  });
+
+  btnEnergyHistExport?.addEventListener("click", () => {
+    const format = energyHistExportFormatEl?.value || "xlsx";
+    exportMiniBuffer({
+      title: "Energy Historical (KWH)",
+      metric: "kwh",
+      labels: energyHistBuf.labels,
+      values: energyHistBuf.values,
+      format,
+      fileBase: `energy_historical_${safeFileName(__selectedKey || "device")}`,
+      extraInfo: [
+        ["Interval", energyHistIntervalEl?.value || ""],
+        ["From", energyHistFromEl?.value || ""],
+        ["To", energyHistToEl?.value || ""],
+      ],
+      sheetName: "EnergyHistorical",
+    });
   });
 
   initTrendMetricOptions();
   initTrendChart();
   setTrendStatus("Ready");
 
-  // ✅ (핵심 추가) 처음부터 KPI 타일에 텍스트/시간이 보이게
   initKpiPlaceholders();
 
   /* =========================================================
@@ -526,7 +752,6 @@
   const devices = [];
   let __devicesCache = devices;
 
-  // ✅ Trend 상단 Device dropdown 옵션 구성
   function setTrendDeviceOptions(items){
     if (!trendDeviceSel) return;
     const current = trendDeviceSel.value || "";
@@ -538,33 +763,28 @@
     }
     trendDeviceSel.innerHTML = opts.join("");
 
-    // 현재 선택 유지
     if (__selectedKey) trendDeviceSel.value = __selectedKey;
     else if (current) trendDeviceSel.value = current;
   }
 
-  // ✅ Trend 상단 dropdown으로 선택 가능
   trendDeviceSel?.addEventListener("change", () => {
     const key = trendDeviceSel.value || "";
     if (!key) {
       selectDeviceByKey("", "");
       resetTrend();
-      initKpiPlaceholders(); // ✅ 선택 해제 시도 기본 텍스트 유지
+      initKpiPlaceholders();
       return;
     }
     const d = devices.find(x => deviceKey(x) === key) || null;
     selectDeviceByKey(key, d ? deviceLabel(d) : key);
     resetTrend();
-    initKpiPlaceholders(); // ✅ 장비 바꾸면 "Waiting telemetry..." 상태로 갱신
+    initKpiPlaceholders();
   });
 
-  // ✅ Auto cards는 HTML에서 제거했으니, 있으면만 렌더(없으면 그냥 무시)
   function renderAutoCards(items){
     if (!autoGrid) return;
-    // auto cards 쓰고 싶으면 HTML에 mqttAutoGrid 다시 넣으면 됨
   }
 
-  // ✅ 테이블: 6컬럼(No, Name, Type, RAW Data, Last Update, Status)
   function renderDeviceTable(items){
     if (!deviceTbody) return;
     deviceTbody.innerHTML = "";
@@ -609,7 +829,7 @@
     if (!__selectedKey && devices.length) {
       const d0 = devices[0];
       selectDeviceByKey(deviceKey(d0), deviceLabel(d0));
-      initKpiPlaceholders(); // ✅ 첫 자동 선택 시도 기본 텍스트 세팅
+      initKpiPlaceholders();
     }
 
     appendLog(`✅ devices updated: ${devices.length} @ ${nowTime()}`);
@@ -620,7 +840,7 @@
 
   setApiStatus("waiting...");
   setWsStatus("WS connecting...");
-  setDeviceLiveStatus(false, "-"); // ✅ 초기 Offline
+  setDeviceLiveStatus(false, "-");
 
   /* =========================================================
      ✅ WebSocket 실시간 연결
@@ -648,7 +868,6 @@
       __ws.onopen = () => {
         setWsStatus("WS connected");
         retry = 1000;
-        // ✅ 연결만 됐다고 Online으로 보긴 애매해서, 실제 telemetry 수신 시 Online 처리
       };
 
       __ws.onmessage = (ev) => {
@@ -666,7 +885,7 @@
           const dd = devices.find(x => deviceKey(x) === key) || null;
           selectDeviceByKey(key, dd ? deviceLabel(dd) : key);
           selectedKey = key;
-          initKpiPlaceholders(); // ✅ 자동선택 순간에도 기본 텍스트
+          initKpiPlaceholders();
         }
 
         const idx = devices.findIndex(d => deviceKey(d) === key);
@@ -694,7 +913,6 @@
         if (updateCountEl) updateCountEl.textContent = String(updateCount);
         if (lastAtEl) lastAtEl.textContent = nowTime();
 
-        // ✅ (추가) Trend 상단 Online/Last 갱신
         setDeviceLiveStatus(true, nowTime());
 
         if (selectedKey && selectedKey === key) {
@@ -711,14 +929,14 @@
       __ws.onclose = () => {
         if (__wsClosedByUser) return;
         setWsStatus("WS reconnecting...");
-        setDeviceLiveStatus(false, "-"); // ✅ (추가) 끊기면 Offline
+        setDeviceLiveStatus(false, "-");
         setTimeout(connect, retry);
         retry = Math.min(10000, retry * 2);
       };
 
       __ws.onerror = () => {
         setWsStatus("WS error");
-        setDeviceLiveStatus(false, "-"); // ✅ (추가) 에러도 Offline
+        setDeviceLiveStatus(false, "-");
       };
     }
 
@@ -731,7 +949,6 @@
   const onDocClick = (e) => {
     const t = e.target;
 
-    // ✅ 장비 선택: 테이블 클릭 (버튼 제외)
     const row = t?.closest?.("tr[data-key]");
     if (row && !t?.closest?.("button")) {
       const key = row.getAttribute("data-key") || "";
@@ -739,7 +956,7 @@
         const d = devices.find(x => deviceKey(x) === key) || null;
         selectDeviceByKey(key, d ? deviceLabel(d) : key);
         resetTrend();
-        initKpiPlaceholders(); // ✅ 장비 바꾸면 "Waiting telemetry..." 상태로 표시
+        initKpiPlaceholders();
       }
     }
   };
