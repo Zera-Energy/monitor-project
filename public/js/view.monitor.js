@@ -2,33 +2,27 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
-  // ✅ (삭제) Device List 상단 상태줄/로그/auto cards를 HTML에서 제거했으므로
-  // 이 요소들은 없어도 동작하도록 "있으면 쓰고 없으면 무시" 형태로 둡니다.
-  const apiStatusEl = $("mqttWsStatus");   // (없어도 OK)
-  const lastAtEl = $("mqttLastAt");        // (없어도 OK)
-  const updateCountEl = $("mqttMsgCount"); // (없어도 OK)
-  const logEl = $("mqttLog");              // (없어도 OK)
-  const btnPauseLog = $("btnPauseLog");    // (없어도 OK)
-  const btnClearLog = $("btnClearLog");    // (없어도 OK)
-  const autoGrid = $("mqttAutoGrid");      // (없어도 OK)
+  const apiStatusEl = $("mqttWsStatus");
+  const lastAtEl = $("mqttLastAt");
+  const updateCountEl = $("mqttMsgCount");
+  const logEl = $("mqttLog");
+  const btnPauseLog = $("btnPauseLog");
+  const btnClearLog = $("btnClearLog");
+  const autoGrid = $("mqttAutoGrid");
 
   const deviceTbody = $("deviceTbody");
 
-  // ✅ (추가) Trend 상단 장비 상태 pill (Online/Last)
   const deviceOnlineDotEl = $("deviceOnlineDot");
   const deviceOnlineTextEl = $("deviceOnlineText");
   const deviceLastUpdateTextEl = $("deviceLastUpdateText");
 
-  // ✅ 선택된 장비
   let __selectedKey = "";
   let __selectedLabel = "";
 
-  // ✅ Trend 상단 섹션
   const trendDeviceSel = $("trendDeviceSel");
   const btnTrendRefresh = $("btnTrendRefresh");
   const trendLocationTextEl = $("trendLocationText");
 
-  // ✅ KPI BOARD Trend controls
   const trendMetricEl = $("trendMetric");
   const trendIntervalEl = $("trendInterval");
   const trendFromEl = $("trendFrom");
@@ -37,10 +31,10 @@
   const trendStatusEl = $("trendStatus");
   const btnTrendPlot = $("btnTrendPlot");
   const btnTrendExport = $("btnTrendExport");
-  const trendExportFormatEl = $("trendExportFormat");
+  const trendExportMenu = $("trendExportMenu");
   const trendEmptyEl = $("trendEmpty");
 
-  // ✅ 미니 카드 export 요소
+  // 미니 카드 export 요소
   const energyTrendIntervalEl = $("energyTrendInterval");
   const energyTrendDateEl = $("energyTrendDate");
   const energyTrendExportFormatEl = $("energyTrendExportFormat");
@@ -57,13 +51,11 @@
   const energyHistExportFormatEl = $("energyHistExportFormat");
   const btnEnergyHistExport = $("btnEnergyHistExport");
 
-  // ✅ 기존 cleanup 체인
   const prevCleanup = window.__viewCleanup__;
 
   const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
   const ONLINE_SEC = 60;
 
-  // ===== utils =====
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
 
@@ -78,6 +70,21 @@
       .replace(/\s+/g, "_");
   }
 
+  function openTrendExportMenu() {
+    if (!trendExportMenu) return;
+    trendExportMenu.hidden = false;
+  }
+
+  function closeTrendExportMenu() {
+    if (!trendExportMenu) return;
+    trendExportMenu.hidden = true;
+  }
+
+  function toggleTrendExportMenu() {
+    if (!trendExportMenu) return;
+    trendExportMenu.hidden = !trendExportMenu.hidden;
+  }
+
   function setTrendStatus(v){
     if (trendStatusEl) trendStatusEl.textContent = v;
   }
@@ -85,18 +92,17 @@
   function setApiStatus(v){
     if (apiStatusEl) apiStatusEl.textContent = v;
   }
+
   function setWsStatus(v){
     if (apiStatusEl) apiStatusEl.textContent = v;
   }
 
-  // ✅ (추가) Trend 상단 Online/Last 표시 갱신
   function setDeviceLiveStatus(isOnline, timeText){
     if (deviceOnlineDotEl) deviceOnlineDotEl.style.background = isOnline ? "#22c55e" : "#ef4444";
     if (deviceOnlineTextEl) deviceOnlineTextEl.textContent = isOnline ? "Online" : "Offline";
     if (deviceLastUpdateTextEl) deviceLastUpdateTextEl.textContent = timeText || "-";
   }
 
-  // ✅ (추가) KPI 타일 기본 텍스트를 "처음부터" 넣어둠 (telemetry 안 와도 보이게)
   function initKpiPlaceholders(){
     const t = nowTime();
 
@@ -126,24 +132,24 @@
     setTile("tileCO2",   "CO₂ SAVED", "-", "kg", t);
   }
 
-  // 로그/버튼은 HTML에서 빠졌을 수 있으니 안전하게 no-op
   let paused = false;
   function appendLog(line) {
     if (!logEl || paused) return;
     logEl.textContent += line + "\n";
     logEl.scrollTop = logEl.scrollHeight;
   }
+
   btnPauseLog?.addEventListener("click", () => {
     paused = !paused;
     if (btnPauseLog) btnPauseLog.textContent = paused ? "Resume" : "Pause";
   });
+
   btnClearLog?.addEventListener("click", () => {
     if (logEl) logEl.textContent = "";
     if (updateCountEl) updateCountEl.textContent = "0";
     if (lastAtEl) lastAtEl.textContent = "-";
   });
 
-  // ✅ topic 우선 key/label
   function deviceKey(d){
     if (!d) return "";
     if (d.device_topic) return String(d.device_topic);
@@ -152,6 +158,7 @@
     if (d.country || d.site_id || d.model || d.device_id) return `${d.country}/${d.site_id}/${d.model}/${d.device_id}`;
     return String(d.id ?? "");
   }
+
   function deviceLabel(d){
     return String(d?.device_display ?? d?.device_short ?? deviceKey(d));
   }
@@ -186,9 +193,6 @@
     } catch {}
   }
 
-  /* =========================================================
-     ✅ KPI BOARD helpers
-  ========================================================= */
   function setTile(id, title, valueText, unit, sub){
     const el = document.getElementById(id);
     if (!el) return;
@@ -314,9 +318,6 @@
     setTile("tileCO2",   "CO₂ SAVED",     co2   !== null ? co2.toFixed(2) : "-", "kg",  nowText);
   }
 
-  /* =========================================================
-     ✅ Trend Chart
-  ========================================================= */
   let trendChart = null;
   const trendBuf = { labels: [], values: [] };
   const energyTrendBuf = { labels: [], values: [] };
@@ -673,17 +674,22 @@
   btnTrendPlot?.addEventListener("click", () => { loadTrendSeries(); });
   btnTrendRefresh?.addEventListener("click", () => { loadTrendSeries(); });
 
-  btnTrendExport?.addEventListener("click", () => {
+  btnTrendExport?.addEventListener("click", (e) => {
+    e.stopPropagation();
     if (!trendBuf.labels.length) return;
+    toggleTrendExportMenu();
+  });
 
-    const format = trendExportFormatEl?.value || "xlsx";
+  trendExportMenu?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-format]");
+    if (!btn) return;
 
-    if (format === "csv") {
-      exportTrendAsCsv();
-      return;
-    }
+    const format = btn.getAttribute("data-format");
 
-    exportTrendAsXlsx();
+    if (format === "csv") exportTrendAsCsv();
+    else exportTrendAsXlsx();
+
+    closeTrendExportMenu();
   });
 
   btnEnergyTrendExport?.addEventListener("click", () => {
@@ -741,12 +747,8 @@
   initTrendMetricOptions();
   initTrendChart();
   setTrendStatus("Ready");
-
   initKpiPlaceholders();
 
-  /* =========================================================
-     ✅ Device list
-  ========================================================= */
   let updateCount = 0;
 
   const devices = [];
@@ -842,9 +844,6 @@
   setWsStatus("WS connecting...");
   setDeviceLiveStatus(false, "-");
 
-  /* =========================================================
-     ✅ WebSocket 실시간 연결
-  ========================================================= */
   let __ws = null;
   let __wsClosedByUser = false;
 
@@ -943,11 +942,17 @@
     connect();
   })();
 
-  /* =========================================================
-     ✅ Click handlers
-  ========================================================= */
   const onDocClick = (e) => {
     const t = e.target;
+
+    if (
+      trendExportMenu &&
+      !trendExportMenu.hidden &&
+      !t.closest("#btnTrendExport") &&
+      !t.closest("#trendExportMenu")
+    ) {
+      closeTrendExportMenu();
+    }
 
     const row = t?.closest?.("tr[data-key]");
     if (row && !t?.closest?.("button")) {

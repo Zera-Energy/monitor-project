@@ -4,6 +4,7 @@
     <h2 class="pageTitle">Devices Monitor</h2>
   </div>
 
+  <!-- ✅ KPI BOARD -->
   <section class="card big mt12" id="kpiBoard">
     <div class="cardTitle">Real-time electrical measurements</div>
 
@@ -70,15 +71,16 @@
           </button>
         </div>
 
-        <div style="display:flex; gap:8px; align-items:center;">
-          <select class="select" id="trendExportFormat">
-            <option value="xlsx" selected>XLSX</option>
-            <option value="csv">CSV</option>
-          </select>
-
+        <!-- ✅ Export 드롭다운 방식 -->
+        <div class="exportMenuWrap">
           <button class="btn green" id="btnTrendExport" type="button">
             <span style="margin-right:6px;">⬇️</span>Export
           </button>
+
+          <div class="exportMenu" id="trendExportMenu" hidden>
+            <button type="button" class="exportMenuItem" data-format="csv">Export as CSV</button>
+            <button type="button" class="exportMenuItem" data-format="xlsx">Export as XLSX</button>
+          </div>
         </div>
       </div>
 
@@ -112,16 +114,9 @@
             </select>
             <input class="input miniDate" id="energyTrendDate" type="date" />
           </div>
-
-          <div style="display:flex; gap:8px; align-items:center;">
-            <select class="select miniSel" id="energyTrendExportFormat">
-              <option value="xlsx" selected>XLSX</option>
-              <option value="csv">CSV</option>
-            </select>
-            <button class="btn green miniBtn" id="btnEnergyTrendExport" type="button">
-              <span style="margin-right:6px;">⬇️</span>Export
-            </button>
-          </div>
+          <button class="btn green miniBtn" id="btnEnergyTrendExport" type="button">
+            <span style="margin-right:6px;">⬇️</span>Export
+          </button>
         </div>
 
         <div class="miniTitle">
@@ -146,16 +141,9 @@
             </select>
             <input class="input miniDate" id="energyCostDate" type="date" />
           </div>
-
-          <div style="display:flex; gap:8px; align-items:center;">
-            <select class="select miniSel" id="energyCostExportFormat">
-              <option value="xlsx" selected>XLSX</option>
-              <option value="csv">CSV</option>
-            </select>
-            <button class="btn green miniBtn" id="btnEnergyCostExport" type="button">
-              <span style="margin-right:6px;">⬇️</span>Export
-            </button>
-          </div>
+          <button class="btn green miniBtn" id="btnEnergyCostExport" type="button">
+            <span style="margin-right:6px;">⬇️</span>Export
+          </button>
         </div>
 
         <div class="miniTitle">
@@ -181,16 +169,9 @@
             <input class="input miniDate" id="energyHistFrom" type="date" />
             <input class="input miniDate" id="energyHistTo" type="date" />
           </div>
-
-          <div style="display:flex; gap:8px; align-items:center;">
-            <select class="select miniSel" id="energyHistExportFormat">
-              <option value="xlsx" selected>XLSX</option>
-              <option value="csv">CSV</option>
-            </select>
-            <button class="btn green miniBtn" id="btnEnergyHistExport" type="button">
-              <span style="margin-right:6px;">⬇️</span>Export
-            </button>
-          </div>
+          <button class="btn green miniBtn" id="btnEnergyHistExport" type="button">
+            <span style="margin-right:6px;">⬇️</span>Export
+          </button>
         </div>
 
         <div class="miniTitle">
