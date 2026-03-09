@@ -107,6 +107,19 @@
     if (deviceLastUpdateTextEl) deviceLastUpdateTextEl.textContent = timeText || "-";
   }
 
+  function setDefaultMiniDates() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const ymd = `${yyyy}-${mm}-${dd}`;
+
+    if (energyTrendDateEl && !energyTrendDateEl.value) energyTrendDateEl.value = ymd;
+    if (energyCostDateEl && !energyCostDateEl.value) energyCostDateEl.value = ymd;
+    if (energyHistFromEl && !energyHistFromEl.value) energyHistFromEl.value = ymd;
+    if (energyHistToEl && !energyHistToEl.value) energyHistToEl.value = ymd;
+  }
+
   function initKpiPlaceholders(){
     const t = nowTime();
 
@@ -318,11 +331,13 @@
     const co2   = pickSummaryNumber(msg, ["co2_saved","co2_kg","co2"]);
 
     setTile("tileKwh",   "ENERGY",       kwh   !== null ? kwh.toFixed(2) : "-", "kWh", nowText);
-    setTile("tileSaved", "ENERGY SAVED",  saved !== null ? saved.toFixed(2) : "-", "kWh", nowText);
-    setTile("tileCO2",   "CO₂ SAVED",     co2   !== null ? co2.toFixed(2) : "-", "kg",  nowText);
+    setTile("tileSaved", "ENERGY SAVED", saved !== null ? saved.toFixed(2) : "-", "kWh", nowText);
+    setTile("tileCO2",   "CO₂ SAVED",    co2   !== null ? co2.toFixed(2) : "-", "kg",  nowText);
   }
 
   let trendChart = null;
+  let energyTrendChart = null;
+
   const trendBuf = { labels: [], values: [] };
   const energyTrendBuf = { labels: [], values: [] };
   const energyCostBuf = { labels: [], values: [] };
@@ -379,6 +394,45 @@
         scales: { x: { display: true }, y: { display: true } }
       }
     });
+  }
+
+  function initEnergyTrendChart() {
+    const canvas = document.getElementById("energyTrendChart");
+    if (!canvas) return;
+    if (!window.Chart) return;
+    if (energyTrendChart) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    energyTrendChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [{
+          label: "Energy Trend (KWH)",
+          data: [],
+          tension: 0.2,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { display: true } },
+        scales: { x: { display: true }, y: { display: true } }
+      }
+    });
+  }
+
+  function renderEnergyTrendChart() {
+    initEnergyTrendChart();
+    if (!energyTrendChart) return;
+
+    energyTrendChart.data.labels = energyTrendBuf.labels.slice();
+    energyTrendChart.data.datasets[0].data = energyTrendBuf.values.slice();
+    energyTrendChart.update();
   }
 
   function resetTrend(){
@@ -512,6 +566,77 @@
     } catch (e) {
       setTrendStatus("Error");
       if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = `Load failed (${String(e?.message || e)})`; }
+    }
+  }
+
+  async function loadEnergyTrendSeries() {
+    const deviceKeySel = __selectedKey || "";
+    if (!deviceKeySel) return;
+
+    const interval = energyTrendIntervalEl?.value || "day";
+    const date = energyTrendDateEl?.value || "";
+
+    energyTrendBuf.labels = [];
+    energyTrendBuf.values = [];
+    renderEnergyTrendChart();
+
+    try {
+      let from = "";
+      let to = "";
+
+      if (date) {
+        from = `${date}T00:00:00`;
+        to = `${date}T23:59:59`;
+      }
+
+      const url =
+        `${API_BASE}/api/series` +
+        `?device=${encodeURIComponent(deviceKeySel)}` +
+        `&metric=${encodeURIComponent("kwh")}` +
+        `&interval=${encodeURIComponent(interval)}` +
+        `&from=${encodeURIComponent(from)}` +
+        `&to=${encodeURIComponent(to)}`;
+
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      const pts = Array.isArray(data?.points) ? data.points : [];
+
+      if (!pts.length) {
+        renderEnergyTrendChart();
+        return;
+      }
+
+      const labels = [];
+      const values = [];
+
+      for (const p of pts) {
+        const v = n(p?.v ?? p?.value);
+        if (v === null) continue;
+
+        const rawTime = String(p?.t ?? p?.time ?? "");
+        let label = rawTime;
+
+        if (interval === "hour") {
+          label = rawTime.slice(11, 16) || rawTime;
+        } else if (interval === "day") {
+          label = rawTime.slice(0, 10) || rawTime;
+        } else if (interval === "month") {
+          label = rawTime.slice(0, 7) || rawTime;
+        }
+
+        labels.push(label);
+        values.push(v);
+      }
+
+      energyTrendBuf.labels = labels.slice(-TREND_MAX);
+      energyTrendBuf.values = values.slice(-TREND_MAX);
+
+      renderEnergyTrendChart();
+    } catch (e) {
+      console.error("loadEnergyTrendSeries failed:", e);
+      renderEnergyTrendChart();
     }
   }
 
@@ -687,6 +812,14 @@
   btnTrendPlot?.addEventListener("click", () => { loadTrendSeries(); });
   btnTrendRefresh?.addEventListener("click", () => { loadTrendSeries(); });
 
+  energyTrendIntervalEl?.addEventListener("change", () => {
+    loadEnergyTrendSeries();
+  });
+
+  energyTrendDateEl?.addEventListener("change", () => {
+    loadEnergyTrendSeries();
+  });
+
   btnTrendExport?.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleMenu(trendExportMenu);
@@ -787,8 +920,10 @@
 
   initTrendMetricOptions();
   initTrendChart();
+  initEnergyTrendChart();
   setTrendStatus("Ready");
   initKpiPlaceholders();
+  setDefaultMiniDates();
 
   let updateCount = 0;
 
@@ -822,6 +957,7 @@
     selectDeviceByKey(key, d ? deviceLabel(d) : key);
     resetTrend();
     initKpiPlaceholders();
+    loadEnergyTrendSeries();
   });
 
   function renderAutoCards(items){
@@ -873,6 +1009,7 @@
       const d0 = devices[0];
       selectDeviceByKey(deviceKey(d0), deviceLabel(d0));
       initKpiPlaceholders();
+      loadEnergyTrendSeries();
     }
 
     appendLog(`✅ devices updated: ${devices.length} @ ${nowTime()}`);
@@ -926,6 +1063,7 @@
           selectDeviceByKey(key, dd ? deviceLabel(dd) : key);
           selectedKey = key;
           initKpiPlaceholders();
+          loadEnergyTrendSeries();
         }
 
         const idx = devices.findIndex(d => deviceKey(d) === key);
@@ -1030,6 +1168,7 @@
         selectDeviceByKey(key, d ? deviceLabel(d) : key);
         resetTrend();
         initKpiPlaceholders();
+        loadEnergyTrendSeries();
       }
     }
   };
@@ -1047,6 +1186,9 @@
 
     try { trendChart && trendChart.destroy && trendChart.destroy(); } catch {}
     trendChart = null;
+
+    try { energyTrendChart && energyTrendChart.destroy && energyTrendChart.destroy(); } catch {}
+    energyTrendChart = null;
 
     try { if (typeof prevCleanup === "function") prevCleanup(); } catch {}
   };
