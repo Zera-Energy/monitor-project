@@ -610,7 +610,10 @@
     extraInfo = [],
     sheetName = "Sheet1",
   }) {
-    if (!labels.length || !values.length) return;
+    if (!labels.length || !values.length) {
+      alert("No data to export");
+      return;
+    }
 
     const rows = buildMiniRows(title, metric, labels, values, extraInfo);
 
@@ -623,7 +626,10 @@
   }
 
   function exportTrendAsCsv(){
-    if (!trendBuf.labels.length) return;
+    if (!trendBuf.labels.length) {
+      alert("No data to export");
+      return;
+    }
 
     const rows = buildTrendRows();
     const metric = trendMetricEl?.value || "metric";
@@ -645,7 +651,10 @@
   }
 
   function exportTrendAsXlsx(){
-    if (!trendBuf.labels.length) return;
+    if (!trendBuf.labels.length) {
+      alert("No data to export");
+      return;
+    }
 
     if (!window.XLSX) {
       alert("XLSX library not loaded");
@@ -676,7 +685,6 @@
 
   btnTrendExport?.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (!trendBuf.labels.length) return;
     toggleTrendExportMenu();
   });
 
