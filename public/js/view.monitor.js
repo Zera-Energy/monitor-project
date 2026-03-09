@@ -75,9 +75,18 @@
     menuEl.hidden = true;
   }
 
+  function closeAllExportMenus() {
+    closeMenu(trendExportMenu);
+    closeMenu(energyTrendExportMenu);
+    closeMenu(energyCostExportMenu);
+    closeMenu(energyHistExportMenu);
+  }
+
   function toggleMenu(menuEl) {
     if (!menuEl) return;
-    menuEl.hidden = !menuEl.hidden;
+    const willOpen = menuEl.hidden;
+    closeAllExportMenus();
+    menuEl.hidden = !willOpen;
   }
 
   function setTrendStatus(v){
@@ -336,7 +345,7 @@
       { value: "pf",    label: "Power Factor" },
       { value: "hz",    label: "Frequency (Hz)" },
       { value: "kwh",   label: "Energy (kWh)" },
-      { value: "kwh_saved", label: "Energy Saved (KWh)" },
+      { value: "kwh_saved", label: "Energy Saved (kWh)" },
     ];
 
     trendMetricEl.innerHTML = items.map(x => `<option value="${x.value}">${x.label}</option>`).join("");
