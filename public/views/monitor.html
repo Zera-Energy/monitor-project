@@ -4,7 +4,6 @@
     <h2 class="pageTitle">Devices Monitor</h2>
   </div>
 
-  <!-- ✅ KPI BOARD -->
   <section class="card big mt12" id="kpiBoard">
     <div class="cardTitle">Real-time electrical measurements</div>
 
@@ -71,7 +70,6 @@
           </button>
         </div>
 
-        <!-- ✅ Trend Export 드롭다운 -->
         <div class="exportMenuWrap">
           <button class="btn green" id="btnTrendExport" type="button">
             <span style="margin-right:6px;">⬇️</span>Export
@@ -115,9 +113,16 @@
             <input class="input miniDate" id="energyTrendDate" type="date" />
           </div>
 
-          <button class="btn green miniBtn" id="btnEnergyTrendExport" type="button">
-            <span style="margin-right:6px;">⬇️</span>Export
-          </button>
+          <div class="exportMenuWrap">
+            <button class="btn green miniBtn" id="btnEnergyTrendExport" type="button">
+              <span style="margin-right:6px;">⬇️</span>Export
+            </button>
+
+            <div class="exportMenu" id="energyTrendExportMenu" hidden>
+              <button type="button" class="exportMenuItem" data-format="csv">Export as CSV</button>
+              <button type="button" class="exportMenuItem" data-format="xlsx">Export as XLSX</button>
+            </div>
+          </div>
         </div>
 
         <div class="miniTitle">
@@ -143,9 +148,16 @@
             <input class="input miniDate" id="energyCostDate" type="date" />
           </div>
 
-          <button class="btn green miniBtn" id="btnEnergyCostExport" type="button">
-            <span style="margin-right:6px;">⬇️</span>Export
-          </button>
+          <div class="exportMenuWrap">
+            <button class="btn green miniBtn" id="btnEnergyCostExport" type="button">
+              <span style="margin-right:6px;">⬇️</span>Export
+            </button>
+
+            <div class="exportMenu" id="energyCostExportMenu" hidden>
+              <button type="button" class="exportMenuItem" data-format="csv">Export as CSV</button>
+              <button type="button" class="exportMenuItem" data-format="xlsx">Export as XLSX</button>
+            </div>
+          </div>
         </div>
 
         <div class="miniTitle">
@@ -172,9 +184,16 @@
             <input class="input miniDate" id="energyHistTo" type="date" />
           </div>
 
-          <button class="btn green miniBtn" id="btnEnergyHistExport" type="button">
-            <span style="margin-right:6px;">⬇️</span>Export
-          </button>
+          <div class="exportMenuWrap">
+            <button class="btn green miniBtn" id="btnEnergyHistExport" type="button">
+              <span style="margin-right:6px;">⬇️</span>Export
+            </button>
+
+            <div class="exportMenu" id="energyHistExportMenu" hidden>
+              <button type="button" class="exportMenuItem" data-format="csv">Export as CSV</button>
+              <button type="button" class="exportMenuItem" data-format="xlsx">Export as XLSX</button>
+            </div>
+          </div>
         </div>
 
         <div class="miniTitle">

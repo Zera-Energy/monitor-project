@@ -34,22 +34,22 @@
   const trendExportMenu = $("trendExportMenu");
   const trendEmptyEl = $("trendEmpty");
 
-  // 미니 카드 export 요소
+  // ✅ 미니 카드 export 요소
   const energyTrendIntervalEl = $("energyTrendInterval");
   const energyTrendDateEl = $("energyTrendDate");
-  const energyTrendExportFormatEl = $("energyTrendExportFormat");
   const btnEnergyTrendExport = $("btnEnergyTrendExport");
+  const energyTrendExportMenu = $("energyTrendExportMenu");
 
   const energyCostIntervalEl = $("energyCostInterval");
   const energyCostDateEl = $("energyCostDate");
-  const energyCostExportFormatEl = $("energyCostExportFormat");
   const btnEnergyCostExport = $("btnEnergyCostExport");
+  const energyCostExportMenu = $("energyCostExportMenu");
 
   const energyHistIntervalEl = $("energyHistInterval");
   const energyHistFromEl = $("energyHistFrom");
   const energyHistToEl = $("energyHistTo");
-  const energyHistExportFormatEl = $("energyHistExportFormat");
   const btnEnergyHistExport = $("btnEnergyHistExport");
+  const energyHistExportMenu = $("energyHistExportMenu");
 
   const prevCleanup = window.__viewCleanup__;
 
@@ -70,19 +70,14 @@
       .replace(/\s+/g, "_");
   }
 
-  function openTrendExportMenu() {
-    if (!trendExportMenu) return;
-    trendExportMenu.hidden = false;
+  function closeMenu(menuEl) {
+    if (!menuEl) return;
+    menuEl.hidden = true;
   }
 
-  function closeTrendExportMenu() {
-    if (!trendExportMenu) return;
-    trendExportMenu.hidden = true;
-  }
-
-  function toggleTrendExportMenu() {
-    if (!trendExportMenu) return;
-    trendExportMenu.hidden = !trendExportMenu.hidden;
+  function toggleMenu(menuEl) {
+    if (!menuEl) return;
+    menuEl.hidden = !menuEl.hidden;
   }
 
   function setTrendStatus(v){
@@ -341,7 +336,7 @@
       { value: "pf",    label: "Power Factor" },
       { value: "hz",    label: "Frequency (Hz)" },
       { value: "kwh",   label: "Energy (kWh)" },
-      { value: "kwh_saved", label: "Energy Saved (kWh)" },
+      { value: "kwh_saved", label: "Energy Saved (KWh)" },
     ];
 
     trendMetricEl.innerHTML = items.map(x => `<option value="${x.value}">${x.label}</option>`).join("");
@@ -685,7 +680,7 @@
 
   btnTrendExport?.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleTrendExportMenu();
+    toggleMenu(trendExportMenu);
   });
 
   trendExportMenu?.addEventListener("click", (e) => {
@@ -693,15 +688,22 @@
     if (!btn) return;
 
     const format = btn.getAttribute("data-format");
-
     if (format === "csv") exportTrendAsCsv();
     else exportTrendAsXlsx();
 
-    closeTrendExportMenu();
+    closeMenu(trendExportMenu);
   });
 
-  btnEnergyTrendExport?.addEventListener("click", () => {
-    const format = energyTrendExportFormatEl?.value || "xlsx";
+  btnEnergyTrendExport?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleMenu(energyTrendExportMenu);
+  });
+
+  energyTrendExportMenu?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-format]");
+    if (!btn) return;
+
+    const format = btn.getAttribute("data-format");
     exportMiniBuffer({
       title: "Energy Trend (KWH)",
       metric: "kwh",
@@ -715,10 +717,20 @@
       ],
       sheetName: "EnergyTrend",
     });
+
+    closeMenu(energyTrendExportMenu);
   });
 
-  btnEnergyCostExport?.addEventListener("click", () => {
-    const format = energyCostExportFormatEl?.value || "xlsx";
+  btnEnergyCostExport?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleMenu(energyCostExportMenu);
+  });
+
+  energyCostExportMenu?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-format]");
+    if (!btn) return;
+
+    const format = btn.getAttribute("data-format");
     exportMiniBuffer({
       title: "Energy Cost (THB)",
       metric: "thb",
@@ -732,10 +744,20 @@
       ],
       sheetName: "EnergyCost",
     });
+
+    closeMenu(energyCostExportMenu);
   });
 
-  btnEnergyHistExport?.addEventListener("click", () => {
-    const format = energyHistExportFormatEl?.value || "xlsx";
+  btnEnergyHistExport?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleMenu(energyHistExportMenu);
+  });
+
+  energyHistExportMenu?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-format]");
+    if (!btn) return;
+
+    const format = btn.getAttribute("data-format");
     exportMiniBuffer({
       title: "Energy Historical (KWH)",
       metric: "kwh",
@@ -750,6 +772,8 @@
       ],
       sheetName: "EnergyHistorical",
     });
+
+    closeMenu(energyHistExportMenu);
   });
 
   initTrendMetricOptions();
@@ -959,7 +983,34 @@
       !t.closest("#btnTrendExport") &&
       !t.closest("#trendExportMenu")
     ) {
-      closeTrendExportMenu();
+      closeMenu(trendExportMenu);
+    }
+
+    if (
+      energyTrendExportMenu &&
+      !energyTrendExportMenu.hidden &&
+      !t.closest("#btnEnergyTrendExport") &&
+      !t.closest("#energyTrendExportMenu")
+    ) {
+      closeMenu(energyTrendExportMenu);
+    }
+
+    if (
+      energyCostExportMenu &&
+      !energyCostExportMenu.hidden &&
+      !t.closest("#btnEnergyCostExport") &&
+      !t.closest("#energyCostExportMenu")
+    ) {
+      closeMenu(energyCostExportMenu);
+    }
+
+    if (
+      energyHistExportMenu &&
+      !energyHistExportMenu.hidden &&
+      !t.closest("#btnEnergyHistExport") &&
+      !t.closest("#energyHistExportMenu")
+    ) {
+      closeMenu(energyHistExportMenu);
     }
 
     const row = t?.closest?.("tr[data-key]");
