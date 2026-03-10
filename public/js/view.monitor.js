@@ -55,6 +55,8 @@
 
   const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
   const ONLINE_SEC = 60;
+  const TREND_MAX = 240;
+  const ENERGY_RATE_THB = 4.2; // ✅ 임시 단가
 
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
@@ -337,12 +339,13 @@
 
   let trendChart = null;
   let energyTrendChart = null;
+  let energyCostChart = null;
+  let energyHistChart = null;
 
   const trendBuf = { labels: [], values: [] };
   const energyTrendBuf = { labels: [], values: [] };
   const energyCostBuf = { labels: [], values: [] };
   const energyHistBuf = { labels: [], values: [] };
-  const TREND_MAX = 240;
 
   function initTrendMetricOptions(){
     if (!trendMetricEl) return;
@@ -368,9 +371,7 @@
 
   function initTrendChart(){
     const canvas = document.getElementById("trendChart");
-    if (!canvas) return;
-    if (!window.Chart) return;
-    if (trendChart) return;
+    if (!canvas || !window.Chart || trendChart) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -398,9 +399,7 @@
 
   function initEnergyTrendChart() {
     const canvas = document.getElementById("energyTrendChart");
-    if (!canvas) return;
-    if (!window.Chart) return;
-    if (energyTrendChart) return;
+    if (!canvas || !window.Chart || energyTrendChart) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -426,6 +425,62 @@
     });
   }
 
+  function initEnergyCostChart() {
+    const canvas = document.getElementById("energyCostChart");
+    if (!canvas || !window.Chart || energyCostChart) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    energyCostChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [{
+          label: "Energy Cost (THB)",
+          data: [],
+          tension: 0.2,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { display: true } },
+        scales: { x: { display: true }, y: { display: true } }
+      }
+    });
+  }
+
+  function initEnergyHistChart() {
+    const canvas = document.getElementById("energyHistChart");
+    if (!canvas || !window.Chart || energyHistChart) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    energyHistChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [{
+          label: "Energy Historical (KWH)",
+          data: [],
+          tension: 0.2,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { display: true } },
+        scales: { x: { display: true }, y: { display: true } }
+      }
+    });
+  }
+
   function renderEnergyTrendChart() {
     initEnergyTrendChart();
     if (!energyTrendChart) return;
@@ -433,6 +488,24 @@
     energyTrendChart.data.labels = energyTrendBuf.labels.slice();
     energyTrendChart.data.datasets[0].data = energyTrendBuf.values.slice();
     energyTrendChart.update();
+  }
+
+  function renderEnergyCostChart() {
+    initEnergyCostChart();
+    if (!energyCostChart) return;
+
+    energyCostChart.data.labels = energyCostBuf.labels.slice();
+    energyCostChart.data.datasets[0].data = energyCostBuf.values.slice();
+    energyCostChart.update();
+  }
+
+  function renderEnergyHistChart() {
+    initEnergyHistChart();
+    if (!energyHistChart) return;
+
+    energyHistChart.data.labels = energyHistBuf.labels.slice();
+    energyHistChart.data.datasets[0].data = energyHistBuf.values.slice();
+    energyHistChart.update();
   }
 
   function resetTrend(){
@@ -507,7 +580,10 @@
     const deviceKeySel = __selectedKey || "";
     if (!deviceKeySel) {
       setTrendStatus("Select Device (click a table row)");
-      if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = "Select Device first"; }
+      if (trendEmptyEl) {
+        trendEmptyEl.hidden = false;
+        trendEmptyEl.textContent = "Select Device first";
+      }
       return;
     }
 
@@ -540,7 +616,10 @@
       const pts = Array.isArray(data?.points) ? data.points : [];
       if (!pts.length) {
         setTrendStatus("No data");
-        if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = "No data in selected range"; }
+        if (trendEmptyEl) {
+          trendEmptyEl.hidden = false;
+          trendEmptyEl.textContent = "No data in selected range";
+        }
         return;
       }
 
@@ -565,7 +644,10 @@
       setTrendStatus("Ready");
     } catch (e) {
       setTrendStatus("Error");
-      if (trendEmptyEl) { trendEmptyEl.hidden = false; trendEmptyEl.textContent = `Load failed (${String(e?.message || e)})`; }
+      if (trendEmptyEl) {
+        trendEmptyEl.hidden = false;
+        trendEmptyEl.textContent = `Load failed (${String(e?.message || e)})`;
+      }
     }
   }
 
@@ -637,6 +719,144 @@
     } catch (e) {
       console.error("loadEnergyTrendSeries failed:", e);
       renderEnergyTrendChart();
+    }
+  }
+
+  async function loadEnergyCostSeries() {
+    const deviceKeySel = __selectedKey || "";
+    if (!deviceKeySel) return;
+
+    const interval = energyCostIntervalEl?.value || "day";
+    const date = energyCostDateEl?.value || "";
+
+    energyCostBuf.labels = [];
+    energyCostBuf.values = [];
+    renderEnergyCostChart();
+
+    try {
+      let from = "";
+      let to = "";
+
+      if (date) {
+        from = `${date}T00:00:00`;
+        to = `${date}T23:59:59`;
+      }
+
+      const url =
+        `${API_BASE}/api/series` +
+        `?device=${encodeURIComponent(deviceKeySel)}` +
+        `&metric=${encodeURIComponent("kwh")}` +
+        `&interval=${encodeURIComponent(interval)}` +
+        `&from=${encodeURIComponent(from)}` +
+        `&to=${encodeURIComponent(to)}`;
+
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      const pts = Array.isArray(data?.points) ? data.points : [];
+
+      if (!pts.length) {
+        renderEnergyCostChart();
+        return;
+      }
+
+      const labels = [];
+      const values = [];
+
+      for (const p of pts) {
+        const kwh = n(p?.v ?? p?.value);
+        if (kwh === null) continue;
+
+        const rawTime = String(p?.t ?? p?.time ?? "");
+        let label = rawTime;
+
+        if (interval === "hour") {
+          label = rawTime.slice(11, 16) || rawTime;
+        } else if (interval === "day") {
+          label = rawTime.slice(0, 10) || rawTime;
+        } else if (interval === "month") {
+          label = rawTime.slice(0, 7) || rawTime;
+        }
+
+        labels.push(label);
+        values.push(Number((kwh * ENERGY_RATE_THB).toFixed(2)));
+      }
+
+      energyCostBuf.labels = labels.slice(-TREND_MAX);
+      energyCostBuf.values = values.slice(-TREND_MAX);
+
+      renderEnergyCostChart();
+    } catch (e) {
+      console.error("loadEnergyCostSeries failed:", e);
+      renderEnergyCostChart();
+    }
+  }
+
+  async function loadEnergyHistSeries() {
+    const deviceKeySel = __selectedKey || "";
+    if (!deviceKeySel) return;
+
+    const interval = energyHistIntervalEl?.value || "hour";
+    const fromDate = energyHistFromEl?.value || "";
+    const toDate = energyHistToEl?.value || "";
+
+    energyHistBuf.labels = [];
+    energyHistBuf.values = [];
+    renderEnergyHistChart();
+
+    try {
+      const from = fromDate ? `${fromDate}T00:00:00` : "";
+      const to = toDate ? `${toDate}T23:59:59` : "";
+
+      const url =
+        `${API_BASE}/api/series` +
+        `?device=${encodeURIComponent(deviceKeySel)}` +
+        `&metric=${encodeURIComponent("kwh")}` +
+        `&interval=${encodeURIComponent(interval)}` +
+        `&from=${encodeURIComponent(from)}` +
+        `&to=${encodeURIComponent(to)}`;
+
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      const pts = Array.isArray(data?.points) ? data.points : [];
+
+      if (!pts.length) {
+        renderEnergyHistChart();
+        return;
+      }
+
+      const labels = [];
+      const values = [];
+
+      for (const p of pts) {
+        const v = n(p?.v ?? p?.value);
+        if (v === null) continue;
+
+        const rawTime = String(p?.t ?? p?.time ?? "");
+        let label = rawTime;
+
+        if (interval === "hour") {
+          label = rawTime.slice(0, 16).replace("T", " ") || rawTime;
+        } else if (interval === "day") {
+          label = rawTime.slice(0, 10) || rawTime;
+        } else if (interval === "month") {
+          label = rawTime.slice(0, 7) || rawTime;
+        }
+
+        labels.push(label);
+        values.push(v);
+      }
+
+      energyHistBuf.labels = labels.slice(-TREND_MAX);
+      energyHistBuf.values = values.slice(-TREND_MAX);
+
+      renderEnergyHistChart();
+    } catch (e) {
+      console.error("loadEnergyHistSeries failed:", e);
+      renderEnergyHistChart();
     }
   }
 
@@ -815,9 +1035,25 @@
   energyTrendIntervalEl?.addEventListener("change", () => {
     loadEnergyTrendSeries();
   });
-
   energyTrendDateEl?.addEventListener("change", () => {
     loadEnergyTrendSeries();
+  });
+
+  energyCostIntervalEl?.addEventListener("change", () => {
+    loadEnergyCostSeries();
+  });
+  energyCostDateEl?.addEventListener("change", () => {
+    loadEnergyCostSeries();
+  });
+
+  energyHistIntervalEl?.addEventListener("change", () => {
+    loadEnergyHistSeries();
+  });
+  energyHistFromEl?.addEventListener("change", () => {
+    loadEnergyHistSeries();
+  });
+  energyHistToEl?.addEventListener("change", () => {
+    loadEnergyHistSeries();
   });
 
   btnTrendExport?.addEventListener("click", (e) => {
@@ -883,6 +1119,7 @@
       extraInfo: [
         ["Interval", energyCostIntervalEl?.value || ""],
         ["Date", energyCostDateEl?.value || ""],
+        ["Rate THB/kWh", ENERGY_RATE_THB],
       ],
       sheetName: "EnergyCost",
     });
@@ -921,6 +1158,8 @@
   initTrendMetricOptions();
   initTrendChart();
   initEnergyTrendChart();
+  initEnergyCostChart();
+  initEnergyHistChart();
   setTrendStatus("Ready");
   initKpiPlaceholders();
   setDefaultMiniDates();
@@ -958,6 +1197,8 @@
     resetTrend();
     initKpiPlaceholders();
     loadEnergyTrendSeries();
+    loadEnergyCostSeries();
+    loadEnergyHistSeries();
   });
 
   function renderAutoCards(items){
@@ -1010,6 +1251,8 @@
       selectDeviceByKey(deviceKey(d0), deviceLabel(d0));
       initKpiPlaceholders();
       loadEnergyTrendSeries();
+      loadEnergyCostSeries();
+      loadEnergyHistSeries();
     }
 
     appendLog(`✅ devices updated: ${devices.length} @ ${nowTime()}`);
@@ -1064,6 +1307,8 @@
           selectedKey = key;
           initKpiPlaceholders();
           loadEnergyTrendSeries();
+          loadEnergyCostSeries();
+          loadEnergyHistSeries();
         }
 
         const idx = devices.findIndex(d => deviceKey(d) === key);
@@ -1169,6 +1414,8 @@
         resetTrend();
         initKpiPlaceholders();
         loadEnergyTrendSeries();
+        loadEnergyCostSeries();
+        loadEnergyHistSeries();
       }
     }
   };
@@ -1189,6 +1436,12 @@
 
     try { energyTrendChart && energyTrendChart.destroy && energyTrendChart.destroy(); } catch {}
     energyTrendChart = null;
+
+    try { energyCostChart && energyCostChart.destroy && energyCostChart.destroy(); } catch {}
+    energyCostChart = null;
+
+    try { energyHistChart && energyHistChart.destroy && energyHistChart.destroy(); } catch {}
+    energyHistChart = null;
 
     try { if (typeof prevCleanup === "function") prevCleanup(); } catch {}
   };
