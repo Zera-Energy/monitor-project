@@ -3,338 +3,274 @@
   const $ = (id) => document.getElementById(id);
 
   const tbody = $("notiTbody");
-  const sevSel = $("notiSeverity");
-  const typeSel = $("notiType");
+  const severityEl = $("notiSeverity");
+  const typeEl = $("notiType");
   const searchEl = $("notiSearch");
-
-  const statTotal = $("notiStatTotal");
-  const statInfo  = $("notiStatInfo");
-  const statWarn  = $("notiStatWarn");
-  const statCrit  = $("notiStatCrit");
+  const btnSearch = $("btnNotiSearch");
   const lastUpdateEl = $("notiLastUpdate");
-
-  const btnAskPerm = $("btnNotiAskPermission");
+  const btnAskPermission = $("btnNotiAskPermission");
   const btnClearAck = $("btnNotiClearAck");
   const btnClearAll = $("btnNotiClearAll");
 
   const prevCleanup = window.__viewCleanup__;
 
-  // ====== settings (튜닝값) ======
-  const OFFLINE_SEC = 60;      // age_sec > 60 이면 offline alert
-  const THD_WARN = 8.0;        // %
-  const THD_CRIT = 12.0;       // %
-  const PF_WARN  = 0.85;       // pf < 0.85
-  const PF_CRIT  = 0.75;       // pf < 0.75
+  let renderTimer = null;
 
-  // ====== storage ======
-  const LS_KEY = "noti_events_v1";
-  const LS_ACK = "noti_ack_v1";
-
-  /** @type {{id:string, ts:number, timeText:string, severity:"info"|"warning"|"critical", type:string, deviceKey:string, deviceLabel:string, message:string, ack:boolean}[]} */
-  let events = [];
-  /** @type {Record<string, boolean>} */
-  let ackMap = {};
-
-  function loadPersist() {
-    try { events = JSON.parse(localStorage.getItem(LS_KEY) || "[]") || []; } catch { events = []; }
-    try { ackMap = JSON.parse(localStorage.getItem(LS_ACK) || "{}") || {}; } catch { ackMap = {}; }
-    // ack 반영
-    for (const e of events) e.ack = !!ackMap[e.id];
+  function nowMs() {
+    return Date.now();
   }
 
-  function savePersist() {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(events.slice(0, 500))); } catch {}
-    try { localStorage.setItem(LS_ACK, JSON.stringify(ackMap)); } catch {}
+  function safe(v) {
+    return (v === undefined || v === null || v === "") ? "-" : String(v);
   }
 
-  function nowTime() {
-    return new Date().toLocaleString("en-GB");
+  function formatDateTime(ts) {
+    if (!ts) return "-";
+    const d = new Date(ts);
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
   }
 
-  function esc(s) {
-    return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+  function calcAgeText(ts) {
+    if (!ts) return "-";
+
+    const sec = Math.max(0, Math.floor((nowMs() - Number(ts)) / 1000));
+
+    if (sec < 60) return `${sec}s ago`;
+
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}m ago`;
+
+    const hour = Math.floor(min / 60);
+    if (hour < 24) return `${hour}h ago`;
+
+    const day = Math.floor(hour / 24);
+    return `${day}d ago`;
   }
 
-  function deviceKey(d){
-    if (!d) return "";
-    if (d.device_topic) return String(d.device_topic);
-    if (d.topic) return String(d.topic);
-    if (d._raw_topic) return String(d._raw_topic);
-    if (d.country || d.site_id || d.model || d.device_id) return `${d.country}/${d.site_id}/${d.model}/${d.device_id}`;
-    return String(d.id ?? "");
-  }
-  function deviceLabel(d){
-    return String(d?.device_display ?? d?.device_short ?? deviceKey(d));
+  function getAlerts() {
+    return Array.isArray(window.__monitorAlerts__) ? window.__monitorAlerts__ : [];
   }
 
-  function pushEvent(ev) {
-    // 중복 방지: 같은 type+deviceKey에 대해 최근 30초 안에 같은 메시지면 스킵
-    const recently = events.find(x =>
-      x.type === ev.type &&
-      x.deviceKey === ev.deviceKey &&
-      x.message === ev.message &&
-      (ev.ts - x.ts) < 30_000
-    );
-    if (recently) return;
-
-    events.unshift(ev);
-    if (events.length > 500) events.length = 500;
-
-    // 브라우저 알림(권한 있을 때만)
-    try {
-      if (Notification?.permission === "granted") {
-        new Notification(`[${ev.severity.toUpperCase()}] ${ev.type}`, {
-          body: `${ev.deviceLabel}\n${ev.message}`,
-        });
-      }
-    } catch {}
-
-    savePersist();
+  function getAckMap() {
+    if (!window.__notiAckMap__) {
+      window.__notiAckMap__ = {};
+    }
+    return window.__notiAckMap__;
   }
 
-  function severityDot(sev){
-    const cls = sev === "critical" ? "critical" : sev === "warning" ? "warning" : "info";
-    return `<span class="sev ${cls}"><span class="sevDot ${cls}"></span>${sev}</span>`;
+  function getSeverityBadge(level) {
+    if (level === "danger") return `<span class="badge danger">Critical</span>`;
+    if (level === "warn") return `<span class="badge warn">Warning</span>`;
+    return `<span class="badge">Info</span>`;
   }
 
-  function typeBadge(t){
-    const cls =
-      t === "offline" ? "offline" :
-      t === "thd" ? "thd" :
-      t === "pf" ? "pf" :
-      t === "kw" ? "kw" : "";
-    return `<span class="badgeType ${cls}">${esc(t)}</span>`;
+  function detectType(code = "", message = "") {
+    const c = String(code).toLowerCase();
+    const m = String(message).toLowerCase();
+
+    if (c.includes("offline") || m.includes("offline")) return "offline";
+    if (c.includes("thd") || m.includes("thd")) return "thd";
+    if (c.includes("pf") || m.includes("power factor")) return "pf";
+    if (c.includes("voltage") || m.includes("voltage")) return "voltage";
+    if (c.includes("current") || m.includes("current")) return "current";
+    if (c.includes("kw") || m.includes("power")) return "kw";
+
+    return "other";
   }
 
-  function applyFilters(list){
-    const sev = sevSel?.value || "all";
-    const typ = typeSel?.value || "all";
-    const q = (searchEl?.value || "").trim().toLowerCase();
+  function getStatusText(alert) {
+    const ackMap = getAckMap();
+    return ackMap[alert.id] ? "ACK" : "Active";
+  }
 
-    return list.filter(e => {
-      if (sev !== "all" && e.severity !== sev) return false;
-      if (typ !== "all" && e.type !== typ) return false;
-      if (q) {
-        const hay = `${e.deviceLabel} ${e.deviceKey} ${e.message} ${e.type} ${e.severity}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
+  function matchesSeverity(alert, severity) {
+    if (!severity || severity === "all") return true;
+    return String(alert.level || "") === severity;
+  }
+
+  function matchesType(alert, type) {
+    if (!type || type === "all") return true;
+    return detectType(alert.code, alert.message) === type;
+  }
+
+  function matchesSearch(alert, keyword) {
+    const q = String(keyword || "").trim().toLowerCase();
+    if (!q) return true;
+
+    const joined = [
+      alert.key,
+      alert.label,
+      alert.code,
+      alert.message,
+      alert.value,
+    ].map(v => String(v ?? "").toLowerCase()).join(" ");
+
+    return joined.includes(q);
+  }
+
+  function getFilteredAlerts() {
+    const src = getAlerts().slice();
+
+    const severity = severityEl?.value || "all";
+    const type = typeEl?.value || "all";
+    const keyword = searchEl?.value || "";
+
+    return src.filter(alert => {
+      return (
+        matchesSeverity(alert, severity) &&
+        matchesType(alert, type) &&
+        matchesSearch(alert, keyword)
+      );
     });
   }
 
-  function render(){
+  function renderTable() {
     if (!tbody) return;
 
-    const filtered = applyFilters(events);
+    const rows = getFilteredAlerts();
 
-    let info=0, warn=0, crit=0;
-    for (const e of events) {
-      if (e.severity === "critical") crit++;
-      else if (e.severity === "warning") warn++;
-      else info++;
+    if (lastUpdateEl) {
+      lastUpdateEl.textContent = `Last update: ${formatDateTime(nowMs())}`;
     }
 
-    if (statTotal) statTotal.textContent = `Total: ${events.length}`;
-    if (statInfo)  statInfo.textContent  = `Info: ${info}`;
-    if (statWarn)  statWarn.textContent  = `Warning: ${warn}`;
-    if (statCrit)  statCrit.textContent  = `Critical: ${crit}`;
-
-    if (!filtered.length) {
-      tbody.innerHTML = `<tr><td colspan="7" class="empty">No notifications</td></tr>`;
+    if (!rows.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="10" class="empty">No alerts found</td>
+        </tr>
+      `;
       return;
     }
 
-    tbody.innerHTML = filtered.map(e => {
-      const rowCls = e.ack ? "rowAck" : "";
+    tbody.innerHTML = rows.map((a, idx) => {
+      const type = detectType(a.code, a.message);
+      const status = getStatusText(a);
+      const valueText = a.value === null || a.value === undefined ? "-" : safe(
+        typeof a.value === "number" ? a.value.toFixed(2) : a.value
+      );
+
       return `
-        <tr class="${rowCls}" data-id="${esc(e.id)}">
-          <td>${esc(e.timeText)}</td>
-          <td>${severityDot(e.severity)}</td>
-          <td>${typeBadge(e.type)}</td>
-          <td>
-            <div style="font-weight:900;">${esc(e.deviceLabel)}</div>
-            <div class="muted" style="font-size:12px;">${esc(e.deviceKey)}</div>
-          </td>
-          <td>${esc(e.message)}</td>
-          <td>${e.ack ? "✅ ACK" : "—"}</td>
-          <td>
-            <button class="btn" data-act="ack">${e.ack ? "Unack" : "Ack"}</button>
-            <button class="btn" data-act="del">Delete</button>
-          </td>
+        <tr data-alert-id="${safe(a.id)}">
+          <td>${idx + 1}</td>
+          <td>${getSeverityBadge(a.level)}</td>
+          <td style="font-weight:800;">${safe(a.label || a.key)}</td>
+          <td>${safe(a.code)}</td>
+          <td>${safe(type)}</td>
+          <td style="max-width:320px; word-break:break-word;">${safe(a.message)}</td>
+          <td>${valueText}</td>
+          <td>${formatDateTime(a.time)}</td>
+          <td>${calcAgeText(a.time)}</td>
+          <td>${safe(status)}</td>
         </tr>
       `;
     }).join("");
   }
 
-  function mkId(deviceKey, type){
-    // deviceKey가 길어도 안정적으로
-    return `${type}|${deviceKey}|${Date.now()}|${Math.floor(Math.random()*1e6)}`;
-  }
-
-  function getNum(v){
-    const x = Number(v);
-    return Number.isFinite(x) ? x : null;
-  }
-
-  // ====== 규칙 감지 ======
-  function evaluateDevice(d){
-    const key = deviceKey(d);
-    if (!key) return;
-
-    const label = deviceLabel(d);
-    const age = getNum(d.age_sec);
-
-    // 1) Offline
-    if (age !== null && age > OFFLINE_SEC) {
-      pushEvent({
-        id: mkId(key, "offline"),
-        ts: Date.now(),
-        timeText: nowTime(),
-        severity: age > OFFLINE_SEC * 3 ? "critical" : "warning",
-        type: "offline",
-        deviceKey: key,
-        deviceLabel: label,
-        message: `No telemetry for ${Math.floor(age)} seconds`,
-        ack: false,
-      });
+  function requestBrowserPermission() {
+    if (!("Notification" in window)) {
+      alert("This browser does not support notifications.");
+      return;
     }
 
-    // 2) THD (summary에서 thd_before/thd_after 등을 쓰는 경우)
-    const thd =
-      getNum(d.thd_after ?? d.thdAfter ?? d.thd_a ?? d.thd) ??
-      getNum(d.thd_before ?? d.thdBefore ?? d.thd_b) ??
-      null;
-
-    if (thd !== null) {
-      const sev = thd >= THD_CRIT ? "critical" : thd >= THD_WARN ? "warning" : null;
-      if (sev) {
-        pushEvent({
-          id: mkId(key, "thd"),
-          ts: Date.now(),
-          timeText: nowTime(),
-          severity: sev,
-          type: "thd",
-          deviceKey: key,
-          deviceLabel: label,
-          message: `THD high: ${thd.toFixed(2)}%`,
-          ack: false,
-        });
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        alert("Browser alerts enabled.");
+      } else {
+        alert("Notification permission was not granted.");
       }
-    }
-
-    // 3) PF
-    const pf = getNum(d.pf ?? d.power_factor);
-    if (pf !== null) {
-      const sev = pf <= PF_CRIT ? "critical" : pf <= PF_WARN ? "warning" : null;
-      if (sev) {
-        pushEvent({
-          id: mkId(key, "pf"),
-          ts: Date.now(),
-          timeText: nowTime(),
-          severity: sev,
-          type: "pf",
-          deviceKey: key,
-          deviceLabel: label,
-          message: `Power factor low: ${pf.toFixed(3)}`,
-          ack: false,
-        });
-      }
-    }
-
-    // 4) kW (옵션: 너무 큰 부하 등)
-    const kw = getNum(d.kw ?? d.kw_total ?? d.total_kw);
-    if (kw !== null && kw >= 500) { // 임시 기준(원하는 값으로 조정)
-      pushEvent({
-        id: mkId(key, "kw"),
-        ts: Date.now(),
-        timeText: nowTime(),
-        severity: "info",
-        type: "kw",
-        deviceKey: key,
-        deviceLabel: label,
-        message: `High power usage: ${kw.toFixed(2)} kW`,
-        ack: false,
-      });
-    }
+    });
   }
 
-  // ====== app.js에서 호출될 엔트리 ======
-  window.__notificationsOnDevices__ = (items) => {
-    if (lastUpdateEl) lastUpdateEl.textContent = `Last update: ${nowTime()}`;
+  function clearAck() {
+    window.__notiAckMap__ = {};
+    renderTable();
+  }
 
-    // items는 normalize된 장비 목록
-    for (const d of (items || [])) {
-      try { evaluateDevice(d); } catch {}
+  function clearAllAlerts() {
+    if (!Array.isArray(window.__monitorAlerts__)) {
+      window.__monitorAlerts__ = [];
+    } else {
+      window.__monitorAlerts__.length = 0;
     }
-    render();
-  };
+    renderTable();
+  }
 
-  // ====== UI handlers ======
-  sevSel?.addEventListener("change", render);
-  typeSel?.addEventListener("change", render);
-  searchEl?.addEventListener("input", render);
+  function ackAlertByRow(target) {
+    const row = target?.closest?.("tr[data-alert-id]");
+    if (!row) return false;
 
-  btnAskPerm?.addEventListener("click", async () => {
-    try {
-      if (!("Notification" in window)) return alert("This browser does not support notifications.");
-      const p = await Notification.requestPermission();
-      if (p === "granted") alert("Enabled!");
-      else alert("Permission denied.");
-    } catch {
-      alert("Failed to request permission.");
-    }
+    const id = row.getAttribute("data-alert-id");
+    if (!id) return false;
+
+    const ackMap = getAckMap();
+    ackMap[id] = true;
+    renderTable();
+    return true;
+  }
+
+  btnSearch?.addEventListener("click", () => {
+    renderTable();
+  });
+
+  searchEl?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") renderTable();
+  });
+
+  severityEl?.addEventListener("change", () => {
+    renderTable();
+  });
+
+  typeEl?.addEventListener("change", () => {
+    renderTable();
+  });
+
+  btnAskPermission?.addEventListener("click", () => {
+    requestBrowserPermission();
   });
 
   btnClearAck?.addEventListener("click", () => {
-    // ACK 된 것만 제거
-    events = events.filter(e => !e.ack);
-    ackMap = {};
-    savePersist();
-    render();
+    clearAck();
   });
 
   btnClearAll?.addEventListener("click", () => {
-    if (!confirm("Clear all notifications?")) return;
-    events = [];
-    ackMap = {};
-    savePersist();
-    render();
+    clearAllAlerts();
   });
 
-  document.addEventListener("click", (e) => {
-    const btn = e.target?.closest?.("button[data-act]");
-    if (!btn) return;
-    const tr = btn.closest("tr[data-id]");
-    const id = tr?.getAttribute("data-id");
-    if (!id) return;
+  const onDocClick = (e) => {
+    const ok = ackAlertByRow(e.target);
+    if (ok) return;
+  };
+  document.addEventListener("click", onDocClick);
 
-    const act = btn.getAttribute("data-act");
-    if (act === "ack") {
-      const ev = events.find(x => x.id === id);
-      if (!ev) return;
-      ev.ack = !ev.ack;
-      if (ev.ack) ackMap[id] = true;
-      else delete ackMap[id];
-      savePersist();
-      render();
-      return;
-    }
+  function startRenderLoop() {
+    if (renderTimer) clearInterval(renderTimer);
 
-    if (act === "del") {
-      events = events.filter(x => x.id !== id);
-      delete ackMap[id];
-      savePersist();
-      render();
-      return;
-    }
-  });
+    renderTimer = setInterval(() => {
+      renderTable();
+    }, 1000);
+  }
 
-  // init
-  loadPersist();
-  render();
+  renderTable();
+  startRenderLoop();
 
   window.__viewCleanup__ = () => {
-    try { if (window.__notificationsOnDevices__) delete window.__notificationsOnDevices__; } catch {}
+    try { document.removeEventListener("click", onDocClick); } catch {}
+
+    try {
+      if (renderTimer) {
+        clearInterval(renderTimer);
+        renderTimer = null;
+      }
+    } catch {}
+
     try { if (typeof prevCleanup === "function") prevCleanup(); } catch {}
   };
 })();

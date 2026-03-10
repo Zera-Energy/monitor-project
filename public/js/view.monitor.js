@@ -54,15 +54,59 @@
   const prevCleanup = window.__viewCleanup__;
 
   const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
-  const ONLINE_SEC = 60;
+  const OFFLINE_SEC = 30; // ✅ 마지막 telemetry 후 30초 지나면 offline
   const TREND_MAX = 240;
   const ENERGY_RATE_THB = 4.2; // ✅ 임시 단가
+
+  // ✅ 알람 기준값
+  const ALERT_LIMITS = {
+    voltageHigh: 250,
+    currentHigh: 100,
+    pfLow: 0.80,
+    thdHigh: 10,
+  };
+
+  // ✅ 같은 장비/같은 코드 알람 중복 방지 시간
+  const ALERT_COOLDOWN_MS = 15000;
 
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
 
   function nowTime(){
     return new Date().toLocaleTimeString("en-GB", { hour12: false });
+  }
+
+  function nowMs() {
+    return Date.now();
+  }
+
+  function formatDateTime(ts) {
+    if (!ts) return "-";
+    const d = new Date(ts);
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  }
+
+  function calcAgeSec(lastSeenAt) {
+    if (!lastSeenAt) return Infinity;
+    return Math.max(0, Math.floor((nowMs() - Number(lastSeenAt)) / 1000));
+  }
+
+  function refreshDeviceLiveState(d) {
+    if (!d) return d;
+
+    const age = calcAgeSec(d.last_seen_at);
+    d.age_sec = Number.isFinite(age) ? age : null;
+    d.online = age <= OFFLINE_SEC;
+
+    return d;
   }
 
   function safeFileName(v){
@@ -103,10 +147,49 @@
     if (apiStatusEl) apiStatusEl.textContent = v;
   }
 
-  function setDeviceLiveStatus(isOnline, timeText){
-    if (deviceOnlineDotEl) deviceOnlineDotEl.style.background = isOnline ? "#22c55e" : "#ef4444";
-    if (deviceOnlineTextEl) deviceOnlineTextEl.textContent = isOnline ? "Online" : "Offline";
-    if (deviceLastUpdateTextEl) deviceLastUpdateTextEl.textContent = timeText || "-";
+  function setDeviceLiveStatus(isOnline, timeText, ageSec){
+    if (deviceOnlineDotEl) {
+      deviceOnlineDotEl.style.background = isOnline ? "#22c55e" : "#ef4444";
+    }
+
+    if (deviceOnlineTextEl) {
+      deviceOnlineTextEl.style.fontWeight = "800";
+      deviceOnlineTextEl.style.color = isOnline ? "#16a34a" : "#dc2626";
+
+      if (ageSec === undefined || ageSec === null || !Number.isFinite(ageSec)) {
+        deviceOnlineTextEl.textContent = isOnline ? "Online" : "Offline";
+      } else {
+        deviceOnlineTextEl.textContent = isOnline
+          ? `Online (${ageSec}s ago)`
+          : `Offline (${ageSec}s ago)`;
+      }
+    }
+
+    if (deviceLastUpdateTextEl) {
+      deviceLastUpdateTextEl.textContent = timeText || "-";
+    }
+  }
+
+  function renderSelectedDeviceStatus(d) {
+    if (!deviceOnlineDotEl || !deviceOnlineTextEl || !deviceLastUpdateTextEl) return;
+
+    if (!d) {
+      if (deviceOnlineDotEl) deviceOnlineDotEl.style.background = "#9ca3af";
+      if (deviceOnlineTextEl) {
+        deviceOnlineTextEl.textContent = "No device selected";
+        deviceOnlineTextEl.style.fontWeight = "700";
+        deviceOnlineTextEl.style.color = "#6b7280";
+      }
+      if (deviceLastUpdateTextEl) deviceLastUpdateTextEl.textContent = "-";
+      return;
+    }
+
+    refreshDeviceLiveState(d);
+    setDeviceLiveStatus(
+      !!d.online,
+      formatDateTime(d.last_seen_at),
+      d.age_sec
+    );
   }
 
   function setDefaultMiniDates() {
@@ -201,11 +284,12 @@
         d?.country ??
         "-";
       if (trendLocationTextEl) trendLocationTextEl.textContent = String(loc || "-");
+
+      renderSelectedDeviceStatus(d);
     } catch {
       if (trendLocationTextEl) trendLocationTextEl.textContent = "-";
+      renderSelectedDeviceStatus(null);
     }
-
-    setDeviceLiveStatus(false, "-");
 
     try {
       setTrendStatus(__selectedKey ? `Selected: ${__selectedLabel}` : "Ready");
@@ -346,6 +430,157 @@
   const energyTrendBuf = { labels: [], values: [] };
   const energyCostBuf = { labels: [], values: [] };
   const energyHistBuf = { labels: [], values: [] };
+
+  // ✅ 알람 저장소
+  const alerts = [];
+  const alertCooldownMap = new Map();
+
+  function pushAlert({ key, level = "warn", code, message, value = null }) {
+    const now = nowMs();
+    const dedupeKey = `${key}__${code}`;
+    const last = alertCooldownMap.get(dedupeKey) || 0;
+
+    if (now - last < ALERT_COOLDOWN_MS) return;
+
+    alertCooldownMap.set(dedupeKey, now);
+
+    const item = {
+      id: `${dedupeKey}__${now}`,
+      time: now,
+      key: String(key || ""),
+      label: __selectedKey === key ? (__selectedLabel || key) : key,
+      level,
+      code,
+      message,
+      value,
+    };
+
+    alerts.unshift(item);
+    if (alerts.length > 200) alerts.length = 200;
+
+    const icon = level === "danger" ? "🚨" : level === "warn" ? "⚠️" : "ℹ️";
+    appendLog(`${icon} ALERT [${code}] ${item.key} - ${message}`);
+  }
+
+  function checkAlertsFromTelemetry(msg, deviceObj) {
+    const key = deviceKey(deviceObj) || msg?.key || "";
+    if (!key) return;
+
+    const channels = msg?.channels || (msg?.payload?.channels || []);
+
+    const v12 = pickSummaryNumber(msg, ["v12","v_l1l2","v_ll12"]) ??
+                n(findVll(channels, "L1-L2")?.v ?? findVll(channels, "L1-L2")?.volt ?? findVll(channels, "L1-L2")?.voltage);
+
+    const v23 = pickSummaryNumber(msg, ["v23","v_l2l3","v_ll23"]) ??
+                n(findVll(channels, "L2-L3")?.v ?? findVll(channels, "L2-L3")?.volt ?? findVll(channels, "L2-L3")?.voltage);
+
+    const v31 = pickSummaryNumber(msg, ["v31","v_l3l1","v_ll31"]) ??
+                n(findVll(channels, "L3-L1")?.v ?? findVll(channels, "L3-L1")?.volt ?? findVll(channels, "L3-L1")?.voltage);
+
+    const a1 = pickSummaryNumber(msg, ["a1","i1","amp1"]) ??
+               n(findChannel(channels, "in", "L1")?.a ?? findChannel(channels, "in", "L1")?.amp ?? findChannel(channels, "in", "L1")?.current);
+
+    const a2 = pickSummaryNumber(msg, ["a2","i2","amp2"]) ??
+               n(findChannel(channels, "in", "L2")?.a ?? findChannel(channels, "in", "L2")?.amp ?? findChannel(channels, "in", "L2")?.current);
+
+    const a3 = pickSummaryNumber(msg, ["a3","i3","amp3"]) ??
+               n(findChannel(channels, "in", "L3")?.a ?? findChannel(channels, "in", "L3")?.amp ?? findChannel(channels, "in", "L3")?.current);
+
+    const pf = pickSummaryNumber(msg, ["pf","power_factor"]);
+
+    const thdb = pickSummaryNumber(msg, ["thd_before","thd_b","thdBefore"]);
+    const thda = pickSummaryNumber(msg, ["thd_after","thd_a","thdAfter"]);
+
+    if (v12 !== null && v12 > ALERT_LIMITS.voltageHigh) {
+      pushAlert({
+        key,
+        level: "danger",
+        code: "HIGH_VOLTAGE_L12",
+        message: `Voltage L1-L2 is high (${v12.toFixed(2)} V)`,
+        value: v12,
+      });
+    }
+
+    if (v23 !== null && v23 > ALERT_LIMITS.voltageHigh) {
+      pushAlert({
+        key,
+        level: "danger",
+        code: "HIGH_VOLTAGE_L23",
+        message: `Voltage L2-L3 is high (${v23.toFixed(2)} V)`,
+        value: v23,
+      });
+    }
+
+    if (v31 !== null && v31 > ALERT_LIMITS.voltageHigh) {
+      pushAlert({
+        key,
+        level: "danger",
+        code: "HIGH_VOLTAGE_L31",
+        message: `Voltage L3-L1 is high (${v31.toFixed(2)} V)`,
+        value: v31,
+      });
+    }
+
+    if (a1 !== null && a1 > ALERT_LIMITS.currentHigh) {
+      pushAlert({
+        key,
+        level: "danger",
+        code: "OVER_CURRENT_L1",
+        message: `Current L1 is high (${a1.toFixed(2)} A)`,
+        value: a1,
+      });
+    }
+
+    if (a2 !== null && a2 > ALERT_LIMITS.currentHigh) {
+      pushAlert({
+        key,
+        level: "danger",
+        code: "OVER_CURRENT_L2",
+        message: `Current L2 is high (${a2.toFixed(2)} A)`,
+        value: a2,
+      });
+    }
+
+    if (a3 !== null && a3 > ALERT_LIMITS.currentHigh) {
+      pushAlert({
+        key,
+        level: "danger",
+        code: "OVER_CURRENT_L3",
+        message: `Current L3 is high (${a3.toFixed(2)} A)`,
+        value: a3,
+      });
+    }
+
+    if (pf !== null && pf < ALERT_LIMITS.pfLow) {
+      pushAlert({
+        key,
+        level: "warn",
+        code: "LOW_POWER_FACTOR",
+        message: `Power factor is low (${pf.toFixed(2)})`,
+        value: pf,
+      });
+    }
+
+    if (thdb !== null && thdb > ALERT_LIMITS.thdHigh) {
+      pushAlert({
+        key,
+        level: "warn",
+        code: "HIGH_THD_BEFORE",
+        message: `THD Before is high (${thdb.toFixed(2)} %)`,
+        value: thdb,
+      });
+    }
+
+    if (thda !== null && thda > ALERT_LIMITS.thdHigh) {
+      pushAlert({
+        key,
+        level: "warn",
+        code: "HIGH_THD_AFTER",
+        message: `THD After is high (${thda.toFixed(2)} %)`,
+        value: thda,
+      });
+    }
+  }
 
   function initTrendMetricOptions(){
     if (!trendMetricEl) return;
@@ -1168,6 +1403,7 @@
 
   const devices = [];
   let __devicesCache = devices;
+  let liveStateTimer = null;
 
   function setTrendDeviceOptions(items){
     if (!trendDeviceSel) return;
@@ -1182,6 +1418,33 @@
 
     if (__selectedKey) trendDeviceSel.value = __selectedKey;
     else if (current) trendDeviceSel.value = current;
+  }
+
+  function startLiveStateTicker() {
+    if (liveStateTimer) clearInterval(liveStateTimer);
+
+    liveStateTimer = setInterval(() => {
+      for (const d of devices) {
+        const wasOnline = !!d.online;
+        refreshDeviceLiveState(d);
+
+        if (wasOnline && !d.online) {
+          pushAlert({
+            key: deviceKey(d),
+            level: "danger",
+            code: "DEVICE_OFFLINE",
+            message: `Device went offline (${safe(deviceLabel(d))})`,
+          });
+        }
+      }
+
+      renderDeviceTable(devices);
+
+      if (__selectedKey) {
+        const d = devices.find(x => deviceKey(x) === __selectedKey) || null;
+        renderSelectedDeviceStatus(d);
+      }
+    }, 1000);
   }
 
   trendDeviceSel?.addEventListener("change", () => {
@@ -1215,8 +1478,11 @@
     }
 
     items.forEach((d, idx) => {
+      refreshDeviceLiveState(d);
+
       const key = deviceKey(d);
-      const online = (d.online !== undefined) ? !!d.online : (d.age_sec < ONLINE_SEC);
+      const online = !!d.online;
+      const ageText = Number.isFinite(d.age_sec) ? `${d.age_sec}s` : "-";
 
       const tr = document.createElement("tr");
       tr.setAttribute("data-key", key);
@@ -1226,7 +1492,7 @@
         <td style="font-weight:900;">${safe(deviceLabel(d))}</td>
         <td>${safe(d.last_type || "meter")}</td>
         <td style="max-width:360px; word-break:break-all;">${safe(d.last_topic ?? d.device_topic ?? d.topic)}</td>
-        <td>${safe(d.age_sec)}s</td>
+        <td>${ageText}</td>
         <td>${online ? "🟢 Online" : "🔴 Offline"}</td>
       `;
       deviceTbody.appendChild(tr);
@@ -1241,7 +1507,19 @@
     if (lastAtEl) lastAtEl.textContent = nowTime();
 
     devices.length = 0;
-    for (const x of (items || [])) devices.push(x);
+    for (const x of (items || [])) {
+      const d = { ...x };
+
+      if (!d.last_seen_at) {
+        const ageSec = Number(d.age_sec);
+        if (Number.isFinite(ageSec) && ageSec >= 0) {
+          d.last_seen_at = nowMs() - (ageSec * 1000);
+        }
+      }
+
+      refreshDeviceLiveState(d);
+      devices.push(d);
+    }
     __devicesCache = devices;
 
     setTrendDeviceOptions(devices);
@@ -1253,6 +1531,9 @@
       loadEnergyTrendSeries();
       loadEnergyCostSeries();
       loadEnergyHistSeries();
+    } else if (__selectedKey) {
+      const selected = devices.find(x => deviceKey(x) === __selectedKey) || null;
+      renderSelectedDeviceStatus(selected);
     }
 
     appendLog(`✅ devices updated: ${devices.length} @ ${nowTime()}`);
@@ -1263,7 +1544,8 @@
 
   setApiStatus("waiting...");
   setWsStatus("WS connecting...");
-  setDeviceLiveStatus(false, "-");
+  renderSelectedDeviceStatus(null);
+  startLiveStateTicker();
 
   let __ws = null;
   let __wsClosedByUser = false;
@@ -1324,6 +1606,7 @@
           Object.assign(d, msg.summary);
         }
 
+        d.last_seen_at = nowMs();
         d.age_sec = 0;
         d.online = true;
 
@@ -1336,9 +1619,11 @@
         if (updateCountEl) updateCountEl.textContent = String(updateCount);
         if (lastAtEl) lastAtEl.textContent = nowTime();
 
-        setDeviceLiveStatus(true, nowTime());
+        try { checkAlertsFromTelemetry(msg, d); } catch {}
 
         if (selectedKey && selectedKey === key) {
+          renderSelectedDeviceStatus(d);
+
           try { updateKpiFromTelemetry(msg); } catch {}
 
           const metric = trendMetricEl?.value || "kw";
@@ -1352,14 +1637,12 @@
       __ws.onclose = () => {
         if (__wsClosedByUser) return;
         setWsStatus("WS reconnecting...");
-        setDeviceLiveStatus(false, "-");
         setTimeout(connect, retry);
         retry = Math.min(10000, retry * 2);
       };
 
       __ws.onerror = () => {
         setWsStatus("WS error");
-        setDeviceLiveStatus(false, "-");
       };
     }
 
@@ -1424,6 +1707,13 @@
   window.__viewCleanup__ = () => {
     try { document.removeEventListener("click", onDocClick); } catch {}
     try { if (window.__monitorOnDevices__) delete window.__monitorOnDevices__; } catch {}
+
+    try {
+      if (liveStateTimer) {
+        clearInterval(liveStateTimer);
+        liveStateTimer = null;
+      }
+    } catch {}
 
     try {
       __wsClosedByUser = true;
