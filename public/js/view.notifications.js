@@ -16,6 +16,8 @@
 
   let renderTimer = null;
 
+  const ALERTS_STORAGE_KEY = "monitor_alerts_v1";
+
   function nowMs() {
     return Date.now();
   }
@@ -55,8 +57,31 @@
     return `${day}d ago`;
   }
 
+  function loadAlertsFromStorage() {
+    try {
+      const raw = localStorage.getItem(ALERTS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveAlertsToStorage(list) {
+    try {
+      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(list || []));
+    } catch {}
+  }
+
   function getAlerts() {
-    return Array.isArray(window.__monitorAlerts__) ? window.__monitorAlerts__ : [];
+    if (Array.isArray(window.__monitorAlerts__)) {
+      return window.__monitorAlerts__;
+    }
+
+    const stored = loadAlertsFromStorage();
+    window.__monitorAlerts__ = stored;
+    return window.__monitorAlerts__;
   }
 
   function getAckMap() {
@@ -200,6 +225,8 @@
     } else {
       window.__monitorAlerts__.length = 0;
     }
+
+    saveAlertsToStorage([]);
     renderTable();
   }
 

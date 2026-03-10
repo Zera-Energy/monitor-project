@@ -54,9 +54,9 @@
   const prevCleanup = window.__viewCleanup__;
 
   const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
-  const OFFLINE_SEC = 30; // ✅ 마지막 telemetry 후 30초 지나면 offline
+  const OFFLINE_SEC = 30;
   const TREND_MAX = 240;
-  const ENERGY_RATE_THB = 4.2; // ✅ 임시 단가
+  const ENERGY_RATE_THB = 4.2;
 
   // ✅ 알람 기준값
   const ALERT_LIMITS = {
@@ -68,6 +68,9 @@
 
   // ✅ 같은 장비/같은 코드 알람 중복 방지 시간
   const ALERT_COOLDOWN_MS = 15000;
+
+  // ✅ localStorage key
+  const ALERTS_STORAGE_KEY = "monitor_alerts_v1";
 
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
@@ -107,6 +110,45 @@
     d.online = age <= OFFLINE_SEC;
 
     return d;
+  }
+
+  function loadAlertsFromStorage() {
+    try {
+      const raw = localStorage.getItem(ALERTS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveAlertsToStorage(list) {
+    try {
+      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(list || []));
+    } catch {}
+  }
+
+  function showBrowserAlert(alert) {
+    try {
+      if (!("Notification" in window)) return;
+      if (Notification.permission !== "granted") return;
+
+      const title = `🚨 ${alert.code || "Device Alert"}`;
+      const body =
+        `${alert.label || alert.key || "Device"}\n` +
+        `${alert.message || ""}`;
+
+      const notif = new Notification(title, {
+        body,
+        icon: "/favicon.ico",
+        tag: alert.code || "alert",
+      });
+
+      setTimeout(() => {
+        try { notif.close(); } catch {}
+      }, 8000);
+    } catch {}
   }
 
   function safeFileName(v){
@@ -432,8 +474,9 @@
   const energyHistBuf = { labels: [], values: [] };
 
   // ✅ 알람 저장소
-  const alerts = [];
+  const alerts = loadAlertsFromStorage();
   const alertCooldownMap = new Map();
+  window.__monitorAlerts__ = alerts;
 
   function pushAlert({ key, level = "warn", code, message, value = null }) {
     const now = nowMs();
@@ -457,6 +500,9 @@
 
     alerts.unshift(item);
     if (alerts.length > 200) alerts.length = 200;
+
+    saveAlertsToStorage(alerts);
+    showBrowserAlert(item);
 
     const icon = level === "danger" ? "🚨" : level === "warn" ? "⚠️" : "ℹ️";
     appendLog(`${icon} ALERT [${code}] ${item.key} - ${message}`);

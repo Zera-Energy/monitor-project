@@ -4,67 +4,64 @@
     <h2 class="pageTitle">Device Notifications</h2>
   </div>
 
-  <!-- ✅ Toolbar (필터/검색 실제 동작은 view.notifications.js에서 처리) -->
+  <!-- ✅ Toolbar -->
   <div class="toolbar">
     <div class="toolbarLeft">
-      <!-- ✅ Role(=Severity) -->
+      <!-- ✅ Severity 필터 -->
       <select class="select" id="notiSeverity">
-        <option value="all">All Roles</option>
-        <option value="critical">Critical</option>
-        <option value="warning">Warning</option>
+        <option value="all">All Severity</option>
+        <option value="danger">Critical</option>
+        <option value="warn">Warning</option>
         <option value="info">Info</option>
       </select>
 
-      <!-- ✅ Device Name(=Type 필터로 활용) -->
+      <!-- ✅ Category 필터 -->
       <select class="select" id="notiType">
-        <option value="all">Device Name</option>
+        <option value="all">All Types</option>
         <option value="offline">Offline</option>
         <option value="thd">THD</option>
         <option value="pf">Power Factor</option>
-        <option value="kw">Power</option>
+        <option value="voltage">Voltage</option>
+        <option value="current">Current</option>
       </select>
     </div>
 
     <div class="toolbarRight">
-      <input class="input" id="notiSearch" placeholder="Search Criteria" />
+      <input class="input" id="notiSearch" placeholder="Search device, code, message..." />
       <button class="btn amber" id="btnNotiSearch" type="button">Search</button>
     </div>
   </div>
 
   <section class="card big">
-    <div class="cardTitle">Device List</div>
+    <div class="cardTitle">Alert List</div>
 
     <div class="tableWrap">
       <table class="table">
         <thead>
           <tr>
             <th class="sortable">No.</th>
-            <th class="sortable">Actions</th>
-            <th class="sortable">Name</th>
+            <th class="sortable">Severity</th>
+            <th class="sortable">Device</th>
+            <th class="sortable">Code</th>
             <th class="sortable">Type</th>
-            <th class="sortable">Owner</th>
-            <th class="sortable">Alarm</th>
-            <th class="sortable">High Active</th>
-            <th class="sortable">Low Active</th>
             <th class="sortable">Message</th>
-            <th class="sortable">Email</th>
-            <th class="sortable">Output</th>
-            <th class="sortable">Last Update</th>
-            <th class="sortable">Time Since Update</th>
-            <th class="sortable">Connection</th>
+            <th class="sortable">Value</th>
+            <th class="sortable">Time</th>
+            <th class="sortable">Age</th>
+            <th class="sortable">Status</th>
           </tr>
         </thead>
 
         <!-- ✅ JS가 여기를 채움 -->
         <tbody id="notiTbody">
           <tr>
-            <td colspan="14" class="empty">Waiting telemetry...</td>
+            <td colspan="10" class="empty">Waiting alerts...</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- ✅ 하단 상태/버튼(원하면 숨겨도 됨) -->
+    <!-- ✅ 하단 상태/버튼 -->
     <div class="mt12" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
       <div class="muted" id="notiLastUpdate">Last update: -</div>
       <button class="btn" id="btnNotiAskPermission" type="button">🔔 Enable browser alerts</button>
