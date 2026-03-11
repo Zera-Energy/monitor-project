@@ -1,7 +1,7 @@
 // /js/app.js
 import { isLoggedIn, goLoginPage } from "./lib/auth.js";
 import { fetchJson } from "./lib/api.js";
-import { bindTopLogout, setTopUserUI } from "./ui/topbar.js";
+import { bindTopLogout, setTopUserUI, initTopbar } from "./ui/topbar.js";
 import { DeviceStore } from "./lib/deviceStore.js";
 import { createMqttClient } from "./lib/mqttClient.js";
 
@@ -36,6 +36,7 @@ const VIEW_CSS = {
   dashboard: "./css/view.dashboard.css",
   profile: "./css/view.profile.css",
   products: "./css/view.products.css",
+  notifications: "./css/view.notifications.css",
 };
 
 /* =========================
@@ -46,6 +47,7 @@ const VIEW_JS = {
   dashboard: "./js/view.dashboard.js",
   monitor: "./js/view.monitor.js",
   location: "./js/view.location.js",
+  notifications: "./js/view.notifications.js",
   "dashboard-setting": "./js/view.pm.js",
   profile: "./js/view.profile.js",
   products: "./js/view.products.js",
@@ -573,9 +575,13 @@ window.addEventListener("hashchange", route);
 ========================================================= */
 async function boot() {
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bindTopLogout);
+    document.addEventListener("DOMContentLoaded", () => {
+      bindTopLogout();
+      initTopbar();
+    });
   } else {
     bindTopLogout();
+    initTopbar();
   }
 
   if (!isLoggedIn()) return goLoginPage();
@@ -594,7 +600,6 @@ async function boot() {
 
       if (unauth && !tried) {
         tried = true;
-        // 쿠키/세션 준비 지연 대비(짧게 한번만 재시도)
         setTimeout(checkMe, 700);
         return;
       }

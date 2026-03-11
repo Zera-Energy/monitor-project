@@ -56,8 +56,12 @@ function bindTopNotifications() {
   const dropdown = document.getElementById("topNotiDropdown");
   const btnClearAck = document.getElementById("btnTopNotiClearAck");
   const btnViewAll = document.getElementById("btnTopNotiViewAll");
+  const list = document.getElementById("topNotiList");
 
   if (!btn || !dropdown) return;
+
+  if (window.__topNotiBound__) return;
+  window.__topNotiBound__ = true;
 
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -77,18 +81,51 @@ function bindTopNotifications() {
     window.location.hash = "#notifications";
   });
 
-  document.addEventListener("click", (e) => {
+  list?.addEventListener("click", (e) => {
+    const item = e.target.closest(".topNotiItem[data-id]");
+    if (!item) return;
+
+    const id = item.getAttribute("data-id");
+    if (!id) return;
+
+    const ack = getAckMap();
+    ack[id] = true;
+    renderTopNotifications();
+  });
+
+  const onDocClick = (e) => {
     if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
       dropdown.hidden = true;
     }
-  });
+  };
+  document.addEventListener("click", onDocClick);
 
-  setInterval(renderTopNotifications, 1000);
+  renderTopNotifications();
+
+  if (window.__topNotiTimer__) {
+    clearInterval(window.__topNotiTimer__);
+  }
+  window.__topNotiTimer__ = setInterval(renderTopNotifications, 1000);
+
+  window.__topNotiCleanup__ = () => {
+    try { document.removeEventListener("click", onDocClick); } catch {}
+    try {
+      if (window.__topNotiTimer__) {
+        clearInterval(window.__topNotiTimer__);
+        window.__topNotiTimer__ = null;
+      }
+    } catch {}
+    window.__topNotiBound__ = false;
+  };
 }
 
 export function bindTopLogout() {
   const btn = document.getElementById("btnTopLogout");
   if (!btn) return;
+
+  if (btn.__logoutBound__) return;
+  btn.__logoutBound__ = true;
+
   btn.addEventListener("click", () => logout());
 }
 
