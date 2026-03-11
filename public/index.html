@@ -122,16 +122,35 @@
       <header class="topbar">
         <button class="iconBtn" id="btnSidebar" type="button">☰</button>
 
-        <div class="chip">All Roles ▾</div>
-
-        <div class="searchWrap">
-          <input class="search" placeholder="Select Project" />
-        </div>
-
         <div class="topbarRight">
           <button class="iconBtn" type="button">🔍</button>
           <button class="iconBtn" type="button">🌐</button>
-          <button class="iconBtn" type="button">🔔</button>
+
+          <!-- ✅ 알림 드롭다운 -->
+          <div class="topNoti" id="topNoti">
+            <button class="iconBtn topNotiBtn" id="btnTopNoti" type="button" aria-label="Notifications">
+              <span class="topNotiIcon">🔔</span>
+              <span class="topNotiBadge" id="topNotiBadge" hidden>0</span>
+            </button>
+
+            <div class="topNotiDropdown" id="topNotiDropdown" hidden>
+              <div class="topNotiHead">
+                <div>
+                  <div class="topNotiTitle">Active Alerts</div>
+                  <div class="topNotiMeta" id="topNotiMeta">Critical 0 · Warning 0</div>
+                </div>
+
+                <div class="topNotiActions">
+                  <button class="topNotiLink" id="btnTopNotiClearAck" type="button">Clear ACK</button>
+                  <button class="topNotiLink" id="btnTopNotiViewAll" type="button">View all</button>
+                </div>
+              </div>
+
+              <div class="topNotiList" id="topNotiList">
+                <div class="topNotiEmpty">No active alerts</div>
+              </div>
+            </div>
+          </div>
 
           <!-- ✅ MQTT 상태 표시 칩 -->
           <div class="chip" id="mqttStatusChip">MQTT: …</div>
