@@ -17,16 +17,16 @@
     <div class="pmCardTitle">Project List</div>
 
     <div class="pmCardToolbar">
-      <select class="pmMiniSelect">
+      <select class="pmMiniSelect" id="pmPageSize">
         <option>10</option>
         <option>25</option>
         <option>50</option>
       </select>
 
       <div class="pmCardSearch">
-        <input class="pmMiniInput" placeholder="Search..." />
+        <input class="pmMiniInput" id="pmTableSearch" placeholder="Search..." />
         <button class="pmMiniBtn" type="button">⋮ ▾</button>
-        <button class="pmMiniBtn" type="button">⟳</button>
+        <button class="pmMiniBtn" id="pmTableRefresh" type="button">⟳</button>
       </div>
     </div>
 
@@ -47,7 +47,7 @@
             <th>Actions</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="pmTableBody">
           <tr>
             <td colspan="11" class="pmEmpty">No data available in table</td>
           </tr>
@@ -56,7 +56,7 @@
     </div>
 
     <div class="pmFooter">
-      <div>Showing 0 to 0 of 0 entries</div>
+      <div id="pmFooterInfo">Showing 0 to 0 of 0 entries</div>
       <div class="pmPager">
         <button class="pmPageBtn" type="button">«</button>
         <button class="pmPageBtn" type="button">‹</button>
@@ -90,34 +90,64 @@
       <div class="tabPane" data-pane="general">
         <div class="formCol">
           <div class="formLabel">Project Name</div>
-          <input class="inputWide" placeholder="Enter project name" />
+          <input
+            class="inputWide"
+            id="projectName"
+            name="projectName"
+            placeholder="Enter project name"
+          />
 
           <div class="formLabel">Project Header</div>
-          <input class="inputWide" placeholder="Enter project header" />
+          <input
+            class="inputWide"
+            id="projectDescription"
+            name="projectDescription"
+            placeholder="Enter project header"
+          />
 
           <div class="formLabel">Project Enable</div>
-          <select class="inputWide">
+          <select class="inputWide" id="projectEnable" name="projectEnable">
             <option>Disable</option>
             <option>Enable</option>
           </select>
 
           <div class="formLabel">Owner (Email)</div>
-          <select class="inputWide">
+          <select class="inputWide" id="projectOwner" name="projectOwner">
             <option>Select owner email</option>
           </select>
 
           <div class="formLabel">Admins (Optional)</div>
-          <input class="inputWide" placeholder="Select admin(s)" />
+          <input
+            class="inputWide"
+            id="projectAdmins"
+            name="projectAdmins"
+            placeholder="Select admin(s)"
+          />
           <div class="hint">Admins can edit this project but cannot change owner or admins</div>
 
           <div class="formLabel">Viewers (Optional)</div>
-          <input class="inputWide" placeholder="Select viewer(s)" />
+          <input
+            class="inputWide"
+            id="projectViewers"
+            name="projectViewers"
+            placeholder="Select viewer(s)"
+          />
 
           <div class="formLabel">Others Info.</div>
-          <input class="inputWide" />
+          <input
+            class="inputWide"
+            id="customerName"
+            name="customerName"
+            placeholder="Enter extra info"
+          />
 
           <div class="formLabel">Content Folder</div>
-          <input class="inputWide" placeholder="Enter project content folder" />
+          <input
+            class="inputWide"
+            id="projectSite"
+            name="projectSite"
+            placeholder="Enter project content folder"
+          />
         </div>
       </div>
 
@@ -129,7 +159,6 @@
         </div>
 
         <div class="meterList" id="meterList">
-          <!-- 기본 1줄 -->
           <div class="meterRow">
             <select class="meterSelect">
               <option value="">Select Meter Device</option>
@@ -150,7 +179,7 @@
 
     <div class="drawerFoot">
       <button class="btnSmall gray" id="drawerCancel" type="button">Cancel</button>
-      <button class="btnSmall green" type="button">Create Project</button>
+      <button class="btnSmall green" id="drawerSave" type="button">Create Project</button>
     </div>
   </aside>
 </section>

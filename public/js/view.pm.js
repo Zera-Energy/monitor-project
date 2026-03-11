@@ -1,4 +1,4 @@
-// js/view.pm.js
+// /js/view.pm.js
 (() => {
   const root = document.getElementById("pmView");
   if (!root) return;
@@ -8,12 +8,24 @@
   const meterList = root.querySelector("#meterList");
   const drawerBody = root.querySelector(".drawerBody");
 
-  // ✅ app.js에 있는 API_BASE는 스코프 밖이라 여기서도 안전하게 기본값 둠
+  const tableBody =
+    root.querySelector("#pmTableBody") ||
+    root.querySelector(".pmTable tbody");
+
+  const footerInfo =
+    root.querySelector("#pmFooterInfo") ||
+    root.querySelector(".pmFooter > div:first-child");
+
+  const pageSizeEl = root.querySelector("#pmPageSize");
+  const tableSearchEl = root.querySelector("#pmTableSearch");
+  const tableRefreshEl = root.querySelector("#pmTableRefresh");
+
   const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
+  const STORAGE_KEY = "pm_projects_v1";
 
   // ===== devices 캐시 =====
   const deviceState = {
-    items: [],          // [{ value, label, raw }]
+    items: [],
     loaded: false,
     loading: false,
     lastError: null,
@@ -25,8 +37,6 @@
     back.hidden = false;
     drawer.classList.add("is-open");
     drawer.setAttribute("aria-hidden", "false");
-
-    // ✅ Drawer 열릴 때 장비 목록 로드 & meterSelect 옵션 적용
     ensureDevicesLoadedAndApply();
   }
 
@@ -35,14 +45,8 @@
     drawer.classList.remove("is-open");
     drawer.setAttribute("aria-hidden", "true");
     back.hidden = true;
-
-    // 다음에 열 때 깔끔하게
-    resetMetersToOneRow();
+    resetFormToDefault();
   }
-
-  // ✅ 초기 상태 확정
-  resetMetersToOneRow();
-  closeDrawer();
 
   // =========================
   // ✅ API helpers
@@ -53,16 +57,197 @@
     return await res.json();
   }
 
-  // ✅ 서버 아이템에서 "장비 식별값" 뽑기 (topic 기반 우선 지원)
+  async function postJson(url, body) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}: ${url}${txt ? ` / ${txt}` : ""}`);
+    }
+
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("application/json")) {
+      return await res.json();
+    }
+    return null;
+  }
+
+  // =========================
+  // ✅ localStorage helpers
+  // =========================
+  function loadProjectsFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveProjectsToStorage(items) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items || []));
+    } catch {}
+  }
+
+  function addProjectToStorage(project) {
+    const items = loadProjectsFromStorage();
+    items.unshift(project);
+    saveProjectsToStorage(items);
+    window.__pmProjects__ = items;
+  }
+
+  function deleteProjectById(id) {
+    const items = loadProjectsFromStorage().filter(
+      (x) => String(x.id) !== String(id)
+    );
+    saveProjectsToStorage(items);
+    window.__pmProjects__ = items;
+  }
+
+  // =========================
+  // ✅ utils
+  // =========================
+  function escapeHtmlText(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function escapeHtmlAttr(s) {
+    return escapeHtmlText(s);
+  }
+
+  function formatDateTime(ts) {
+    if (!ts) return "-";
+    const d = new Date(ts);
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  }
+
+  function getAllProjects() {
+    const items = loadProjectsFromStorage();
+    window.__pmProjects__ = items;
+    return items;
+  }
+
+  function getCurrentPageSize() {
+    const raw = Number(pageSizeEl?.value || 10);
+    return Number.isFinite(raw) && raw > 0 ? raw : 10;
+  }
+
+  function getCurrentSearchText() {
+    return String(tableSearchEl?.value || "").trim().toLowerCase();
+  }
+
+  function getFilteredProjects() {
+    const items = getAllProjects();
+    const q = getCurrentSearchText();
+    if (!q) return items;
+
+    return items.filter((p) => {
+      const joined = [
+        p.name,
+        p.description,
+        p.site,
+        p.customer,
+        p.owner,
+        p.viewer,
+        Array.isArray(p.meters) ? p.meters.join(" ") : "",
+        p.enabled,
+      ]
+        .map((v) => String(v ?? "").toLowerCase())
+        .join(" ");
+
+      return joined.includes(q);
+    });
+  }
+
+  function renderProjectTable() {
+    if (!tableBody) return;
+
+    const filtered = getFilteredProjects();
+    const pageSize = getCurrentPageSize();
+    const rows = filtered.slice(0, pageSize);
+
+    if (!rows.length) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="11" class="pmEmpty">No data available in table</td>
+        </tr>
+      `;
+      if (footerInfo) {
+        footerInfo.textContent = "Showing 0 to 0 of 0 entries";
+      }
+      return;
+    }
+
+    tableBody.innerHTML = rows.map((item, idx) => {
+      const meters = Array.isArray(item.meters) ? item.meters : [];
+      const metersText = meters.length ? meters.join(", ") : "-";
+      const owner = item.owner || "-";
+      const viewer = item.viewer || "-";
+      const folder = item.site || "-";
+      const created = formatDateTime(item.createdAt);
+      const updated = formatDateTime(item.updatedAt || item.createdAt);
+      const enabled = item.enabled || "Disable";
+
+      return `
+        <tr data-project-id="${escapeHtmlAttr(item.id)}">
+          <td>${idx + 1}</td>
+          <td style="font-weight:800;">${escapeHtmlText(item.name || "-")}</td>
+          <td>${escapeHtmlText(owner)}</td>
+          <td>${escapeHtmlText(viewer)}</td>
+          <td>${escapeHtmlText(folder)}</td>
+          <td>${escapeHtmlText(created)}</td>
+          <td>${escapeHtmlText(updated)}</td>
+          <td>${escapeHtmlText(enabled)}</td>
+          <td style="max-width:220px; word-break:break-word;">${escapeHtmlText(metersText)}</td>
+          <td>${meters.length}</td>
+          <td>
+            <button
+              class="pmMiniBtn"
+              type="button"
+              data-action="delete-project"
+              data-id="${escapeHtmlAttr(item.id)}"
+            >
+              Delete
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    if (footerInfo) {
+      footerInfo.textContent = `Showing 1 to ${rows.length} of ${filtered.length} entries`;
+    }
+  }
+
+  // =========================
+  // ✅ 서버 아이템에서 장비 식별값 뽑기
+  // =========================
   function pickDeviceValue(item) {
     const v =
-      // ✅ (추가) app.js 정규화/서버에서 topic 기반으로 내려올 때
       item?.device_topic ??
       item?.topic ??
       item?._raw_topic ??
       item?.device_display ??
-
-      // 기존 후보들
       item?.mac ??
       item?.mac_id ??
       item?.device_id ??
@@ -78,11 +263,9 @@
   }
 
   function pickDeviceLabel(item, value) {
-    // ✅ (추가) 보기 좋은 display가 있으면 우선 사용
     const display = item?.device_display;
     if (display) return String(display);
 
-    // 보여줄 이름이 따로 있으면 붙여주기
     const name =
       item?.name ??
       item?.title ??
@@ -96,7 +279,6 @@
   }
 
   async function loadDevicesIfNeeded() {
-    // 너무 자주 호출될 수 있으니 5초 캐시(원하면 늘려도 됨)
     const now = Date.now();
     if (deviceState.loaded && now - deviceState.lastFetchAt < 5000) return;
     if (deviceState.loading) return;
@@ -119,7 +301,6 @@
         });
       }
 
-      // 중복 제거 + 정렬(보기 좋게)
       const uniq = new Map();
       for (const d of mapped) {
         if (!uniq.has(d.value)) uniq.set(d.value, d);
@@ -144,20 +325,14 @@
   // ✅ meter row / select options
   // =========================
   function buildOptionsHtml({ selectedValue = "" } = {}) {
-    // 로딩/에러 상태 표시
     if (deviceState.loading) {
-      return `
-        <option value="">Loading devices...</option>
-      `;
+      return `<option value="">Loading devices...</option>`;
     }
 
     if (deviceState.lastError) {
-      return `
-        <option value="">Failed to load devices</option>
-      `;
+      return `<option value="">Failed to load devices</option>`;
     }
 
-    // 정상
     const header = `<option value="">Select Meter Device</option>`;
     const opts = deviceState.items
       .map((d) => {
@@ -166,7 +341,6 @@
       })
       .join("");
 
-    // 선택값이 있는데 목록에 없으면(예: 예전 장비) 맨 위에 임시로 보여주기
     if (selectedValue && !deviceState.items.some((x) => x.value === selectedValue)) {
       return `
         ${header}
@@ -185,7 +359,6 @@
     selects.forEach((sel) => {
       const current = sel.value || "";
       sel.innerHTML = buildOptionsHtml({ selectedValue: current });
-
       if (current) sel.value = current;
     });
   }
@@ -196,16 +369,15 @@
     applyOptionsToAllMeterSelects();
 
     await loadDevicesIfNeeded();
-
     applyOptionsToAllMeterSelects();
   }
 
-  function makeMeterRow() {
+  function makeMeterRow(selectedValue = "") {
     const row = document.createElement("div");
     row.className = "meterRow";
     row.innerHTML = `
       <select class="meterSelect">
-        ${buildOptionsHtml({ selectedValue: "" })}
+        ${buildOptionsHtml({ selectedValue })}
       </select>
       <button class="removeMeterBtn" type="button" data-action="remove-meter" aria-label="Remove meter">🗑</button>
     `;
@@ -232,19 +404,175 @@
     }
   }
 
-  // =========================
-  // ✅ utils (XSS 안전)
-  // =========================
-  function escapeHtmlText(s) {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+  function getMeterValues() {
+    if (!meterList) return [];
+    return Array.from(meterList.querySelectorAll(".meterSelect"))
+      .map((sel) => String(sel.value || "").trim())
+      .filter(Boolean);
   }
-  function escapeHtmlAttr(s) {
-    return escapeHtmlText(s);
+
+  // =========================
+  // ✅ form helpers
+  // =========================
+  function findFieldValue(selectors) {
+    for (const selector of selectors) {
+      const el = root.querySelector(selector);
+      if (!el) continue;
+      if ("value" in el) return String(el.value || "").trim();
+      return String(el.textContent || "").trim();
+    }
+    return "";
+  }
+
+  function setFieldValue(selectors, value = "") {
+    for (const selector of selectors) {
+      const el = root.querySelector(selector);
+      if (!el) continue;
+      if ("value" in el) {
+        el.value = value;
+        return;
+      }
+    }
+  }
+
+  function collectFormData() {
+    const name = findFieldValue([
+      "#projectName",
+      "[name='projectName']",
+      "#name",
+      "[name='name']",
+      "#projectTitle",
+      "[name='projectTitle']",
+    ]);
+
+    const description = findFieldValue([
+      "#projectDescription",
+      "[name='projectDescription']",
+      "#description",
+      "[name='description']",
+    ]);
+
+    const site = findFieldValue([
+      "#projectSite",
+      "[name='projectSite']",
+      "#site",
+      "[name='site']",
+      "#locationName",
+      "[name='locationName']",
+    ]);
+
+    const customer = findFieldValue([
+      "#customerName",
+      "[name='customerName']",
+      "#customer",
+      "[name='customer']",
+    ]);
+
+    const owner = findFieldValue([
+      "#projectOwner",
+      "[name='projectOwner']",
+      "#owner",
+      "[name='owner']",
+    ]);
+
+    const viewer = findFieldValue([
+      "#projectViewers",
+      "[name='projectViewers']",
+      "#viewer",
+      "[name='viewer']",
+    ]);
+
+    const enabled = findFieldValue([
+      "#projectEnable",
+      "[name='projectEnable']",
+    ]) || "Disable";
+
+    const meters = getMeterValues();
+
+    return {
+      id: `pm_${Date.now()}`,
+      name,
+      description,
+      site,
+      customer,
+      owner,
+      viewer,
+      enabled,
+      meters,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+  }
+
+  function validateFormData(data) {
+    if (!data.name) {
+      alert("Project name is required.");
+      return false;
+    }
+
+    if (!data.meters.length) {
+      alert("Please select at least one meter device.");
+      return false;
+    }
+
+    return true;
+  }
+
+  function resetFormToDefault() {
+    setFieldValue(
+      ["#projectName", "[name='projectName']", "#name", "[name='name']", "#projectTitle", "[name='projectTitle']"],
+      ""
+    );
+    setFieldValue(
+      ["#projectDescription", "[name='projectDescription']", "#description", "[name='description']"],
+      ""
+    );
+    setFieldValue(
+      ["#projectSite", "[name='projectSite']", "#site", "[name='site']", "#locationName", "[name='locationName']"],
+      ""
+    );
+    setFieldValue(
+      ["#customerName", "[name='customerName']", "#customer", "[name='customer']"],
+      ""
+    );
+    setFieldValue(
+      ["#projectOwner", "[name='projectOwner']", "#owner", "[name='owner']"],
+      ""
+    );
+    setFieldValue(
+      ["#projectViewers", "[name='projectViewers']", "#viewer", "[name='viewer']"],
+      ""
+    );
+    setFieldValue(
+      ["#projectEnable", "[name='projectEnable']"],
+      "Disable"
+    );
+    resetMetersToOneRow();
+  }
+
+  async function saveProjectData() {
+    const payload = collectFormData();
+    if (!validateFormData(payload)) return;
+
+    addProjectToStorage(payload);
+
+    try {
+      await postJson(`${API_BASE}/api/projects`, payload);
+    } catch (err) {
+      console.warn("[PM] server save skipped:", err?.message || err);
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent("pm:project-added", { detail: payload }));
+    } catch {}
+
+    renderProjectTable();
+    alert("Project added successfully.");
+    closeDrawer();
+  }
+
+  function refreshProjectTable() {
+    renderProjectTable();
   }
 
   // =========================
@@ -259,8 +587,21 @@
       return;
     }
 
-    if (t.closest("#drawerClose") || t.closest("#drawerCancel") || t.closest("#drawerBack")) {
+    if (
+      t.closest("#drawerClose") ||
+      t.closest("#drawerCancel") ||
+      t.closest("#drawerBack")
+    ) {
       closeDrawer();
+      return;
+    }
+
+    if (
+      t.closest("#drawerSave") ||
+      t.closest("#btnDrawerSave") ||
+      t.closest('[data-action="save-project"]')
+    ) {
+      saveProjectData();
       return;
     }
 
@@ -278,7 +619,6 @@
       if (drawerBody) drawerBody.scrollTop = 0;
 
       if (tab === "devices") ensureDevicesLoadedAndApply();
-
       return;
     }
 
@@ -305,16 +645,44 @@
       }
       return;
     }
+
+    const deleteBtn = t.closest('[data-action="delete-project"]');
+    if (deleteBtn) {
+      const id = deleteBtn.getAttribute("data-id");
+      if (!id) return;
+      if (!confirm("Delete this project?")) return;
+      deleteProjectById(id);
+      renderProjectTable();
+      return;
+    }
+  };
+
+  const onInput = () => {
+    renderProjectTable();
+  };
+
+  const onChange = () => {
+    renderProjectTable();
   };
 
   root.addEventListener("click", onClick);
+  tableSearchEl?.addEventListener("input", onInput);
+  pageSizeEl?.addEventListener("change", onChange);
+  tableRefreshEl?.addEventListener("click", refreshProjectTable);
+
+  resetMetersToOneRow();
+  closeDrawer();
+  renderProjectTable();
 
   const prevCleanup = window.__viewCleanup__;
   window.__viewCleanup__ = () => {
     try { root.removeEventListener("click", onClick); } catch {}
+    try { tableSearchEl?.removeEventListener("input", onInput); } catch {}
+    try { pageSizeEl?.removeEventListener("change", onChange); } catch {}
+    try { tableRefreshEl?.removeEventListener("click", refreshProjectTable); } catch {}
     try {
       if (drawer && drawer.classList.contains("is-open")) closeDrawer();
-      else resetMetersToOneRow();
+      else resetFormToDefault();
     } catch {}
     try { if (typeof prevCleanup === "function") prevCleanup(); } catch {}
   };

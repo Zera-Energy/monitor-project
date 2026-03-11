@@ -87,7 +87,6 @@
 
   function renderHeaderNow() {
     const now = new Date();
-    // 너 스샷처럼 “2026년 3월 4일 수요일 · 오후 02:13” 느낌
     const opts = { year: "numeric", month: "long", day: "numeric", weekday: "long" };
     const datePart = now.toLocaleDateString("ko-KR", opts);
     const timePart = now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
