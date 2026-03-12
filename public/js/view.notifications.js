@@ -34,6 +34,8 @@
   let currentPage = 1;
   const PAGE_SIZE = 20;
 
+  let summaryFilter = "all";
+
   function nowMs() {
     return Date.now();
   }
@@ -223,6 +225,12 @@
     return joined.includes(q);
   }
 
+  function matchesSummaryFilter(alert) {
+    if (!summaryFilter || summaryFilter === "all") return true;
+    if (summaryFilter === "active") return !alert.ack;
+    return true;
+  }
+
   function severityRank(level) {
     if (level === "danger") return 3;
     if (level === "warn") return 2;
@@ -311,6 +319,7 @@
 
     const filtered = src.filter((alert) => {
       return (
+        matchesSummaryFilter(alert) &&
         matchesSeverity(alert, severity) &&
         matchesType(alert, type) &&
         matchesSearch(alert, keyword)
@@ -336,6 +345,28 @@
     if (sumWarning) sumWarning.textContent = String(warning);
     if (sumActive) sumActive.textContent = String(active);
     if (sumTotal) sumTotal.textContent = String(alerts.length);
+  }
+
+  function updateSummarySelection() {
+    const cards = document.querySelectorAll(".summaryCard");
+    if (!cards.length) return;
+
+    cards.forEach((card) => {
+      const filter = card.dataset.filter || "all";
+      let selected = false;
+
+      if (filter === "danger") {
+        selected = summaryFilter === "all" && (severityEl?.value || "all") === "danger";
+      } else if (filter === "warn") {
+        selected = summaryFilter === "all" && (severityEl?.value || "all") === "warn";
+      } else if (filter === "active") {
+        selected = summaryFilter === "active";
+      } else if (filter === "all") {
+        selected = summaryFilter === "all" && (severityEl?.value || "all") === "all";
+      }
+
+      card.classList.toggle("is-selected", selected);
+    });
   }
 
   function renderEmpty(text) {
@@ -387,6 +418,7 @@
 
     const normalizedAlerts = getNormalizedAlerts();
     updateSummary(normalizedAlerts);
+    updateSummarySelection();
 
     const allRows = getFilteredAlerts();
     const totalCount = allRows.length;
@@ -547,6 +579,49 @@
     });
   }
 
+  function bindSummaryFilter() {
+    const cards = document.querySelectorAll(".summaryCard");
+    if (!cards.length) return;
+
+    cards.forEach((card) => {
+      const onClick = () => {
+        const filter = card.dataset.filter || "all";
+
+        if (filter === "danger") {
+          summaryFilter = "all";
+          if (severityEl) severityEl.value = "danger";
+        } else if (filter === "warn") {
+          summaryFilter = "all";
+          if (severityEl) severityEl.value = "warn";
+        } else if (filter === "active") {
+          summaryFilter = "active";
+          if (severityEl) severityEl.value = "all";
+        } else {
+          summaryFilter = "all";
+          if (severityEl) severityEl.value = "all";
+        }
+
+        currentPage = 1;
+        renderTable();
+      };
+
+      card.addEventListener("click", onClick);
+      card.__summaryClickHandler__ = onClick;
+    });
+  }
+
+  function unbindSummaryFilter() {
+    const cards = document.querySelectorAll(".summaryCard");
+    if (!cards.length) return;
+
+    cards.forEach((card) => {
+      if (card.__summaryClickHandler__) {
+        card.removeEventListener("click", card.__summaryClickHandler__);
+        card.__summaryClickHandler__ = null;
+      }
+    });
+  }
+
   btnSearch?.addEventListener("click", onSearch);
 
   searchEl?.addEventListener("keydown", (e) => {
@@ -556,6 +631,7 @@
   });
 
   severityEl?.addEventListener("change", () => {
+    summaryFilter = "all";
     currentPage = 1;
     renderTable();
   });
@@ -589,6 +665,7 @@
   tbody?.addEventListener("click", onTbodyClick);
 
   bindSortableHeaders();
+  bindSummaryFilter();
 
   function startRenderLoop() {
     if (renderTimer) clearInterval(renderTimer);
@@ -608,6 +685,10 @@
 
     try {
       unbindSortableHeaders();
+    } catch {}
+
+    try {
+      unbindSummaryFilter();
     } catch {}
 
     try {

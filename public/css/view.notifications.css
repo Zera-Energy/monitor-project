@@ -15,6 +15,17 @@
   border-radius: 12px;
   padding: 14px 16px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.summaryCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.summaryCard:active {
+  transform: scale(0.98);
 }
 
 .summaryTitle {
@@ -45,6 +56,16 @@
 
 .summaryCard.total .summaryValue {
   color: #334155;
+}
+
+/* 선택된 카드 */
+.summaryCard.is-selected {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
+}
+
+.summaryCard.is-selected .summaryTitle {
+  color: #1d4ed8;
 }
 
 /* ============================= */
@@ -153,4 +174,24 @@
 .tablePagination .btn.xs:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* ============================= */
+/* Notification Summary Responsive */
+/* ============================= */
+
+@media (max-width: 1100px) {
+  .alertSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .alertSummary {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryValue {
+    font-size: 22px;
+  }
 }
