@@ -13,22 +13,45 @@
   const btnClearAll = $("btnNotiClearAll");
 
   const prevCleanup = window.__viewCleanup__;
+  const ALERTS_STORAGE_KEY = "monitor_alerts_v1";
 
   let renderTimer = null;
-
-  const ALERTS_STORAGE_KEY = "monitor_alerts_v1";
 
   function nowMs() {
     return Date.now();
   }
 
+  function toTimeMs(ts) {
+    if (ts === undefined || ts === null || ts === "") return null;
+
+    if (typeof ts === "number" && Number.isFinite(ts)) return ts;
+
+    const n = Number(ts);
+    if (Number.isFinite(n) && String(ts).trim() !== "") return n;
+
+    const parsed = new Date(ts).getTime();
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function safe(v) {
-    return (v === undefined || v === null || v === "") ? "-" : String(v);
+    return (v === undefined || v === null || v === "") ? "-" : escapeHtml(v);
   }
 
   function formatDateTime(ts) {
-    if (!ts) return "-";
-    const d = new Date(ts);
+    const ms = toTimeMs(ts);
+    if (!ms) return "-";
+
+    const d = new Date(ms);
+    if (Number.isNaN(d.getTime())) return "-";
 
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -41,9 +64,10 @@
   }
 
   function calcAgeText(ts) {
-    if (!ts) return "-";
+    const ms = toTimeMs(ts);
+    if (!ms) return "-";
 
-    const sec = Math.max(0, Math.floor((nowMs() - Number(ts)) / 1000));
+    const sec = Math.max(0, Math.floor((nowMs() - ms) / 1000));
 
     if (sec < 60) return `${sec}s ago`;
 
@@ -70,25 +94,48 @@
 
   function saveAlertsToStorage(list) {
     try {
-      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(list || []));
+      localStorage.setItem(
+        ALERTS_STORAGE_KEY,
+        JSON.stringify(Array.isArray(list) ? list : [])
+      );
     } catch {}
   }
 
   function getAlerts() {
-    if (Array.isArray(window.__monitorAlerts__)) {
-      return window.__monitorAlerts__;
-    }
-
     const stored = loadAlertsFromStorage();
     window.__monitorAlerts__ = stored;
     return window.__monitorAlerts__;
   }
 
-  function getAckMap() {
-    if (!window.__notiAckMap__) {
-      window.__notiAckMap__ = {};
-    }
-    return window.__notiAckMap__;
+  function setAlerts(list) {
+    const next = Array.isArray(list) ? list : [];
+    window.__monitorAlerts__ = next;
+    saveAlertsToStorage(next);
+  }
+
+  function normalizeAlert(alert, idx) {
+    const fallbackId = `alert_${idx}_${toTimeMs(alert.time) || 0}`;
+    return {
+      id: alert?.id ?? fallbackId,
+      level: alert?.level ?? "info",
+      key: alert?.key ?? "",
+      label: alert?.label ?? "",
+      code: alert?.code ?? "",
+      message: alert?.message ?? "",
+      value: alert?.value,
+      time: alert?.time ?? nowMs(),
+      ack: !!alert?.ack,
+    };
+  }
+
+  function getNormalizedAlerts() {
+    return getAlerts().map(normalizeAlert);
+  }
+
+  function updateAlerts(mutator) {
+    const current = getNormalizedAlerts();
+    const next = mutator(current) || current;
+    setAlerts(next);
   }
 
   function getSeverityBadge(level) {
@@ -111,9 +158,17 @@
     return "other";
   }
 
-  function getStatusText(alert) {
-    const ackMap = getAckMap();
-    return ackMap[alert.id] ? "ACK" : "Active";
+  function getStatusHtml(alert) {
+    if (alert.ack) {
+      return `<span class="badge ok">ACK</span>`;
+    }
+
+    return `
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span class="badge danger-soft">Active</span>
+        <button class="btn xs" type="button" data-action="ack" data-alert-id="${escapeHtml(alert.id)}">ACK</button>
+      </div>
+    `;
   }
 
   function matchesSeverity(alert, severity) {
@@ -136,25 +191,41 @@
       alert.code,
       alert.message,
       alert.value,
-    ].map(v => String(v ?? "").toLowerCase()).join(" ");
+      detectType(alert.code, alert.message),
+      alert.ack ? "ack" : "active",
+    ]
+      .map((v) => String(v ?? "").toLowerCase())
+      .join(" ");
 
     return joined.includes(q);
   }
 
   function getFilteredAlerts() {
-    const src = getAlerts().slice();
+    const src = getNormalizedAlerts();
 
     const severity = severityEl?.value || "all";
     const type = typeEl?.value || "all";
     const keyword = searchEl?.value || "";
 
-    return src.filter(alert => {
-      return (
-        matchesSeverity(alert, severity) &&
-        matchesType(alert, type) &&
-        matchesSearch(alert, keyword)
-      );
-    });
+    return src
+      .filter((alert) => {
+        return (
+          matchesSeverity(alert, severity) &&
+          matchesType(alert, type) &&
+          matchesSearch(alert, keyword)
+        );
+      })
+      .sort((a, b) => (toTimeMs(b.time) || 0) - (toTimeMs(a.time) || 0));
+  }
+
+  function renderEmpty(text) {
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="10" class="empty">${safe(text)}</td>
+      </tr>
+    `;
   }
 
   function renderTable() {
@@ -167,23 +238,24 @@
     }
 
     if (!rows.length) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="10" class="empty">No alerts found</td>
-        </tr>
-      `;
+      renderEmpty("No alerts found");
       return;
     }
 
     tbody.innerHTML = rows.map((a, idx) => {
       const type = detectType(a.code, a.message);
-      const status = getStatusText(a);
-      const valueText = a.value === null || a.value === undefined ? "-" : safe(
-        typeof a.value === "number" ? a.value.toFixed(2) : a.value
-      );
+
+      let valueText = "-";
+      if (a.value !== null && a.value !== undefined && a.value !== "") {
+        if (typeof a.value === "number" && Number.isFinite(a.value)) {
+          valueText = safe(a.value.toFixed(2));
+        } else {
+          valueText = safe(a.value);
+        }
+      }
 
       return `
-        <tr data-alert-id="${safe(a.id)}">
+        <tr data-alert-id="${escapeHtml(a.id)}">
           <td>${idx + 1}</td>
           <td>${getSeverityBadge(a.level)}</td>
           <td style="font-weight:800;">${safe(a.label || a.key)}</td>
@@ -193,7 +265,7 @@
           <td>${valueText}</td>
           <td>${formatDateTime(a.time)}</td>
           <td>${calcAgeText(a.time)}</td>
-          <td>${safe(status)}</td>
+          <td>${getStatusHtml(a)}</td>
         </tr>
       `;
     }).join("");
@@ -214,68 +286,60 @@
     });
   }
 
+  function ackAlertById(id) {
+    if (!id) return;
+
+    updateAlerts((list) => {
+      return list.map((item) => {
+        if (String(item.id) === String(id)) {
+          return { ...item, ack: true };
+        }
+        return item;
+      });
+    });
+
+    renderTable();
+  }
+
   function clearAck() {
-    window.__notiAckMap__ = {};
+    updateAlerts((list) => list.filter((item) => !item.ack));
     renderTable();
   }
 
   function clearAllAlerts() {
-    if (!Array.isArray(window.__monitorAlerts__)) {
-      window.__monitorAlerts__ = [];
-    } else {
-      window.__monitorAlerts__.length = 0;
-    }
+    const ok = window.confirm("Are you sure you want to clear all alerts?");
+    if (!ok) return;
 
-    saveAlertsToStorage([]);
+    setAlerts([]);
     renderTable();
   }
 
-  function ackAlertByRow(target) {
-    const row = target?.closest?.("tr[data-alert-id]");
-    if (!row) return false;
+  function onTbodyClick(e) {
+    const btn = e.target.closest('[data-action="ack"]');
+    if (!btn) return;
 
-    const id = row.getAttribute("data-alert-id");
-    if (!id) return false;
+    const id = btn.getAttribute("data-alert-id");
+    if (!id) return;
 
-    const ackMap = getAckMap();
-    ackMap[id] = true;
-    renderTable();
-    return true;
+    ackAlertById(id);
   }
 
-  btnSearch?.addEventListener("click", () => {
-    renderTable();
-  });
+  btnSearch?.addEventListener("click", renderTable);
 
   searchEl?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") renderTable();
+    if (e.key === "Enter") {
+      renderTable();
+    }
   });
 
-  severityEl?.addEventListener("change", () => {
-    renderTable();
-  });
+  severityEl?.addEventListener("change", renderTable);
+  typeEl?.addEventListener("change", renderTable);
 
-  typeEl?.addEventListener("change", () => {
-    renderTable();
-  });
+  btnAskPermission?.addEventListener("click", requestBrowserPermission);
+  btnClearAck?.addEventListener("click", clearAck);
+  btnClearAll?.addEventListener("click", clearAllAlerts);
 
-  btnAskPermission?.addEventListener("click", () => {
-    requestBrowserPermission();
-  });
-
-  btnClearAck?.addEventListener("click", () => {
-    clearAck();
-  });
-
-  btnClearAll?.addEventListener("click", () => {
-    clearAllAlerts();
-  });
-
-  const onDocClick = (e) => {
-    const ok = ackAlertByRow(e.target);
-    if (ok) return;
-  };
-  document.addEventListener("click", onDocClick);
+  tbody?.addEventListener("click", onTbodyClick);
 
   function startRenderLoop() {
     if (renderTimer) clearInterval(renderTimer);
@@ -289,7 +353,9 @@
   startRenderLoop();
 
   window.__viewCleanup__ = () => {
-    try { document.removeEventListener("click", onDocClick); } catch {}
+    try {
+      tbody?.removeEventListener("click", onTbodyClick);
+    } catch {}
 
     try {
       if (renderTimer) {
@@ -298,6 +364,8 @@
       }
     } catch {}
 
-    try { if (typeof prevCleanup === "function") prevCleanup(); } catch {}
+    try {
+      if (typeof prevCleanup === "function") prevCleanup();
+    } catch {}
   };
 })();

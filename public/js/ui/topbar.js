@@ -1,19 +1,62 @@
 // /js/ui/topbar.js
 import { logout } from "../lib/auth.js";
 
+const ALERTS_STORAGE_KEY = "monitor_alerts_v1";
+
 function safe(v) {
   return (v === undefined || v === null || v === "") ? "-" : String(v);
 }
 
-function getAckMap() {
-  if (!window.__notiAckMap__) window.__notiAckMap__ = {};
-  return window.__notiAckMap__;
+function loadAlertsFromStorage() {
+  try {
+    const raw = localStorage.getItem(ALERTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveAlertsToStorage(list) {
+  try {
+    localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+  } catch {}
+}
+
+function getAlerts() {
+  const stored = loadAlertsFromStorage();
+  window.__monitorAlerts__ = stored;
+  return window.__monitorAlerts__;
+}
+
+function setAlerts(list) {
+  const next = Array.isArray(list) ? list : [];
+  window.__monitorAlerts__ = next;
+  saveAlertsToStorage(next);
 }
 
 function getActiveAlerts() {
-  const src = Array.isArray(window.__monitorAlerts__) ? window.__monitorAlerts__ : [];
-  const ack = getAckMap();
-  return src.filter(a => a && !ack[a.id]);
+  const src = getAlerts();
+  return src.filter(a => a && a.ack !== true);
+}
+
+function ackAlertById(id) {
+  if (!id) return;
+
+  const next = getAlerts().map((item) => {
+    if (String(item?.id) === String(id)) {
+      return { ...item, ack: true };
+    }
+    return item;
+  });
+
+  setAlerts(next);
+}
+
+function clearAckAlerts() {
+  const next = getAlerts().filter((item) => !item?.ack);
+  setAlerts(next);
 }
 
 function renderTopNotifications() {
@@ -40,7 +83,7 @@ function renderTopNotifications() {
   const rows = alerts.slice(0, 7);
 
   list.innerHTML = rows.map(a => {
-    const cls = a.level === "danger" ? "danger" : "warn";
+    const cls = a.level === "danger" ? "danger" : a.level === "warn" ? "warn" : "info";
     return `
       <div class="topNotiItem" data-id="${safe(a.id)}">
         <div class="topNotiCode ${cls}">${safe(a.code)}</div>
@@ -71,7 +114,7 @@ function bindTopNotifications() {
 
   btnClearAck?.addEventListener("click", (e) => {
     e.stopPropagation();
-    window.__notiAckMap__ = {};
+    clearAckAlerts();
     renderTopNotifications();
   });
 
@@ -88,8 +131,7 @@ function bindTopNotifications() {
     const id = item.getAttribute("data-id");
     if (!id) return;
 
-    const ack = getAckMap();
-    ack[id] = true;
+    ackAlertById(id);
     renderTopNotifications();
   });
 

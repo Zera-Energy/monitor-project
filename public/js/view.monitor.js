@@ -34,7 +34,6 @@
   const trendExportMenu = $("trendExportMenu");
   const trendEmptyEl = $("trendEmpty");
 
-  // ✅ 미니 카드 export 요소
   const energyTrendIntervalEl = $("energyTrendInterval");
   const energyTrendDateEl = $("energyTrendDate");
   const btnEnergyTrendExport = $("btnEnergyTrendExport");
@@ -58,7 +57,6 @@
   const TREND_MAX = 240;
   const ENERGY_RATE_THB = 4.2;
 
-  // ✅ 알람 기준값
   const ALERT_LIMITS = {
     voltageHigh: 250,
     currentHigh: 100,
@@ -66,17 +64,21 @@
     thdHigh: 10,
   };
 
-  // ✅ 같은 장비/같은 코드 알람 중복 방지 시간
   const ALERT_COOLDOWN_MS = 15000;
 
-  // ✅ localStorage key
   const ALERTS_STORAGE_KEY = "monitor_alerts_v1";
   const ACTIVE_PROJECT_KEY = "pm_active_project_v1";
 
-  function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
-  function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
+  function safe(v) {
+    return (v === undefined || v === null || v === "") ? "-" : String(v);
+  }
 
-  function nowTime(){
+  function n(v) {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : null;
+  }
+
+  function nowTime() {
     return new Date().toLocaleTimeString("en-GB", { hour12: false });
   }
 
@@ -162,7 +164,7 @@
     } catch {}
   }
 
-  function safeFileName(v){
+  function safeFileName(v) {
     return String(v || "")
       .trim()
       .replace(/[\\/:*?"<>|]/g, "_")
@@ -188,19 +190,19 @@
     menuEl.hidden = !willOpen;
   }
 
-  function setTrendStatus(v){
+  function setTrendStatus(v) {
     if (trendStatusEl) trendStatusEl.textContent = v;
   }
 
-  function setApiStatus(v){
+  function setApiStatus(v) {
     if (apiStatusEl) apiStatusEl.textContent = v;
   }
 
-  function setWsStatus(v){
+  function setWsStatus(v) {
     if (apiStatusEl) apiStatusEl.textContent = v;
   }
 
-  function setDeviceLiveStatus(isOnline, timeText, ageSec){
+  function setDeviceLiveStatus(isOnline, timeText, ageSec) {
     if (deviceOnlineDotEl) {
       deviceOnlineDotEl.style.background = isOnline ? "#22c55e" : "#ef4444";
     }
@@ -258,7 +260,7 @@
     if (energyHistToEl && !energyHistToEl.value) energyHistToEl.value = ymd;
   }
 
-  function initKpiPlaceholders(){
+  function initKpiPlaceholders() {
     const t = nowTime();
 
     setTile("tileV12", "VOLTAGE L1–L2", "-", "V", t);
@@ -273,21 +275,22 @@
     setTile("tileKW2", "POWER PHASE 2", "-", "kW", t);
     setTile("tileKW3", "POWER PHASE 3", "-", "kW", t);
     setTile("tileKWt", "TOTAL POWER", "-", "kW", t);
-    setTile("tileKvar","REACTIVE POWER", "-", "kVAr", t);
+    setTile("tileKvar", "REACTIVE POWER", "-", "kVAr", t);
 
     setTile("tileKva", "APPARENT POWER", "-", "kVA", t);
-    setTile("tileHz",  "FREQUENCY", "-", "Hz", t);
-    setTile("tilePF",  "POWER FACTOR", "-", "PF", t);
+    setTile("tileHz", "FREQUENCY", "-", "Hz", t);
+    setTile("tilePF", "POWER FACTOR", "-", "PF", t);
 
     setTile("tileTHDb", "THD BEFORE", "-", "%", "Before K-Save");
-    setTile("tileTHDa", "THD AFTER",  "-", "%", "With K-Save");
+    setTile("tileTHDa", "THD AFTER", "-", "%", "With K-Save");
 
-    setTile("tileKwh",   "ENERGY", "-", "kWh", t);
+    setTile("tileKwh", "ENERGY", "-", "kWh", t);
     setTile("tileSaved", "ENERGY SAVED", "-", "kWh", t);
-    setTile("tileCO2",   "CO₂ SAVED", "-", "kg", t);
+    setTile("tileCO2", "CO₂ SAVED", "-", "kg", t);
   }
 
   let paused = false;
+
   function appendLog(line) {
     if (!logEl || paused) return;
     logEl.textContent += line + "\n";
@@ -305,20 +308,22 @@
     if (lastAtEl) lastAtEl.textContent = "-";
   });
 
-  function deviceKey(d){
+  function deviceKey(d) {
     if (!d) return "";
     if (d.device_topic) return String(d.device_topic);
     if (d.topic) return String(d.topic);
     if (d._raw_topic) return String(d._raw_topic);
-    if (d.country || d.site_id || d.model || d.device_id) return `${d.country}/${d.site_id}/${d.model}/${d.device_id}`;
+    if (d.country || d.site_id || d.model || d.device_id) {
+      return `${d.country}/${d.site_id}/${d.model}/${d.device_id}`;
+    }
     return String(d.id ?? "");
   }
 
-  function deviceLabel(d){
+  function deviceLabel(d) {
     return String(d?.device_display ?? d?.device_short ?? deviceKey(d));
   }
 
-  function selectDeviceByKey(key, label){
+  function selectDeviceByKey(key, label) {
     __selectedKey = String(key || "");
     __selectedLabel = String(label || __selectedKey || "");
 
@@ -327,7 +332,7 @@
     }
 
     try {
-      const d = devices.find(x => deviceKey(x) === __selectedKey) || null;
+      const d = devices.find((x) => deviceKey(x) === __selectedKey) || null;
       const loc =
         d?.site_name ??
         d?.site ??
@@ -336,6 +341,7 @@
         d?.site_id ??
         d?.country ??
         "-";
+
       if (trendLocationTextEl) trendLocationTextEl.textContent = String(loc || "-");
 
       renderSelectedDeviceStatus(d);
@@ -349,7 +355,7 @@
     } catch {}
   }
 
-  function setTile(id, title, valueText, unit, sub){
+  function setTile(id, title, valueText, unit, sub) {
     const el = document.getElementById(id);
     if (!el) return;
 
@@ -375,8 +381,8 @@
     el.classList.add("kpiUpdated");
   }
 
-  function pickSummaryNumber(msg, keys){
-    for (const k of keys){
+  function pickSummaryNumber(msg, keys) {
+    for (const k of keys) {
       const v = msg?.summary?.[k] ?? msg?.payload?.[k];
       const x = Number(v);
       if (Number.isFinite(x)) return x;
@@ -384,19 +390,19 @@
     return null;
   }
 
-  function findChannel(channels, term, phase){
+  function findChannel(channels, term, phase) {
     if (!Array.isArray(channels)) return null;
-    return channels.find(c => {
+    return channels.find((c) => {
       const t = String(c?.term ?? "").toLowerCase();
       const p = String(c?.phase ?? c?.ph ?? "").toUpperCase();
       return t === String(term).toLowerCase() && p === String(phase).toUpperCase();
     }) || null;
   }
 
-  function findVll(channels, phase){
+  function findVll(channels, phase) {
     if (!Array.isArray(channels)) return null;
     const want = String(phase).toUpperCase();
-    return channels.find(c => {
+    return channels.find((c) => {
       const p = String(c?.phase ?? c?.ph ?? "").toUpperCase();
       const name = String(c?.name ?? c?.metric ?? "").toUpperCase();
       const term = String(c?.term ?? "").toUpperCase();
@@ -404,74 +410,74 @@
     }) || null;
   }
 
-  function updateKpiFromTelemetry(msg){
+  function updateKpiFromTelemetry(msg) {
     const nowText = nowTime();
     const channels = msg?.channels || (msg?.payload?.channels || []);
 
-    const v12 = pickSummaryNumber(msg, ["v12","v_l1l2","v_ll12"]) ??
-                n(findVll(channels, "L1-L2")?.v ?? findVll(channels, "L1-L2")?.volt ?? findVll(channels, "L1-L2")?.voltage);
+    const v12 = pickSummaryNumber(msg, ["v12", "v_l1l2", "v_ll12"]) ??
+      n(findVll(channels, "L1-L2")?.v ?? findVll(channels, "L1-L2")?.volt ?? findVll(channels, "L1-L2")?.voltage);
 
-    const v23 = pickSummaryNumber(msg, ["v23","v_l2l3","v_ll23"]) ??
-                n(findVll(channels, "L2-L3")?.v ?? findVll(channels, "L2-L3")?.volt ?? findVll(channels, "L2-L3")?.voltage);
+    const v23 = pickSummaryNumber(msg, ["v23", "v_l2l3", "v_ll23"]) ??
+      n(findVll(channels, "L2-L3")?.v ?? findVll(channels, "L2-L3")?.volt ?? findVll(channels, "L2-L3")?.voltage);
 
-    const v31 = pickSummaryNumber(msg, ["v31","v_l3l1","v_ll31"]) ??
-                n(findVll(channels, "L3-L1")?.v ?? findVll(channels, "L3-L1")?.volt ?? findVll(channels, "L3-L1")?.voltage);
+    const v31 = pickSummaryNumber(msg, ["v31", "v_l3l1", "v_ll31"]) ??
+      n(findVll(channels, "L3-L1")?.v ?? findVll(channels, "L3-L1")?.volt ?? findVll(channels, "L3-L1")?.voltage);
 
     setTile("tileV12", "VOLTAGE L1–L2", v12 !== null ? v12.toFixed(2) : "-", "V", nowText);
     setTile("tileV23", "VOLTAGE L2–L3", v23 !== null ? v23.toFixed(2) : "-", "V", nowText);
     setTile("tileV31", "VOLTAGE L3–L1", v31 !== null ? v31.toFixed(2) : "-", "V", nowText);
 
-    const a1 = pickSummaryNumber(msg, ["a1","i1","amp1"]) ??
-               n(findChannel(channels, "in", "L1")?.a ?? findChannel(channels, "in", "L1")?.amp ?? findChannel(channels, "in", "L1")?.current);
+    const a1 = pickSummaryNumber(msg, ["a1", "i1", "amp1"]) ??
+      n(findChannel(channels, "in", "L1")?.a ?? findChannel(channels, "in", "L1")?.amp ?? findChannel(channels, "in", "L1")?.current);
 
-    const a2 = pickSummaryNumber(msg, ["a2","i2","amp2"]) ??
-               n(findChannel(channels, "in", "L2")?.a ?? findChannel(channels, "in", "L2")?.amp ?? findChannel(channels, "in", "L2")?.current);
+    const a2 = pickSummaryNumber(msg, ["a2", "i2", "amp2"]) ??
+      n(findChannel(channels, "in", "L2")?.a ?? findChannel(channels, "in", "L2")?.amp ?? findChannel(channels, "in", "L2")?.current);
 
-    const a3 = pickSummaryNumber(msg, ["a3","i3","amp3"]) ??
-               n(findChannel(channels, "in", "L3")?.a ?? findChannel(channels, "in", "L3")?.amp ?? findChannel(channels, "in", "L3")?.current);
+    const a3 = pickSummaryNumber(msg, ["a3", "i3", "amp3"]) ??
+      n(findChannel(channels, "in", "L3")?.a ?? findChannel(channels, "in", "L3")?.amp ?? findChannel(channels, "in", "L3")?.current);
 
     setTile("tileA1", "CURRENT PHASE 1", a1 !== null ? a1.toFixed(2) : "-", "A", nowText);
     setTile("tileA2", "CURRENT PHASE 2", a2 !== null ? a2.toFixed(2) : "-", "A", nowText);
     setTile("tileA3", "CURRENT PHASE 3", a3 !== null ? a3.toFixed(2) : "-", "A", nowText);
 
-    const kw1 = pickSummaryNumber(msg, ["kw1","p1_kw"]) ??
-                n(findChannel(channels, "in", "L1")?.kw ?? findChannel(channels, "in", "L1")?.p_kw ?? findChannel(channels, "in", "L1")?.power_kw ?? findChannel(channels, "in", "L1")?.p);
+    const kw1 = pickSummaryNumber(msg, ["kw1", "p1_kw"]) ??
+      n(findChannel(channels, "in", "L1")?.kw ?? findChannel(channels, "in", "L1")?.p_kw ?? findChannel(channels, "in", "L1")?.power_kw ?? findChannel(channels, "in", "L1")?.p);
 
-    const kw2 = pickSummaryNumber(msg, ["kw2","p2_kw"]) ??
-                n(findChannel(channels, "in", "L2")?.kw ?? findChannel(channels, "in", "L2")?.p_kw ?? findChannel(channels, "in", "L2")?.power_kw ?? findChannel(channels, "in", "L2")?.p);
+    const kw2 = pickSummaryNumber(msg, ["kw2", "p2_kw"]) ??
+      n(findChannel(channels, "in", "L2")?.kw ?? findChannel(channels, "in", "L2")?.p_kw ?? findChannel(channels, "in", "L2")?.power_kw ?? findChannel(channels, "in", "L2")?.p);
 
-    const kw3 = pickSummaryNumber(msg, ["kw3","p3_kw"]) ??
-                n(findChannel(channels, "in", "L3")?.kw ?? findChannel(channels, "in", "L3")?.p_kw ?? findChannel(channels, "in", "L3")?.power_kw ?? findChannel(channels, "in", "L3")?.p);
+    const kw3 = pickSummaryNumber(msg, ["kw3", "p3_kw"]) ??
+      n(findChannel(channels, "in", "L3")?.kw ?? findChannel(channels, "in", "L3")?.p_kw ?? findChannel(channels, "in", "L3")?.power_kw ?? findChannel(channels, "in", "L3")?.p);
 
-    const kwt = pickSummaryNumber(msg, ["kw","kw_total","p_kw_total","total_kw"]);
-    const kvar = pickSummaryNumber(msg, ["kvar","q_kvar","reactive_kvar"]);
-    const kva  = pickSummaryNumber(msg, ["kva","s_kva","apparent_kva"]);
-    const hz   = pickSummaryNumber(msg, ["hz","freq","frequency"]);
-    const pf   = pickSummaryNumber(msg, ["pf","power_factor"]);
+    const kwt = pickSummaryNumber(msg, ["kw", "kw_total", "p_kw_total", "total_kw"]);
+    const kvar = pickSummaryNumber(msg, ["kvar", "q_kvar", "reactive_kvar"]);
+    const kva = pickSummaryNumber(msg, ["kva", "s_kva", "apparent_kva"]);
+    const hz = pickSummaryNumber(msg, ["hz", "freq", "frequency"]);
+    const pf = pickSummaryNumber(msg, ["pf", "power_factor"]);
 
     setTile("tileKW1", "POWER PHASE 1", kw1 !== null ? kw1.toFixed(2) : "-", "kW", nowText);
     setTile("tileKW2", "POWER PHASE 2", kw2 !== null ? kw2.toFixed(2) : "-", "kW", nowText);
     setTile("tileKW3", "POWER PHASE 3", kw3 !== null ? kw3.toFixed(2) : "-", "kW", nowText);
-    setTile("tileKWt", "TOTAL POWER",   kwt !== null ? kwt.toFixed(2) : "-", "kW", nowText);
-    setTile("tileKvar","REACTIVE POWER",kvar !== null ? kvar.toFixed(2) : "-", "kVAr", nowText);
+    setTile("tileKWt", "TOTAL POWER", kwt !== null ? kwt.toFixed(2) : "-", "kW", nowText);
+    setTile("tileKvar", "REACTIVE POWER", kvar !== null ? kvar.toFixed(2) : "-", "kVAr", nowText);
 
     setTile("tileKva", "APPARENT POWER", kva !== null ? kva.toFixed(2) : "-", "kVA", nowText);
-    setTile("tileHz",  "FREQUENCY",      hz  !== null ? hz.toFixed(2) : "-", "Hz", nowText);
-    setTile("tilePF",  "POWER FACTOR",   pf  !== null ? pf.toFixed(2) : "-", "PF", nowText);
+    setTile("tileHz", "FREQUENCY", hz !== null ? hz.toFixed(2) : "-", "Hz", nowText);
+    setTile("tilePF", "POWER FACTOR", pf !== null ? pf.toFixed(2) : "-", "PF", nowText);
 
-    const thdb = pickSummaryNumber(msg, ["thd_before","thd_b","thdBefore"]);
-    const thda = pickSummaryNumber(msg, ["thd_after","thd_a","thdAfter"]);
+    const thdb = pickSummaryNumber(msg, ["thd_before", "thd_b", "thdBefore"]);
+    const thda = pickSummaryNumber(msg, ["thd_after", "thd_a", "thdAfter"]);
 
     setTile("tileTHDb", "THD BEFORE", thdb !== null ? thdb.toFixed(2) : "-", "%", "Before K-Save");
-    setTile("tileTHDa", "THD AFTER",  thda !== null ? thda.toFixed(2) : "-", "%", "With K-Save");
+    setTile("tileTHDa", "THD AFTER", thda !== null ? thda.toFixed(2) : "-", "%", "With K-Save");
 
-    const kwh   = pickSummaryNumber(msg, ["kwh","energy_kwh"]);
-    const saved = pickSummaryNumber(msg, ["kwh_saved","energy_saved_kwh"]);
-    const co2   = pickSummaryNumber(msg, ["co2_saved","co2_kg","co2"]);
+    const kwh = pickSummaryNumber(msg, ["kwh", "energy_kwh"]);
+    const saved = pickSummaryNumber(msg, ["kwh_saved", "energy_saved_kwh"]);
+    const co2 = pickSummaryNumber(msg, ["co2_saved", "co2_kg", "co2"]);
 
-    setTile("tileKwh",   "ENERGY",       kwh   !== null ? kwh.toFixed(2) : "-", "kWh", nowText);
+    setTile("tileKwh", "ENERGY", kwh !== null ? kwh.toFixed(2) : "-", "kWh", nowText);
     setTile("tileSaved", "ENERGY SAVED", saved !== null ? saved.toFixed(2) : "-", "kWh", nowText);
-    setTile("tileCO2",   "CO₂ SAVED",    co2   !== null ? co2.toFixed(2) : "-", "kg",  nowText);
+    setTile("tileCO2", "CO₂ SAVED", co2 !== null ? co2.toFixed(2) : "-", "kg", nowText);
   }
 
   let trendChart = null;
@@ -484,73 +490,79 @@
   const energyCostBuf = { labels: [], values: [] };
   const energyHistBuf = { labels: [], values: [] };
 
-  // ✅ 알람 저장소
   const alerts = loadAlertsFromStorage();
   const alertCooldownMap = new Map();
   window.__monitorAlerts__ = alerts;
 
-  function pushAlert({ key, level = "warn", code, message, value = null }) {
+  function pushAlert({ key, label = "", level = "warn", code, message, value = null }) {
     const now = nowMs();
-    const dedupeKey = `${key}__${code}`;
+    const keyText = String(key || "").trim();
+    const codeText = String(code || "").trim();
+    if (!keyText || !codeText) return;
+
+    const dedupeKey = `${keyText}__${codeText}`;
     const last = alertCooldownMap.get(dedupeKey) || 0;
 
     if (now - last < ALERT_COOLDOWN_MS) return;
-
     alertCooldownMap.set(dedupeKey, now);
 
     const item = {
       id: `${dedupeKey}__${now}`,
       time: now,
-      key: String(key || ""),
-      label: __selectedKey === key ? (__selectedLabel || key) : key,
+      key: keyText,
+      label: String(label || keyText),
       level,
-      code,
-      message,
+      code: codeText,
+      message: String(message || ""),
       value,
+      ack: false,
     };
 
     alerts.unshift(item);
     if (alerts.length > 200) alerts.length = 200;
 
+    window.__monitorAlerts__ = alerts;
     saveAlertsToStorage(alerts);
     showBrowserAlert(item);
 
     const icon = level === "danger" ? "🚨" : level === "warn" ? "⚠️" : "ℹ️";
-    appendLog(`${icon} ALERT [${code}] ${item.key} - ${message}`);
+    appendLog(`${icon} ALERT [${codeText}] ${item.label} - ${item.message}`);
   }
 
   function checkAlertsFromTelemetry(msg, deviceObj) {
     const key = deviceKey(deviceObj) || msg?.key || "";
     if (!key) return;
 
+    const label = deviceLabel(deviceObj) || key;
     const channels = msg?.channels || (msg?.payload?.channels || []);
 
-    const v12 = pickSummaryNumber(msg, ["v12","v_l1l2","v_ll12"]) ??
-                n(findVll(channels, "L1-L2")?.v ?? findVll(channels, "L1-L2")?.volt ?? findVll(channels, "L1-L2")?.voltage);
+    const v12 = pickSummaryNumber(msg, ["v12", "v_l1l2", "v_ll12"]) ??
+      n(findVll(channels, "L1-L2")?.v ?? findVll(channels, "L1-L2")?.volt ?? findVll(channels, "L1-L2")?.voltage);
 
-    const v23 = pickSummaryNumber(msg, ["v23","v_l2l3","v_ll23"]) ??
-                n(findVll(channels, "L2-L3")?.v ?? findVll(channels, "L2-L3")?.volt ?? findVll(channels, "L2-L3")?.voltage);
+    const v23 = pickSummaryNumber(msg, ["v23", "v_l2l3", "v_ll23"]) ??
+      n(findVll(channels, "L2-L3")?.v ?? findVll(channels, "L2-L3")?.volt ?? findVll(channels, "L2-L3")?.voltage);
 
-    const v31 = pickSummaryNumber(msg, ["v31","v_l3l1","v_ll31"]) ??
-                n(findVll(channels, "L3-L1")?.v ?? findVll(channels, "L3-L1")?.volt ?? findVll(channels, "L3-L1")?.voltage);
+    const v31 = pickSummaryNumber(msg, ["v31", "v_l3l1", "v_ll31"]) ??
+      n(findVll(channels, "L3-L1")?.v ?? findVll(channels, "L3-L1")?.volt ?? findVll(channels, "L3-L1")?.voltage);
 
-    const a1 = pickSummaryNumber(msg, ["a1","i1","amp1"]) ??
-               n(findChannel(channels, "in", "L1")?.a ?? findChannel(channels, "in", "L1")?.amp ?? findChannel(channels, "in", "L1")?.current);
+    const a1 = pickSummaryNumber(msg, ["a1", "i1", "amp1"]) ??
+      n(findChannel(channels, "in", "L1")?.a ?? findChannel(channels, "in", "L1")?.amp ?? findChannel(channels, "in", "L1")?.current);
 
-    const a2 = pickSummaryNumber(msg, ["a2","i2","amp2"]) ??
-               n(findChannel(channels, "in", "L2")?.a ?? findChannel(channels, "in", "L2")?.amp ?? findChannel(channels, "in", "L2")?.current);
+    const a2 = pickSummaryNumber(msg, ["a2", "i2", "amp2"]) ??
+      n(findChannel(channels, "in", "L2")?.a ?? findChannel(channels, "in", "L2")?.amp ?? findChannel(channels, "in", "L2")?.current);
 
-    const a3 = pickSummaryNumber(msg, ["a3","i3","amp3"]) ??
-               n(findChannel(channels, "in", "L3")?.a ?? findChannel(channels, "in", "L3")?.amp ?? findChannel(channels, "in", "L3")?.current);
+    const a3 = pickSummaryNumber(msg, ["a3", "i3", "amp3"]) ??
+      n(findChannel(channels, "in", "L3")?.a ?? findChannel(channels, "in", "L3")?.amp ?? findChannel(channels, "in", "L3")?.current);
 
-    const pf = pickSummaryNumber(msg, ["pf","power_factor"]);
+    const pf = pickSummaryNumber(msg, ["pf", "power_factor"]);
 
-    const thdb = pickSummaryNumber(msg, ["thd_before","thd_b","thdBefore"]);
-    const thda = pickSummaryNumber(msg, ["thd_after","thd_a","thdAfter"]);
+    const thdb = pickSummaryNumber(msg, ["thd_before", "thd_b", "thdBefore"]);
+    const thda = pickSummaryNumber(msg, ["thd_after", "thd_a", "thdAfter"]);
 
     if (v12 !== null && v12 > ALERT_LIMITS.voltageHigh) {
       pushAlert({
         key,
+        label,
         level: "danger",
         code: "HIGH_VOLTAGE_L12",
         message: `Voltage L1-L2 is high (${v12.toFixed(2)} V)`,
@@ -561,6 +573,7 @@
     if (v23 !== null && v23 > ALERT_LIMITS.voltageHigh) {
       pushAlert({
         key,
+        label,
         level: "danger",
         code: "HIGH_VOLTAGE_L23",
         message: `Voltage L2-L3 is high (${v23.toFixed(2)} V)`,
@@ -571,6 +584,7 @@
     if (v31 !== null && v31 > ALERT_LIMITS.voltageHigh) {
       pushAlert({
         key,
+        label,
         level: "danger",
         code: "HIGH_VOLTAGE_L31",
         message: `Voltage L3-L1 is high (${v31.toFixed(2)} V)`,
@@ -581,6 +595,7 @@
     if (a1 !== null && a1 > ALERT_LIMITS.currentHigh) {
       pushAlert({
         key,
+        label,
         level: "danger",
         code: "OVER_CURRENT_L1",
         message: `Current L1 is high (${a1.toFixed(2)} A)`,
@@ -591,6 +606,7 @@
     if (a2 !== null && a2 > ALERT_LIMITS.currentHigh) {
       pushAlert({
         key,
+        label,
         level: "danger",
         code: "OVER_CURRENT_L2",
         message: `Current L2 is high (${a2.toFixed(2)} A)`,
@@ -601,6 +617,7 @@
     if (a3 !== null && a3 > ALERT_LIMITS.currentHigh) {
       pushAlert({
         key,
+        label,
         level: "danger",
         code: "OVER_CURRENT_L3",
         message: `Current L3 is high (${a3.toFixed(2)} A)`,
@@ -611,6 +628,7 @@
     if (pf !== null && pf < ALERT_LIMITS.pfLow) {
       pushAlert({
         key,
+        label,
         level: "warn",
         code: "LOW_POWER_FACTOR",
         message: `Power factor is low (${pf.toFixed(2)})`,
@@ -621,6 +639,7 @@
     if (thdb !== null && thdb > ALERT_LIMITS.thdHigh) {
       pushAlert({
         key,
+        label,
         level: "warn",
         code: "HIGH_THD_BEFORE",
         message: `THD Before is high (${thdb.toFixed(2)} %)`,
@@ -631,6 +650,7 @@
     if (thda !== null && thda > ALERT_LIMITS.thdHigh) {
       pushAlert({
         key,
+        label,
         level: "warn",
         code: "HIGH_THD_AFTER",
         message: `THD After is high (${thda.toFixed(2)} %)`,
@@ -639,29 +659,29 @@
     }
   }
 
-  function initTrendMetricOptions(){
+  function initTrendMetricOptions() {
     if (!trendMetricEl) return;
 
     const items = [
       { value: "v_ln1", label: "Voltage LN1 (V)" },
       { value: "v_ln2", label: "Voltage LN2 (V)" },
       { value: "v_ln3", label: "Voltage LN3 (V)" },
-      { value: "a_l1",  label: "Current L1 (A)" },
-      { value: "a_l2",  label: "Current L2 (A)" },
-      { value: "a_l3",  label: "Current L3 (A)" },
-      { value: "kw",    label: "Active Power (kW)" },
-      { value: "kvar",  label: "Reactive Power (kVAr)" },
-      { value: "kva",   label: "Apparent Power (kVA)" },
-      { value: "pf",    label: "Power Factor" },
-      { value: "hz",    label: "Frequency (Hz)" },
-      { value: "kwh",   label: "Energy (kWh)" },
+      { value: "a_l1", label: "Current L1 (A)" },
+      { value: "a_l2", label: "Current L2 (A)" },
+      { value: "a_l3", label: "Current L3 (A)" },
+      { value: "kw", label: "Active Power (kW)" },
+      { value: "kvar", label: "Reactive Power (kVAr)" },
+      { value: "kva", label: "Apparent Power (kVA)" },
+      { value: "pf", label: "Power Factor" },
+      { value: "hz", label: "Frequency (Hz)" },
+      { value: "kwh", label: "Energy (kWh)" },
       { value: "kwh_saved", label: "Energy Saved (kWh)" },
     ];
 
-    trendMetricEl.innerHTML = items.map(x => `<option value="${x.value}">${x.label}</option>`).join("");
+    trendMetricEl.innerHTML = items.map((x) => `<option value="${x.value}">${x.label}</option>`).join("");
   }
 
-  function initTrendChart(){
+  function initTrendChart() {
     const canvas = document.getElementById("trendChart");
     if (!canvas || !window.Chart || trendChart) return;
 
@@ -800,7 +820,7 @@
     energyHistChart.update();
   }
 
-  function resetTrend(){
+  function resetTrend() {
     trendBuf.labels = [];
     trendBuf.values = [];
     if (trendChart) {
@@ -811,7 +831,7 @@
     if (trendEmptyEl) trendEmptyEl.hidden = true;
   }
 
-  function pushTrendPoint(label, value){
+  function pushTrendPoint(label, value) {
     if (value === null || value === undefined) return;
 
     trendBuf.labels.push(label);
@@ -826,27 +846,27 @@
     trendChart.update();
   }
 
-  function pickTrendValueFromTelemetry(msg, metricKey){
+  function pickTrendValueFromTelemetry(msg, metricKey) {
     const channels = msg?.channels || (msg?.payload?.channels || []);
     const s = msg?.summary || {};
     const p = msg?.payload || {};
 
     const directMap = {
-      kw:   ["kw","kw_total","total_kw","p_kw_total"],
-      kvar: ["kvar","q_kvar","reactive_kvar"],
-      kva:  ["kva","s_kva","apparent_kva"],
-      pf:   ["pf","power_factor"],
-      hz:   ["hz","freq","frequency"],
-      kwh:  ["kwh","energy_kwh"],
-      kwh_saved: ["kwh_saved","energy_saved_kwh"],
+      kw: ["kw", "kw_total", "total_kw", "p_kw_total"],
+      kvar: ["kvar", "q_kvar", "reactive_kvar"],
+      kva: ["kva", "s_kva", "apparent_kva"],
+      pf: ["pf", "power_factor"],
+      hz: ["hz", "freq", "frequency"],
+      kwh: ["kwh", "energy_kwh"],
+      kwh_saved: ["kwh_saved", "energy_saved_kwh"],
 
-      v_ln1:["v1","v_l1","v_ln1","vL1N","v_l1n"],
-      v_ln2:["v2","v_l2","v_ln2","vL2N","v_l2n"],
-      v_ln3:["v3","v_l3","v_ln3","vL3N","v_l3n"],
+      v_ln1: ["v1", "v_l1", "v_ln1", "vL1N", "v_l1n"],
+      v_ln2: ["v2", "v_l2", "v_ln2", "vL2N", "v_l2n"],
+      v_ln3: ["v3", "v_l3", "v_ln3", "vL3N", "v_l3n"],
 
-      a_l1: ["a1","i1","amp1"],
-      a_l2: ["a2","i2","amp2"],
-      a_l3: ["a3","i3","amp3"],
+      a_l1: ["a1", "i1", "amp1"],
+      a_l2: ["a2", "i2", "amp2"],
+      a_l3: ["a3", "i3", "amp3"],
     };
 
     const keys = directMap[metricKey];
@@ -868,7 +888,7 @@
     return null;
   }
 
-  async function loadTrendSeries(){
+  async function loadTrendSeries() {
     const deviceKeySel = __selectedKey || "";
     if (!deviceKeySel) {
       setTrendStatus("Select Device (click a table row)");
@@ -921,7 +941,7 @@
         const v = n(p?.v ?? p?.value);
         if (v === null) continue;
         const t = p?.t ?? p?.time ?? "";
-        labels.push(String(t).slice(0, 19).replace("T"," "));
+        labels.push(String(t).slice(0, 19).replace("T", " "));
         values.push(v);
       }
 
@@ -1152,7 +1172,7 @@
     }
   }
 
-  function buildTrendRows(){
+  function buildTrendRows() {
     const metric = trendMetricEl?.value || "metric";
     const interval = trendIntervalEl?.value || "";
     const from = trendFromEl?.value || "";
@@ -1209,7 +1229,7 @@
 
   function exportRowsAsCsv(rows, fileBase) {
     const csv = rows
-      .map(r => r.map(x => `"${String(x ?? "").replaceAll('"', '""')}"`).join(","))
+      .map((r) => r.map((x) => `"${String(x ?? "").replaceAll('"', '""')}"`).join(","))
       .join("\n");
 
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -1266,7 +1286,7 @@
     exportRowsAsXlsx(rows, fileBase, sheetName);
   }
 
-  function exportTrendAsCsv(){
+  function exportTrendAsCsv() {
     if (!trendBuf.labels.length) {
       alert("No data to export");
       return;
@@ -1278,7 +1298,7 @@
     const safeMetric = safeFileName(metric);
 
     const csv = rows
-      .map(r => r.map(x => `"${String(x ?? "").replaceAll('"', '""')}"`).join(","))
+      .map((r) => r.map((x) => `"${String(x ?? "").replaceAll('"', '""')}"`).join(","))
       .join("\n");
 
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -1291,7 +1311,7 @@
     URL.revokeObjectURL(a.href);
   }
 
-  function exportTrendAsXlsx(){
+  function exportTrendAsXlsx() {
     if (!trendBuf.labels.length) {
       alert("No data to export");
       return;
@@ -1463,7 +1483,7 @@
   let liveStateTimer = null;
   let __activeProjectApplied = false;
 
-  function setTrendDeviceOptions(items){
+  function setTrendDeviceOptions(items) {
     if (!trendDeviceSel) return;
     const current = trendDeviceSel.value || "";
     const opts = [`<option value="">Select Device</option>`];
@@ -1519,6 +1539,7 @@
         if (wasOnline && !d.online) {
           pushAlert({
             key: deviceKey(d),
+            label: deviceLabel(d),
             level: "danger",
             code: "DEVICE_OFFLINE",
             message: `Device went offline (${safe(deviceLabel(d))})`,
@@ -1529,7 +1550,7 @@
       renderDeviceTable(devices);
 
       if (__selectedKey) {
-        const d = devices.find(x => deviceKey(x) === __selectedKey) || null;
+        const d = devices.find((x) => deviceKey(x) === __selectedKey) || null;
         renderSelectedDeviceStatus(d);
       }
     }, 1000);
@@ -1544,7 +1565,7 @@
       initKpiPlaceholders();
       return;
     }
-    const d = devices.find(x => deviceKey(x) === key) || null;
+    const d = devices.find((x) => deviceKey(x) === key) || null;
     __activeProjectApplied = true;
     selectDeviceByKey(key, d ? deviceLabel(d) : key);
     resetTrend();
@@ -1554,11 +1575,11 @@
     loadEnergyHistSeries();
   });
 
-  function renderAutoCards(items){
+  function renderAutoCards(items) {
     if (!autoGrid) return;
   }
 
-  function renderDeviceTable(items){
+  function renderDeviceTable(items) {
     if (!deviceTbody) return;
     deviceTbody.innerHTML = "";
 
@@ -1625,7 +1646,7 @@
         loadEnergyCostSeries();
         loadEnergyHistSeries();
       } else if (__selectedKey) {
-        const selected = devices.find(x => deviceKey(x) === __selectedKey) || null;
+        const selected = devices.find((x) => deviceKey(x) === __selectedKey) || null;
         renderSelectedDeviceStatus(selected);
       }
     }
@@ -1644,7 +1665,7 @@
   let __ws = null;
   let __wsClosedByUser = false;
 
-  (function initWebSocket(){
+  (function initWebSocket() {
     const WS_BASE =
       (window.WS_BASE) ||
       (API_BASE.startsWith("https")
@@ -1655,7 +1676,7 @@
 
     let retry = 1000;
 
-    function connect(){
+    function connect() {
       __wsClosedByUser = false;
 
       try { __ws && __ws.close(); } catch {}
@@ -1678,7 +1699,7 @@
 
         let selectedKey = __selectedKey || "";
         if (!selectedKey) {
-          const dd = devices.find(x => deviceKey(x) === key) || null;
+          const dd = devices.find((x) => deviceKey(x) === key) || null;
           selectDeviceByKey(key, dd ? deviceLabel(dd) : key);
           selectedKey = key;
           initKpiPlaceholders();
@@ -1687,7 +1708,7 @@
           loadEnergyHistSeries();
         }
 
-        const idx = devices.findIndex(d => deviceKey(d) === key);
+        const idx = devices.findIndex((d) => deviceKey(d) === key);
         if (idx === -1) return;
 
         const d = devices[idx];
@@ -1786,7 +1807,7 @@
     if (row && !t?.closest?.("button")) {
       const key = row.getAttribute("data-key") || "";
       if (key) {
-        const d = devices.find(x => deviceKey(x) === key) || null;
+        const d = devices.find((x) => deviceKey(x) === key) || null;
         __activeProjectApplied = true;
         selectDeviceByKey(key, d ? deviceLabel(d) : key);
         resetTrend();
