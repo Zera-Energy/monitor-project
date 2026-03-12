@@ -1,75 +1,104 @@
 <!-- /views/notifications.html -->
 <section class="notiView">
   <div class="pageHeader">
-    <h2 class="pageTitle">Device Notifications</h2>
-  </div>
-
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <div class="toolbarLeft">
-      <!-- Severity filter -->
-      <select class="select" id="notiSeverity">
-        <option value="all">All Severity</option>
-        <option value="danger">Critical</option>
-        <option value="warn">Warning</option>
-        <option value="info">Info</option>
-      </select>
-
-      <!-- Type filter -->
-      <select class="select" id="notiType">
-        <option value="all">All Types</option>
-        <option value="offline">Offline</option>
-        <option value="thd">THD</option>
-        <option value="pf">Power Factor</option>
-        <option value="voltage">Voltage</option>
-        <option value="current">Current</option>
-      </select>
-    </div>
-
-    <div class="toolbarRight">
-      <input
-        class="input"
-        id="notiSearch"
-        type="text"
-        placeholder="Search device, code, message..."
-      />
-      <button class="btn amber" id="btnNotiSearch" type="button">Search</button>
+    <div>
+      <h2 class="pageTitle">Device Notifications</h2>
+      <p class="pageDesc">Check active alerts, acknowledge events, and manage notification history.</p>
     </div>
   </div>
 
+  <!-- Filter / Search -->
+  <section class="card">
+    <div class="cardTitle">Filter</div>
+
+    <div class="toolbar">
+      <div class="toolbarLeft">
+        <div class="fieldGroup">
+          <label class="fieldLabel" for="notiSeverity">Severity</label>
+          <select class="select" id="notiSeverity">
+            <option value="all">All Severity</option>
+            <option value="danger">Critical</option>
+            <option value="warn">Warning</option>
+            <option value="info">Info</option>
+          </select>
+        </div>
+
+        <div class="fieldGroup">
+          <label class="fieldLabel" for="notiType">Category</label>
+          <select class="select" id="notiType">
+            <option value="all">All Types</option>
+            <option value="offline">Offline</option>
+            <option value="thd">THD</option>
+            <option value="pf">Power Factor</option>
+            <option value="voltage">Voltage</option>
+            <option value="current">Current</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="toolbarRight">
+        <div class="fieldGroup grow">
+          <label class="fieldLabel" for="notiSearch">Search</label>
+          <input
+            class="input"
+            id="notiSearch"
+            type="text"
+            placeholder="Search device, code, message..."
+          />
+        </div>
+
+        <div class="fieldGroup btnGroup">
+          <label class="fieldLabel ghost">Action</label>
+          <button class="btn amber" id="btnNotiSearch" type="button">Search</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Alert list -->
   <section class="card big">
-    <div class="cardTitle">Alert List</div>
+    <div class="cardHead">
+      <div>
+        <div class="cardTitle">Alert List</div>
+        <div class="muted">Latest alerts are shown first. Click ACK in the status column to acknowledge an alert.</div>
+      </div>
+    </div>
 
     <div class="tableWrap">
       <table class="table">
         <thead>
           <tr>
-            <th class="sortable" scope="col">No.</th>
-            <th class="sortable" scope="col">Severity</th>
-            <th class="sortable" scope="col">Device</th>
-            <th class="sortable" scope="col">Code</th>
-            <th class="sortable" scope="col">Type</th>
-            <th class="sortable" scope="col">Message</th>
-            <th class="sortable" scope="col">Value</th>
-            <th class="sortable" scope="col">Time</th>
-            <th class="sortable" scope="col">Age</th>
-            <th class="sortable" scope="col">Status</th>
+            <th class="sortable" data-sort="no" scope="col">No.</th>
+            <th class="sortable" data-sort="severity" scope="col">Severity</th>
+            <th class="sortable" data-sort="device" scope="col">Device</th>
+            <th class="sortable" data-sort="code" scope="col">Code</th>
+            <th class="sortable" data-sort="type" scope="col">Type</th>
+            <th class="sortable" data-sort="message" scope="col">Message</th>
+            <th class="sortable" data-sort="value" scope="col">Value</th>
+            <th class="sortable" data-sort="time" scope="col">Time</th>
+            <th class="sortable" data-sort="age" scope="col">Age</th>
+            <th class="sortable" data-sort="status" scope="col">Status</th>
           </tr>
         </thead>
 
         <tbody id="notiTbody">
           <tr>
-            <td colspan="10" class="empty">No alerts yet.</td>
+            <td colspan="10" class="empty">No alerts found</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div class="notiFooter mt12" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <div class="muted" id="notiLastUpdate">Last update: -</div>
-      <button class="btn" id="btnNotiAskPermission" type="button">🔔 Enable browser alerts</button>
-      <button class="btn" id="btnNotiClearAck" type="button">Clear ACK</button>
-      <button class="btn danger" id="btnNotiClearAll" type="button">Clear ALL</button>
+    <div class="notiFooter mt12">
+      <div class="notiFooterLeft">
+        <div class="muted" id="notiLastUpdate">Last update: -</div>
+      </div>
+
+      <div class="notiFooterRight">
+        <button class="btn" id="btnNotiAskPermission" type="button">🔔 Enable browser alerts</button>
+        <button class="btn" id="btnNotiClearAck" type="button">Clear ACK</button>
+        <button class="btn danger" id="btnNotiClearAll" type="button">Clear ALL</button>
+      </div>
     </div>
   </section>
 </section>

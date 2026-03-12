@@ -17,6 +17,12 @@
 
   let renderTimer = null;
 
+  // ✅ 정렬 상태
+  let sortState = {
+    key: "time",
+    dir: "desc",
+  };
+
   function nowMs() {
     return Date.now();
   }
@@ -81,6 +87,12 @@
     return `${day}d ago`;
   }
 
+  function calcAgeSec(ts) {
+    const ms = toTimeMs(ts);
+    if (!ms) return Number.MAX_SAFE_INTEGER;
+    return Math.max(0, Math.floor((nowMs() - ms) / 1000));
+  }
+
   function loadAlertsFromStorage() {
     try {
       const raw = localStorage.getItem(ALERTS_STORAGE_KEY);
@@ -114,7 +126,7 @@
   }
 
   function normalizeAlert(alert, idx) {
-    const fallbackId = `alert_${idx}_${toTimeMs(alert.time) || 0}`;
+    const fallbackId = `alert_${idx}_${toTimeMs(alert?.time) || 0}`;
     return {
       id: alert?.id ?? fallbackId,
       level: alert?.level ?? "info",
@@ -200,6 +212,85 @@
     return joined.includes(q);
   }
 
+  function severityRank(level) {
+    if (level === "danger") return 3;
+    if (level === "warn") return 2;
+    return 1;
+  }
+
+  function statusRank(alert) {
+    return alert.ack ? 2 : 1;
+  }
+
+  function compareValues(a, b) {
+    if (typeof a === "number" && typeof b === "number") {
+      return a - b;
+    }
+    return String(a).localeCompare(String(b));
+  }
+
+  function sortAlerts(list) {
+    const dirMul = sortState.dir === "asc" ? 1 : -1;
+
+    return list.slice().sort((a, b) => {
+      let va;
+      let vb;
+
+      switch (sortState.key) {
+        case "severity":
+          va = severityRank(a.level);
+          vb = severityRank(b.level);
+          break;
+        case "device":
+          va = String(a.label || a.key || "").toLowerCase();
+          vb = String(b.label || b.key || "").toLowerCase();
+          break;
+        case "code":
+          va = String(a.code || "").toLowerCase();
+          vb = String(b.code || "").toLowerCase();
+          break;
+        case "type":
+          va = detectType(a.code, a.message);
+          vb = detectType(b.code, b.message);
+          break;
+        case "message":
+          va = String(a.message || "").toLowerCase();
+          vb = String(b.message || "").toLowerCase();
+          break;
+        case "value":
+          va = typeof a.value === "number" ? a.value : Number(a.value);
+          vb = typeof b.value === "number" ? b.value : Number(b.value);
+          va = Number.isFinite(va) ? va : Number.NEGATIVE_INFINITY;
+          vb = Number.isFinite(vb) ? vb : Number.NEGATIVE_INFINITY;
+          break;
+        case "time":
+          va = toTimeMs(a.time) || 0;
+          vb = toTimeMs(b.time) || 0;
+          break;
+        case "age":
+          va = calcAgeSec(a.time);
+          vb = calcAgeSec(b.time);
+          break;
+        case "status":
+          va = statusRank(a);
+          vb = statusRank(b);
+          break;
+        case "no":
+        default:
+          va = toTimeMs(a.time) || 0;
+          vb = toTimeMs(b.time) || 0;
+          break;
+      }
+
+      const cmp = compareValues(va, vb);
+      if (cmp !== 0) return cmp * dirMul;
+
+      const ta = toTimeMs(a.time) || 0;
+      const tb = toTimeMs(b.time) || 0;
+      return (tb - ta);
+    });
+  }
+
   function getFilteredAlerts() {
     const src = getNormalizedAlerts();
 
@@ -207,15 +298,15 @@
     const type = typeEl?.value || "all";
     const keyword = searchEl?.value || "";
 
-    return src
-      .filter((alert) => {
-        return (
-          matchesSeverity(alert, severity) &&
-          matchesType(alert, type) &&
-          matchesSearch(alert, keyword)
-        );
-      })
-      .sort((a, b) => (toTimeMs(b.time) || 0) - (toTimeMs(a.time) || 0));
+    const filtered = src.filter((alert) => {
+      return (
+        matchesSeverity(alert, severity) &&
+        matchesType(alert, type) &&
+        matchesSearch(alert, keyword)
+      );
+    });
+
+    return sortAlerts(filtered);
   }
 
   function renderEmpty(text) {
@@ -228,6 +319,26 @@
     `;
   }
 
+  function renderSortIndicators() {
+    const ths = document.querySelectorAll(".table thead th.sortable");
+    if (!ths.length) return;
+
+    ths.forEach((th) => {
+      const key = th.getAttribute("data-sort");
+      if (!key) return;
+
+      const baseText = th.getAttribute("data-label") || th.textContent.trim();
+      th.setAttribute("data-label", baseText);
+
+      let mark = "";
+      if (sortState.key === key) {
+        mark = sortState.dir === "asc" ? " ▲" : " ▼";
+      }
+
+      th.textContent = baseText + mark;
+    });
+  }
+
   function renderTable() {
     if (!tbody) return;
 
@@ -236,6 +347,8 @@
     if (lastUpdateEl) {
       lastUpdateEl.textContent = `Last update: ${formatDateTime(nowMs())}`;
     }
+
+    renderSortIndicators();
 
     if (!rows.length) {
       renderEmpty("No alerts found");
@@ -324,7 +437,58 @@
     ackAlertById(id);
   }
 
-  btnSearch?.addEventListener("click", renderTable);
+  function onSearch() {
+    renderTable();
+  }
+
+  function toggleSort(nextKey) {
+    if (!nextKey) return;
+
+    if (sortState.key === nextKey) {
+      sortState.dir = sortState.dir === "asc" ? "desc" : "asc";
+    } else {
+      sortState.key = nextKey;
+      sortState.dir = nextKey === "time" || nextKey === "no" ? "desc" : "asc";
+    }
+
+    renderTable();
+  }
+
+  function bindSortableHeaders() {
+    const ths = document.querySelectorAll(".table thead th.sortable");
+    if (!ths.length) return;
+
+    const keys = ["no", "severity", "device", "code", "type", "message", "value", "time", "age", "status"];
+
+    ths.forEach((th, idx) => {
+      if (!th.getAttribute("data-sort")) {
+        th.setAttribute("data-sort", keys[idx] || "no");
+      }
+
+      const onClick = () => {
+        toggleSort(th.getAttribute("data-sort"));
+      };
+
+      th.addEventListener("click", onClick);
+      th.__sortClickHandler__ = onClick;
+      th.style.cursor = "pointer";
+      th.title = "Sort";
+    });
+  }
+
+  function unbindSortableHeaders() {
+    const ths = document.querySelectorAll(".table thead th.sortable");
+    if (!ths.length) return;
+
+    ths.forEach((th) => {
+      if (th.__sortClickHandler__) {
+        th.removeEventListener("click", th.__sortClickHandler__);
+        th.__sortClickHandler__ = null;
+      }
+    });
+  }
+
+  btnSearch?.addEventListener("click", onSearch);
 
   searchEl?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -341,6 +505,8 @@
 
   tbody?.addEventListener("click", onTbodyClick);
 
+  bindSortableHeaders();
+
   function startRenderLoop() {
     if (renderTimer) clearInterval(renderTimer);
 
@@ -355,6 +521,10 @@
   window.__viewCleanup__ = () => {
     try {
       tbody?.removeEventListener("click", onTbodyClick);
+    } catch {}
+
+    try {
+      unbindSortableHeaders();
     } catch {}
 
     try {
