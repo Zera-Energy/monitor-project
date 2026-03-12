@@ -71,6 +71,7 @@
 
   // ✅ localStorage key
   const ALERTS_STORAGE_KEY = "monitor_alerts_v1";
+  const ACTIVE_PROJECT_KEY = "pm_active_project_v1";
 
   function safe(v){ return (v === undefined || v === null || v === "") ? "-" : String(v); }
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : null; }
@@ -127,6 +128,16 @@
     try {
       localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(list || []));
     } catch {}
+  }
+
+  function getActiveProject() {
+    try {
+      const raw = localStorage.getItem(ACTIVE_PROJECT_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
   }
 
   function showBrowserAlert(alert) {
@@ -1450,6 +1461,7 @@
   const devices = [];
   let __devicesCache = devices;
   let liveStateTimer = null;
+  let __activeProjectApplied = false;
 
   function setTrendDeviceOptions(items){
     if (!trendDeviceSel) return;
@@ -1464,6 +1476,36 @@
 
     if (__selectedKey) trendDeviceSel.value = __selectedKey;
     else if (current) trendDeviceSel.value = current;
+  }
+
+  function applyActiveProjectSelection() {
+    if (__activeProjectApplied) return false;
+
+    const project = getActiveProject();
+    if (!project) return false;
+
+    const meters = Array.isArray(project.meters) ? project.meters : [];
+    if (!meters.length) return false;
+
+    for (const meter of meters) {
+      const target = String(meter || "").trim();
+      if (!target) continue;
+
+      const found = devices.find((x) => deviceKey(x) === target) || null;
+      if (!found) continue;
+
+      selectDeviceByKey(deviceKey(found), deviceLabel(found));
+      resetTrend();
+      initKpiPlaceholders();
+      loadEnergyTrendSeries();
+      loadEnergyCostSeries();
+      loadEnergyHistSeries();
+
+      __activeProjectApplied = true;
+      return true;
+    }
+
+    return false;
   }
 
   function startLiveStateTicker() {
@@ -1496,12 +1538,14 @@
   trendDeviceSel?.addEventListener("change", () => {
     const key = trendDeviceSel.value || "";
     if (!key) {
+      __activeProjectApplied = true;
       selectDeviceByKey("", "");
       resetTrend();
       initKpiPlaceholders();
       return;
     }
     const d = devices.find(x => deviceKey(x) === key) || null;
+    __activeProjectApplied = true;
     selectDeviceByKey(key, d ? deviceLabel(d) : key);
     resetTrend();
     initKpiPlaceholders();
@@ -1570,16 +1614,20 @@
 
     setTrendDeviceOptions(devices);
 
-    if (!__selectedKey && devices.length) {
-      const d0 = devices[0];
-      selectDeviceByKey(deviceKey(d0), deviceLabel(d0));
-      initKpiPlaceholders();
-      loadEnergyTrendSeries();
-      loadEnergyCostSeries();
-      loadEnergyHistSeries();
-    } else if (__selectedKey) {
-      const selected = devices.find(x => deviceKey(x) === __selectedKey) || null;
-      renderSelectedDeviceStatus(selected);
+    const applied = applyActiveProjectSelection();
+
+    if (!applied) {
+      if (!__selectedKey && devices.length) {
+        const d0 = devices[0];
+        selectDeviceByKey(deviceKey(d0), deviceLabel(d0));
+        initKpiPlaceholders();
+        loadEnergyTrendSeries();
+        loadEnergyCostSeries();
+        loadEnergyHistSeries();
+      } else if (__selectedKey) {
+        const selected = devices.find(x => deviceKey(x) === __selectedKey) || null;
+        renderSelectedDeviceStatus(selected);
+      }
     }
 
     appendLog(`✅ devices updated: ${devices.length} @ ${nowTime()}`);
@@ -1739,6 +1787,7 @@
       const key = row.getAttribute("data-key") || "";
       if (key) {
         const d = devices.find(x => deviceKey(x) === key) || null;
+        __activeProjectApplied = true;
         selectDeviceByKey(key, d ? deviceLabel(d) : key);
         resetTrend();
         initKpiPlaceholders();

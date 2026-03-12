@@ -22,6 +22,7 @@
 
   const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
   const STORAGE_KEY = "pm_projects_v1";
+  const ACTIVE_PROJECT_KEY = "pm_active_project_v1";
 
   // ===== devices 캐시 =====
   const deviceState = {
@@ -109,6 +110,12 @@
     );
     saveProjectsToStorage(items);
     window.__pmProjects__ = items;
+  }
+
+  function setActiveProject(project) {
+    try {
+      localStorage.setItem(ACTIVE_PROJECT_KEY, JSON.stringify(project || null));
+    } catch {}
   }
 
   // =========================
@@ -209,7 +216,7 @@
       const enabled = item.enabled || "Disable";
 
       return `
-        <tr data-project-id="${escapeHtmlAttr(item.id)}">
+        <tr data-project-id="${escapeHtmlAttr(item.id)}" style="cursor:pointer;">
           <td>${idx + 1}</td>
           <td style="font-weight:800;">${escapeHtmlText(item.name || "-")}</td>
           <td>${escapeHtmlText(owner)}</td>
@@ -510,11 +517,7 @@
       return false;
     }
 
-    if (!data.meters.length) {
-      alert("Please select at least one meter device.");
-      return false;
-    }
-
+    // ✅ meter 없어도 프로젝트 생성 가능
     return true;
   }
 
@@ -653,6 +656,20 @@
       if (!confirm("Delete this project?")) return;
       deleteProjectById(id);
       renderProjectTable();
+      return;
+    }
+
+    const projectRow = t.closest("tr[data-project-id]");
+    if (projectRow) {
+      const id = projectRow.getAttribute("data-project-id");
+      if (!id) return;
+
+      const items = loadProjectsFromStorage();
+      const project = items.find((x) => String(x.id) === String(id));
+      if (!project) return;
+
+      setActiveProject(project);
+      window.location.hash = "#monitor";
       return;
     }
   };
