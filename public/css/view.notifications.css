@@ -82,3 +82,26 @@
   color: #64748b;
   font-weight: 500;
 }
+
+/* ============================= */
+/* Notification Pagination */
+/* ============================= */
+
+.tablePagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.paginationInfo {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.tablePagination .btn.xs:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

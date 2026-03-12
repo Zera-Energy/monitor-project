@@ -12,16 +12,22 @@
   const btnClearAck = $("btnNotiClearAck");
   const btnClearAll = $("btnNotiClearAll");
 
+  const btnPrev = $("notiPrev");
+  const btnNext = $("notiNext");
+  const pageInfoEl = $("notiPageInfo");
+
   const prevCleanup = window.__viewCleanup__;
   const ALERTS_STORAGE_KEY = "monitor_alerts_v1";
 
   let renderTimer = null;
 
-  // ✅ 정렬 상태
   let sortState = {
     key: "time",
     dir: "desc",
   };
+
+  let currentPage = 1;
+  const PAGE_SIZE = 20;
 
   function nowMs() {
     return Date.now();
@@ -287,7 +293,7 @@
 
       const ta = toTimeMs(a.time) || 0;
       const tb = toTimeMs(b.time) || 0;
-      return (tb - ta);
+      return tb - ta;
     });
   }
 
@@ -339,16 +345,39 @@
     });
   }
 
+  function updatePaginationUi(totalCount, totalPages) {
+    if (pageInfoEl) {
+      pageInfoEl.textContent = `Page ${currentPage} / ${totalPages}`;
+    }
+
+    if (btnPrev) {
+      btnPrev.disabled = currentPage <= 1 || totalCount === 0;
+    }
+
+    if (btnNext) {
+      btnNext.disabled = currentPage >= totalPages || totalCount === 0;
+    }
+  }
+
   function renderTable() {
     if (!tbody) return;
 
-    const rows = getFilteredAlerts();
+    const allRows = getFilteredAlerts();
+    const totalCount = allRows.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const rows = allRows.slice(start, start + PAGE_SIZE);
 
     if (lastUpdateEl) {
       lastUpdateEl.textContent = `Last update: ${formatDateTime(nowMs())}`;
     }
 
     renderSortIndicators();
+    updatePaginationUi(totalCount, totalPages);
 
     if (!rows.length) {
       renderEmpty("No alerts found");
@@ -369,7 +398,7 @@
 
       return `
         <tr data-alert-id="${escapeHtml(a.id)}">
-          <td>${idx + 1}</td>
+          <td>${start + idx + 1}</td>
           <td>${getSeverityBadge(a.level)}</td>
           <td style="font-weight:800;">${safe(a.label || a.key)}</td>
           <td>${safe(a.code)}</td>
@@ -416,6 +445,7 @@
 
   function clearAck() {
     updateAlerts((list) => list.filter((item) => !item.ack));
+    currentPage = 1;
     renderTable();
   }
 
@@ -424,6 +454,7 @@
     if (!ok) return;
 
     setAlerts([]);
+    currentPage = 1;
     renderTable();
   }
 
@@ -438,6 +469,7 @@
   }
 
   function onSearch() {
+    currentPage = 1;
     renderTable();
   }
 
@@ -451,6 +483,7 @@
       sortState.dir = nextKey === "time" || nextKey === "no" ? "desc" : "asc";
     }
 
+    currentPage = 1;
     renderTable();
   }
 
@@ -492,16 +525,40 @@
 
   searchEl?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-      renderTable();
+      onSearch();
     }
   });
 
-  severityEl?.addEventListener("change", renderTable);
-  typeEl?.addEventListener("change", renderTable);
+  severityEl?.addEventListener("change", () => {
+    currentPage = 1;
+    renderTable();
+  });
+
+  typeEl?.addEventListener("change", () => {
+    currentPage = 1;
+    renderTable();
+  });
 
   btnAskPermission?.addEventListener("click", requestBrowserPermission);
   btnClearAck?.addEventListener("click", clearAck);
   btnClearAll?.addEventListener("click", clearAllAlerts);
+
+  btnPrev?.addEventListener("click", () => {
+    if (currentPage > 1) {
+      currentPage -= 1;
+      renderTable();
+    }
+  });
+
+  btnNext?.addEventListener("click", () => {
+    const total = getFilteredAlerts().length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+    if (currentPage < totalPages) {
+      currentPage += 1;
+      renderTable();
+    }
+  });
 
   tbody?.addEventListener("click", onTbodyClick);
 
