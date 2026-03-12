@@ -1,4 +1,53 @@
 /* ============================= */
+/* Notification Summary */
+/* ============================= */
+
+.alertSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.summaryCard {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.summaryTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.summaryValue {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #334155;
+}
+
+.summaryCard.critical .summaryValue {
+  color: #dc2626;
+}
+
+.summaryCard.warning .summaryValue {
+  color: #d97706;
+}
+
+.summaryCard.active .summaryValue {
+  color: #2563eb;
+}
+
+.summaryCard.total .summaryValue {
+  color: #334155;
+}
+
+/* ============================= */
 /* Notification Table UI 개선 */
 /* ============================= */
 
@@ -25,7 +74,7 @@
   border-left: 3px solid transparent;
 }
 
-.table tbody tr[data-alert-id]:has(.badge.danger-soft) {
+.table tbody tr.is-active-alert {
   border-left: 3px solid #ef4444;
 }
 

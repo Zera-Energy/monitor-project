@@ -16,6 +16,11 @@
   const btnNext = $("notiNext");
   const pageInfoEl = $("notiPageInfo");
 
+  const sumCritical = $("sumCritical");
+  const sumWarning = $("sumWarning");
+  const sumActive = $("sumActive");
+  const sumTotal = $("sumTotal");
+
   const prevCleanup = window.__viewCleanup__;
   const ALERTS_STORAGE_KEY = "monitor_alerts_v1";
 
@@ -315,6 +320,24 @@
     return sortAlerts(filtered);
   }
 
+  function updateSummary(alerts) {
+    let critical = 0;
+    let warning = 0;
+    let active = 0;
+
+    alerts.forEach((a) => {
+      if (!a.ack) active += 1;
+
+      if (a.level === "danger") critical += 1;
+      else if (a.level === "warn") warning += 1;
+    });
+
+    if (sumCritical) sumCritical.textContent = String(critical);
+    if (sumWarning) sumWarning.textContent = String(warning);
+    if (sumActive) sumActive.textContent = String(active);
+    if (sumTotal) sumTotal.textContent = String(alerts.length);
+  }
+
   function renderEmpty(text) {
     if (!tbody) return;
 
@@ -362,6 +385,9 @@
   function renderTable() {
     if (!tbody) return;
 
+    const normalizedAlerts = getNormalizedAlerts();
+    updateSummary(normalizedAlerts);
+
     const allRows = getFilteredAlerts();
     const totalCount = allRows.length;
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -397,7 +423,7 @@
       }
 
       return `
-        <tr data-alert-id="${escapeHtml(a.id)}">
+        <tr data-alert-id="${escapeHtml(a.id)}" class="${!a.ack ? "is-active-alert" : ""}">
           <td>${start + idx + 1}</td>
           <td>${getSeverityBadge(a.level)}</td>
           <td style="font-weight:800;">${safe(a.label || a.key)}</td>
