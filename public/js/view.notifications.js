@@ -369,6 +369,30 @@
     });
   }
 
+  function getEmptyMessage(totalAlerts, filteredCount) {
+    const keyword = String(searchEl?.value || "").trim();
+    const severity = severityEl?.value || "all";
+    const type = typeEl?.value || "all";
+    const hasExtraFilter =
+      summaryFilter !== "all" ||
+      severity !== "all" ||
+      type !== "all";
+
+    if (totalAlerts === 0) {
+      return "No alerts yet";
+    }
+
+    if (keyword) {
+      return "No results for this search";
+    }
+
+    if (hasExtraFilter && filteredCount === 0) {
+      return "No alerts match this filter";
+    }
+
+    return "No alerts found";
+  }
+
   function renderEmpty(text) {
     if (!tbody) return;
 
@@ -438,7 +462,7 @@
     updatePaginationUi(totalCount, totalPages);
 
     if (!rows.length) {
-      renderEmpty("No alerts found");
+      renderEmpty(getEmptyMessage(normalizedAlerts.length, totalCount));
       return;
     }
 
@@ -501,14 +525,14 @@
     renderTable();
   }
 
-  function clearAck() {
+  function removeAckedAlerts() {
     updateAlerts((list) => list.filter((item) => !item.ack));
     currentPage = 1;
     renderTable();
   }
 
   function clearAllAlerts() {
-    const ok = window.confirm("Are you sure you want to clear all alerts?");
+    const ok = window.confirm("Are you sure you want to delete all alerts?");
     if (!ok) return;
 
     setAlerts([]);
@@ -642,7 +666,7 @@
   });
 
   btnAskPermission?.addEventListener("click", requestBrowserPermission);
-  btnClearAck?.addEventListener("click", clearAck);
+  btnClearAck?.addEventListener("click", removeAckedAlerts);
   btnClearAll?.addEventListener("click", clearAllAlerts);
 
   btnPrev?.addEventListener("click", () => {
