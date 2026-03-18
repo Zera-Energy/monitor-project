@@ -138,7 +138,10 @@
 
   function saveAlertsToStorage(list) {
     try {
-      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+      localStorage.setItem(
+        ALERTS_STORAGE_KEY,
+        JSON.stringify(Array.isArray(list) ? list : [])
+      );
     } catch {}
 
     emitAlertsChanged();
@@ -154,10 +157,19 @@
     }
   }
 
+  const browserAlertMap = new Map();
+
   function showBrowserAlert(alert) {
     try {
       if (!("Notification" in window)) return;
       if (Notification.permission !== "granted") return;
+
+      const notifyKey = `${String(alert?.key || "device")}__${String(alert?.code || "alert")}`;
+      const now = nowMs();
+      const last = browserAlertMap.get(notifyKey) || 0;
+
+      if (now - last < 10000) return;
+      browserAlertMap.set(notifyKey, now);
 
       const title = `🚨 ${alert.code || "Device Alert"}`;
       const body =
@@ -167,12 +179,137 @@
       const notif = new Notification(title, {
         body,
         icon: "/favicon.ico",
-        tag: alert.code || "alert",
+        tag: notifyKey,
       });
+
+      notif.onclick = () => {
+        try { window.focus(); } catch {}
+        try { window.location.hash = "#notifications"; } catch {}
+        try { notif.close(); } catch {}
+      };
 
       setTimeout(() => {
         try { notif.close(); } catch {}
       }, 8000);
+    } catch {}
+  }
+
+  function ensureToastRoot() {
+    let root = document.getElementById("monitorToastRoot");
+    if (root) return root;
+
+    root = document.createElement("div");
+    root.id = "monitorToastRoot";
+    root.style.position = "fixed";
+    root.style.right = "20px";
+    root.style.bottom = "20px";
+    root.style.display = "flex";
+    root.style.flexDirection = "column";
+    root.style.gap = "10px";
+    root.style.zIndex = "9999";
+    root.style.pointerEvents = "none";
+    document.body.appendChild(root);
+
+    return root;
+  }
+
+  function getToastAccent(level) {
+    if (level === "danger") return "#ef4444";
+    if (level === "warn") return "#f59e0b";
+    return "#3b82f6";
+  }
+
+  function showToastAlert(alert) {
+    try {
+      const root = ensureToastRoot();
+      const toast = document.createElement("div");
+
+      const accent = getToastAccent(alert?.level);
+      const code = safe(alert?.code || "ALERT");
+      const device = safe(alert?.label || alert?.key || "Device");
+      const message = safe(alert?.message || "");
+      const valueText =
+        alert?.value === null || alert?.value === undefined || alert?.value === ""
+          ? ""
+          : `Value: ${safe(alert.value)}`;
+
+      toast.style.width = "320px";
+      toast.style.maxWidth = "calc(100vw - 32px)";
+      toast.style.background = "#ffffff";
+      toast.style.border = `1px solid ${accent}`;
+      toast.style.borderLeft = `6px solid ${accent}`;
+      toast.style.borderRadius = "12px";
+      toast.style.boxShadow = "0 10px 30px rgba(15, 23, 42, 0.18)";
+      toast.style.padding = "12px 14px";
+      toast.style.pointerEvents = "auto";
+      toast.style.opacity = "0";
+      toast.style.transform = "translateY(12px)";
+      toast.style.transition = "opacity .18s ease, transform .18s ease";
+      toast.style.cursor = "pointer";
+
+      toast.innerHTML = `
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:12px; font-weight:800; color:${accent}; margin-bottom:4px;">
+              ${code}
+            </div>
+            <div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:4px; word-break:break-word;">
+              ${device}
+            </div>
+            <div style="font-size:13px; color:#334155; line-height:1.4; word-break:break-word;">
+              ${message}
+            </div>
+            ${valueText ? `
+              <div style="font-size:12px; color:#64748b; margin-top:6px;">
+                ${valueText}
+              </div>
+            ` : ""}
+          </div>
+
+          <button
+            type="button"
+            data-role="close-toast"
+            style="
+              border:none;
+              background:transparent;
+              color:#94a3b8;
+              font-size:18px;
+              line-height:1;
+              cursor:pointer;
+              padding:0;
+              margin:0;
+            "
+          >×</button>
+        </div>
+      `;
+
+      root.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.style.opacity = "1";
+        toast.style.transform = "translateY(0)";
+      });
+
+      const removeToast = () => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(12px)";
+        setTimeout(() => {
+          try { toast.remove(); } catch {}
+        }, 180);
+      };
+
+      toast.addEventListener("click", (e) => {
+        const closeBtn = e.target.closest('[data-role="close-toast"]');
+        if (closeBtn) {
+          removeToast();
+          return;
+        }
+
+        try { window.location.hash = "#notifications"; } catch {}
+        removeToast();
+      });
+
+      setTimeout(removeToast, 5000);
     } catch {}
   }
 
@@ -536,6 +673,7 @@
     window.__monitorAlerts__ = alerts;
     saveAlertsToStorage(alerts);
     showBrowserAlert(item);
+    showToastAlert(item);
 
     const icon = level === "danger" ? "🚨" : level === "warn" ? "⚠️" : "ℹ️";
     appendLog(`${icon} ALERT [${codeText}] ${item.label} - ${item.message}`);
@@ -1860,6 +1998,11 @@
 
     try { energyHistChart && energyHistChart.destroy && energyHistChart.destroy(); } catch {}
     energyHistChart = null;
+
+    try {
+      const toastRoot = document.getElementById("monitorToastRoot");
+      if (toastRoot) toastRoot.remove();
+    } catch {}
 
     try { if (typeof prevCleanup === "function") prevCleanup(); } catch {}
   };
