@@ -178,6 +178,14 @@
   position:relative;
 }
 
+.topNotiDropdown[hidden]{
+  display:none !important;
+}
+
+.topNotiBadge[hidden]{
+  display:none !important;
+}
+
 .topNotiDropdown{
   position:absolute;
   top:calc(100% + 10px);
