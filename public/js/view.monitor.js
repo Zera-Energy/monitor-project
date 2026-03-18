@@ -126,10 +126,22 @@
     }
   }
 
+  function emitAlertsChanged() {
+    try {
+      window.dispatchEvent(new CustomEvent("monitor-alerts-changed"));
+    } catch {}
+
+    try {
+      window.dispatchEvent(new CustomEvent("alerts-changed"));
+    } catch {}
+  }
+
   function saveAlertsToStorage(list) {
     try {
-      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(list || []));
+      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(Array.isArray(list) ? list : []));
     } catch {}
+
+    emitAlertsChanged();
   }
 
   function getActiveProject() {
@@ -490,7 +502,7 @@
   const energyCostBuf = { labels: [], values: [] };
   const energyHistBuf = { labels: [], values: [] };
 
-  const alerts = loadAlertsFromStorage();
+  const alerts = Array.isArray(loadAlertsFromStorage()) ? loadAlertsFromStorage() : [];
   const alertCooldownMap = new Map();
   window.__monitorAlerts__ = alerts;
 

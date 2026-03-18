@@ -124,6 +124,16 @@
     }
   }
 
+  function emitAlertsChanged() {
+    try {
+      window.dispatchEvent(new CustomEvent("monitor-alerts-changed"));
+    } catch {}
+
+    try {
+      window.dispatchEvent(new CustomEvent("alerts-changed"));
+    } catch {}
+  }
+
   function saveAlertsToStorage(list) {
     try {
       localStorage.setItem(
@@ -131,6 +141,8 @@
         JSON.stringify(Array.isArray(list) ? list : [])
       );
     } catch {}
+
+    emitAlertsChanged();
   }
 
   function refreshTopNotifications() {
@@ -706,6 +718,10 @@
     });
   }
 
+  function onAlertsChanged() {
+    renderTable();
+  }
+
   btnSearch?.addEventListener("click", onSearch);
   btnReset?.addEventListener("click", onReset);
   btnRefresh?.addEventListener("click", onRefresh);
@@ -756,6 +772,9 @@
 
   tbody?.addEventListener("click", onTbodyClick);
 
+  window.addEventListener("monitor-alerts-changed", onAlertsChanged);
+  window.addEventListener("alerts-changed", onAlertsChanged);
+
   bindSortableHeaders();
   bindSummaryFilter();
 
@@ -773,6 +792,14 @@
   window.__viewCleanup__ = () => {
     try {
       tbody?.removeEventListener("click", onTbodyClick);
+    } catch {}
+
+    try {
+      window.removeEventListener("monitor-alerts-changed", onAlertsChanged);
+    } catch {}
+
+    try {
+      window.removeEventListener("alerts-changed", onAlertsChanged);
     } catch {}
 
     try {

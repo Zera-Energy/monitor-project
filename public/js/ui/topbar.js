@@ -18,10 +18,25 @@ function loadAlertsFromStorage() {
   }
 }
 
+function emitAlertsChanged() {
+  try {
+    window.dispatchEvent(new CustomEvent("monitor-alerts-changed"));
+  } catch {}
+
+  try {
+    window.dispatchEvent(new CustomEvent("alerts-changed"));
+  } catch {}
+}
+
 function saveAlertsToStorage(list) {
   try {
-    localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+    localStorage.setItem(
+      ALERTS_STORAGE_KEY,
+      JSON.stringify(Array.isArray(list) ? list : [])
+    );
   } catch {}
+
+  emitAlertsChanged();
 }
 
 function getAlerts() {
@@ -38,7 +53,7 @@ function setAlerts(list) {
 
 function getActiveAlerts() {
   const src = getAlerts();
-  return src.filter(a => a && a.ack !== true);
+  return src.filter((a) => a && a.ack !== true);
 }
 
 function ackAlertById(id) {
@@ -59,7 +74,7 @@ function clearAckAlerts() {
   setAlerts(next);
 }
 
-function renderTopNotifications() {
+export function renderTopNotifications() {
   const badge = document.getElementById("topNotiBadge");
   const list = document.getElementById("topNotiList");
   const meta = document.getElementById("topNotiMeta");
@@ -67,8 +82,8 @@ function renderTopNotifications() {
   if (!badge || !list || !meta) return;
 
   const alerts = getActiveAlerts();
-  const critical = alerts.filter(a => a.level === "danger").length;
-  const warning = alerts.filter(a => a.level === "warn").length;
+  const critical = alerts.filter((a) => a.level === "danger").length;
+  const warning = alerts.filter((a) => a.level === "warn").length;
 
   badge.hidden = alerts.length === 0;
   badge.textContent = alerts.length > 99 ? "99+" : String(alerts.length);
@@ -82,7 +97,7 @@ function renderTopNotifications() {
 
   const rows = alerts.slice(0, 7);
 
-  list.innerHTML = rows.map(a => {
+  list.innerHTML = rows.map((a) => {
     const cls = a.level === "danger" ? "danger" : a.level === "warn" ? "warn" : "info";
     return `
       <div class="topNotiItem" data-id="${safe(a.id)}">
@@ -106,6 +121,10 @@ function bindTopNotifications() {
   if (window.__topNotiBound__) return;
   window.__topNotiBound__ = true;
 
+  const onAlertsChanged = () => {
+    renderTopNotifications();
+  };
+
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     dropdown.hidden = !dropdown.hidden;
@@ -115,7 +134,6 @@ function bindTopNotifications() {
   btnClearAck?.addEventListener("click", (e) => {
     e.stopPropagation();
     clearAckAlerts();
-    renderTopNotifications();
   });
 
   btnViewAll?.addEventListener("click", (e) => {
@@ -132,7 +150,6 @@ function bindTopNotifications() {
     if (!id) return;
 
     ackAlertById(id);
-    renderTopNotifications();
   });
 
   const onDocClick = (e) => {
@@ -142,21 +159,15 @@ function bindTopNotifications() {
   };
   document.addEventListener("click", onDocClick);
 
-  renderTopNotifications();
+  window.addEventListener("monitor-alerts-changed", onAlertsChanged);
+  window.addEventListener("alerts-changed", onAlertsChanged);
 
-  if (window.__topNotiTimer__) {
-    clearInterval(window.__topNotiTimer__);
-  }
-  window.__topNotiTimer__ = setInterval(renderTopNotifications, 1000);
+  renderTopNotifications();
 
   window.__topNotiCleanup__ = () => {
     try { document.removeEventListener("click", onDocClick); } catch {}
-    try {
-      if (window.__topNotiTimer__) {
-        clearInterval(window.__topNotiTimer__);
-        window.__topNotiTimer__ = null;
-      }
-    } catch {}
+    try { window.removeEventListener("monitor-alerts-changed", onAlertsChanged); } catch {}
+    try { window.removeEventListener("alerts-changed", onAlertsChanged); } catch {}
     window.__topNotiBound__ = false;
   };
 }
