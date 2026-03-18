@@ -166,6 +166,161 @@
   gap:10px;
 }
 
+/* ============================= */
+/* Topbar Notification */
+/* ============================= */
+
+.topNotiWrap{
+  position:relative;
+}
+
+.topNotiBtn{
+  position:relative;
+}
+
+.topNotiDropdown{
+  position:absolute;
+  top:calc(100% + 10px);
+  right:0;
+  width:320px;
+  max-height:420px;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:12px;
+  box-shadow: var(--shadow);
+  z-index:200;
+  display:flex;
+  flex-direction:column;
+}
+
+.topNotiHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+  padding:12px;
+  border-bottom:1px solid var(--line);
+}
+
+.topNotiTitle{
+  font-size:16px;
+  font-weight:900;
+  color:#334155;
+  margin-bottom:4px;
+}
+
+.topNotiMeta{
+  font-size:13px;
+  color:#64748b;
+}
+
+.topNotiActions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.topNotiLink{
+  border:none;
+  background:transparent;
+  padding:4px 6px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:800;
+  color:#475569;
+  white-space:nowrap;
+}
+
+.topNotiLink:hover{
+  background:rgba(148, 163, 184, 0.12);
+}
+
+.topNotiList{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:300px;
+  overflow-y:auto;
+  padding:12px;
+}
+
+.topNotiItem{
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 12px;
+  background:#f8fafc;
+  cursor:pointer;
+  transition:background .15s ease, transform .15s ease;
+}
+
+.topNotiItem:hover{
+  background:#f1f5f9;
+  transform:translateY(-1px);
+}
+
+.topNotiCode{
+  font-size:11px;
+  font-weight:800;
+  padding:3px 8px;
+  border-radius:999px;
+  margin-bottom:6px;
+  display:inline-block;
+}
+
+.topNotiCode.danger{
+  background:rgba(239, 68, 68, 0.12);
+  color:#dc2626;
+}
+
+.topNotiCode.warn{
+  background:rgba(245, 158, 11, 0.16);
+  color:#d97706;
+}
+
+.topNotiCode.info{
+  background:rgba(59, 130, 246, 0.14);
+  color:#2563eb;
+}
+
+.topNotiDevice{
+  font-size:14px;
+  font-weight:800;
+  color:#334155;
+  margin-bottom:4px;
+}
+
+.topNotiMsg{
+  font-size:13px;
+  color:#475569;
+  line-height:1.35;
+}
+
+.topNotiEmpty{
+  text-align:center;
+  color:#64748b;
+  font-size:13px;
+  padding:12px 4px;
+}
+
+.topNotiBadge{
+  position:absolute;
+  top:-4px;
+  right:-4px;
+  min-width:18px;
+  height:18px;
+  padding:0 5px;
+  border-radius:999px;
+  background:#ef4444;
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
 .user{
   display:flex;
   align-items:center;
@@ -199,7 +354,7 @@
 ========================= */
 body.sidebar-collapsed .sidebar{
   width:72px;
-  padding:14px 6px;     /* ✅ 살짝 더 타이트하게 */
+  padding:14px 6px;
   position:relative;
 }
 
