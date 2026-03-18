@@ -82,6 +82,49 @@
 }
 
 /* ============================= */
+/* Notification Filter / Search */
+/* ============================= */
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.searchGroup {
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+}
+
+.searchGroup .input {
+  width: 100%;
+}
+
+.inlineActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ============================= */
 /* Notification Table UI 개선 */
 /* ============================= */
 
@@ -198,12 +241,6 @@
   flex-wrap: wrap;
 }
 
-.inlineActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 /* ============================= */
 /* Notification Pagination */
 /* ============================= */
@@ -244,6 +281,21 @@
 
   .summaryValue {
     font-size: 22px;
+  }
+
+  .toolbar,
+  .toolbarLeft,
+  .toolbarRight {
+    align-items: stretch;
+  }
+
+  .toolbarRight {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .searchGroup {
+    min-width: 100%;
   }
 
   .notiFooter {
