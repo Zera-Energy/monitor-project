@@ -73,8 +73,8 @@
 
 /* 선택된 카드 */
 .summaryCard.is-selected {
-  border-color: rgba(37, 99, 235, 0.45);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .summaryCard.is-selected .summaryTitle {
@@ -110,6 +110,7 @@
 
 .table tbody tr.is-active-alert {
   border-left: 3px solid #ef4444;
+  background: rgba(248, 113, 113, 0.04);
 }
 
 /* 메시지 가독성 */
