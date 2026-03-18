@@ -10,6 +10,10 @@
 }
 
 .summaryCard {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  text-align: left;
   background: #ffffff;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 12px;
@@ -26,6 +30,15 @@
 
 .summaryCard:active {
   transform: scale(0.98);
+}
+
+.summaryCard:focus {
+  outline: none;
+}
+
+.summaryCard:focus-visible {
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
 }
 
 .summaryTitle {
@@ -105,10 +118,15 @@
   line-height: 1.35;
 }
 
-/* Status 셀 */
-.table td:last-child {
+/* Status / Action 셀 */
+.table td:nth-child(10),
+.table td:nth-child(11) {
   white-space: nowrap;
   vertical-align: middle;
+}
+
+.table td:nth-child(11) {
+  text-align: center;
 }
 
 /* ACK 버튼 */
@@ -137,7 +155,7 @@
   color: #15803d;
 }
 
-/* 테이블 숫자 정렬 */
+/* 테이블 숫자/시간 정렬 */
 .table td:nth-child(1),
 .table td:nth-child(7),
 .table td:nth-child(8),
@@ -151,6 +169,38 @@
   padding: 28px 10px;
   color: #64748b;
   font-weight: 500;
+}
+
+/* ============================= */
+/* Notification Footer */
+/* ============================= */
+
+.notiFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notiFooterLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notiFooterRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inlineActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ============================= */
@@ -193,5 +243,19 @@
 
   .summaryValue {
     font-size: 22px;
+  }
+
+  .notiFooter {
+    align-items: stretch;
+  }
+
+  .notiFooterLeft,
+  .notiFooterRight,
+  .inlineActions {
+    width: 100%;
+  }
+
+  .notiFooterRight {
+    justify-content: flex-start;
   }
 }

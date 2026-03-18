@@ -5,9 +5,16 @@
   const tbody = $("notiTbody");
   const severityEl = $("notiSeverity");
   const typeEl = $("notiType");
+  const statusEl = $("notiStatus");
   const searchEl = $("notiSearch");
+
   const btnSearch = $("btnNotiSearch");
+  const btnReset = $("btnNotiReset");
+  const btnRefresh = $("btnNotiRefresh");
+
   const lastUpdateEl = $("notiLastUpdate");
+  const totalCountEl = $("notiTotalCount");
+
   const btnAskPermission = $("btnNotiAskPermission");
   const btnClearAck = $("btnNotiClearAck");
   const btnClearAll = $("btnNotiClearAll");
@@ -126,6 +133,14 @@
     } catch {}
   }
 
+  function refreshTopNotifications() {
+    try {
+      if (typeof window.renderTopNotifications === "function") {
+        window.renderTopNotifications();
+      }
+    } catch {}
+  }
+
   function getAlerts() {
     const stored = loadAlertsFromStorage();
     window.__monitorAlerts__ = stored;
@@ -136,6 +151,7 @@
     const next = Array.isArray(list) ? list : [];
     window.__monitorAlerts__ = next;
     saveAlertsToStorage(next);
+    refreshTopNotifications();
   }
 
   function normalizeAlert(alert, idx) {
@@ -183,16 +199,22 @@
     return "other";
   }
 
-  function getStatusHtml(alert) {
+  function getStatusBadgeHtml(alert) {
     if (alert.ack) {
       return `<span class="badge ok">ACK</span>`;
     }
+    return `<span class="badge danger-soft">Active</span>`;
+  }
+
+  function getActionHtml(alert) {
+    if (alert.ack) {
+      return `<span class="muted">Acked</span>`;
+    }
 
     return `
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <span class="badge danger-soft">Active</span>
-        <button class="btn xs" type="button" data-action="ack" data-alert-id="${escapeHtml(alert.id)}">ACK</button>
-      </div>
+      <button class="btn xs" type="button" data-action="ack" data-alert-id="${escapeHtml(alert.id)}">
+        ACK
+      </button>
     `;
   }
 
@@ -204,6 +226,13 @@
   function matchesType(alert, type) {
     if (!type || type === "all") return true;
     return detectType(alert.code, alert.message) === type;
+  }
+
+  function matchesStatus(alert, status) {
+    if (!status || status === "all") return true;
+    if (status === "active") return !alert.ack;
+    if (status === "acked") return !!alert.ack;
+    return true;
   }
 
   function matchesSearch(alert, keyword) {
@@ -315,6 +344,7 @@
 
     const severity = severityEl?.value || "all";
     const type = typeEl?.value || "all";
+    const status = statusEl?.value || "all";
     const keyword = searchEl?.value || "";
 
     const filtered = src.filter((alert) => {
@@ -322,6 +352,7 @@
         matchesSummaryFilter(alert) &&
         matchesSeverity(alert, severity) &&
         matchesType(alert, type) &&
+        matchesStatus(alert, status) &&
         matchesSearch(alert, keyword)
       );
     });
@@ -362,7 +393,10 @@
       } else if (filter === "active") {
         selected = summaryFilter === "active";
       } else if (filter === "all") {
-        selected = summaryFilter === "all" && (severityEl?.value || "all") === "all";
+        selected =
+          summaryFilter === "all" &&
+          (severityEl?.value || "all") === "all" &&
+          (statusEl?.value || "all") === "all";
       }
 
       card.classList.toggle("is-selected", selected);
@@ -373,10 +407,13 @@
     const keyword = String(searchEl?.value || "").trim();
     const severity = severityEl?.value || "all";
     const type = typeEl?.value || "all";
+    const status = statusEl?.value || "all";
+
     const hasExtraFilter =
       summaryFilter !== "all" ||
       severity !== "all" ||
-      type !== "all";
+      type !== "all" ||
+      status !== "all";
 
     if (totalAlerts === 0) {
       return "No alerts yet";
@@ -397,8 +434,8 @@
     if (!tbody) return;
 
     tbody.innerHTML = `
-      <tr>
-        <td colspan="10" class="empty">${safe(text)}</td>
+      <tr class="notiEmptyRow">
+        <td colspan="11" class="empty">${safe(text)}</td>
       </tr>
     `;
   }
@@ -458,6 +495,10 @@
       lastUpdateEl.textContent = `Last update: ${formatDateTime(nowMs())}`;
     }
 
+    if (totalCountEl) {
+      totalCountEl.textContent = `Total: ${normalizedAlerts.length}`;
+    }
+
     renderSortIndicators();
     updatePaginationUi(totalCount, totalPages);
 
@@ -489,7 +530,8 @@
           <td>${valueText}</td>
           <td>${formatDateTime(a.time)}</td>
           <td>${calcAgeText(a.time)}</td>
-          <td>${getStatusHtml(a)}</td>
+          <td>${getStatusBadgeHtml(a)}</td>
+          <td>${getActionHtml(a)}</td>
         </tr>
       `;
     }).join("");
@@ -555,6 +597,20 @@
     renderTable();
   }
 
+  function onReset() {
+    if (severityEl) severityEl.value = "all";
+    if (typeEl) typeEl.value = "all";
+    if (statusEl) statusEl.value = "all";
+    if (searchEl) searchEl.value = "";
+    summaryFilter = "all";
+    currentPage = 1;
+    renderTable();
+  }
+
+  function onRefresh() {
+    renderTable();
+  }
+
   function toggleSort(nextKey) {
     if (!nextKey) return;
 
@@ -614,15 +670,19 @@
         if (filter === "danger") {
           summaryFilter = "all";
           if (severityEl) severityEl.value = "danger";
+          if (statusEl) statusEl.value = "all";
         } else if (filter === "warn") {
           summaryFilter = "all";
           if (severityEl) severityEl.value = "warn";
+          if (statusEl) statusEl.value = "all";
         } else if (filter === "active") {
           summaryFilter = "active";
           if (severityEl) severityEl.value = "all";
+          if (statusEl) statusEl.value = "active";
         } else {
           summaryFilter = "all";
           if (severityEl) severityEl.value = "all";
+          if (statusEl) statusEl.value = "all";
         }
 
         currentPage = 1;
@@ -647,6 +707,8 @@
   }
 
   btnSearch?.addEventListener("click", onSearch);
+  btnReset?.addEventListener("click", onReset);
+  btnRefresh?.addEventListener("click", onRefresh);
 
   searchEl?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -661,6 +723,12 @@
   });
 
   typeEl?.addEventListener("change", () => {
+    currentPage = 1;
+    renderTable();
+  });
+
+  statusEl?.addEventListener("change", () => {
+    summaryFilter = "all";
     currentPage = 1;
     renderTable();
   });

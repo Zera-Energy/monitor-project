@@ -5,28 +5,32 @@
       <h2 class="pageTitle">Device Notifications</h2>
       <p class="pageDesc">Check active alerts, acknowledge events, and manage notification history.</p>
     </div>
+
+    <div class="pageHeaderActions">
+      <button class="btn" id="btnNotiRefresh" type="button">Refresh</button>
+    </div>
   </div>
 
-  <section class="alertSummary">
-    <div class="summaryCard critical" data-filter="danger">
+  <section class="alertSummary" aria-label="Notification summary">
+    <button class="summaryCard critical" data-filter="danger" type="button">
       <div class="summaryTitle">Critical</div>
       <div class="summaryValue" id="sumCritical">0</div>
-    </div>
+    </button>
 
-    <div class="summaryCard warning" data-filter="warn">
+    <button class="summaryCard warning" data-filter="warn" type="button">
       <div class="summaryTitle">Warning</div>
       <div class="summaryValue" id="sumWarning">0</div>
-    </div>
+    </button>
 
-    <div class="summaryCard active" data-filter="active">
+    <button class="summaryCard active" data-filter="active" type="button">
       <div class="summaryTitle">Active</div>
       <div class="summaryValue" id="sumActive">0</div>
-    </div>
+    </button>
 
-    <div class="summaryCard total" data-filter="all">
+    <button class="summaryCard total" data-filter="all" type="button">
       <div class="summaryTitle">Total</div>
       <div class="summaryValue" id="sumTotal">0</div>
-    </div>
+    </button>
   </section>
 
   <!-- Filter / Search -->
@@ -56,6 +60,15 @@
             <option value="current">Current</option>
           </select>
         </div>
+
+        <div class="fieldGroup">
+          <label class="fieldLabel" for="notiStatus">Status</label>
+          <select class="select" id="notiStatus">
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="acked">ACKed</option>
+          </select>
+        </div>
       </div>
 
       <div class="toolbarRight">
@@ -71,7 +84,10 @@
 
         <div class="fieldGroup btnGroup">
           <label class="fieldLabel ghost">Action</label>
-          <button class="btn amber" id="btnNotiSearch" type="button">Search</button>
+          <div class="inlineActions">
+            <button class="btn amber" id="btnNotiSearch" type="button">Search</button>
+            <button class="btn btnGhost" id="btnNotiReset" type="button">Reset</button>
+          </div>
         </div>
       </div>
     </div>
@@ -82,7 +98,9 @@
     <div class="cardHead">
       <div>
         <div class="cardTitle">Alert List</div>
-        <div class="muted">Latest alerts are shown first. Click ACK in the status column to acknowledge an alert.</div>
+        <div class="muted">
+          Latest alerts are shown first. Active alerts can be acknowledged from the Action column.
+        </div>
       </div>
     </div>
 
@@ -100,12 +118,13 @@
             <th class="sortable" data-sort="time" scope="col">Time</th>
             <th class="sortable" data-sort="age" scope="col">Age</th>
             <th class="sortable" data-sort="status" scope="col">Status</th>
+            <th scope="col">Action</th>
           </tr>
         </thead>
 
         <tbody id="notiTbody">
-          <tr>
-            <td colspan="10" class="empty">No alerts yet</td>
+          <tr class="notiEmptyRow">
+            <td colspan="11" class="empty">No alerts yet</td>
           </tr>
         </tbody>
       </table>
@@ -114,12 +133,13 @@
     <div class="notiFooter mt12">
       <div class="notiFooterLeft">
         <div class="muted" id="notiLastUpdate">Last update: -</div>
+        <div class="muted" id="notiTotalCount">Total: 0</div>
       </div>
 
       <div class="notiFooterRight">
-        <button class="btn" id="btnNotiAskPermission" type="button">🔔 Enable browser alerts</button>
+        <button class="btn" id="btnNotiAskPermission" type="button">Enable browser alerts</button>
         <button class="btn" id="btnNotiClearAck" type="button">Remove ACKed</button>
-        <button class="btn danger" id="btnNotiClearAll" type="button">Clear ALL</button>
+        <button class="btn danger" id="btnNotiClearAll" type="button">Clear All</button>
       </div>
     </div>
 
