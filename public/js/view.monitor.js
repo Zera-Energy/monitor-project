@@ -57,6 +57,9 @@
   const TREND_MAX = 240;
   const ENERGY_RATE_THB = 4.2;
 
+  // ✅ mock 모드 스위치
+  const USE_MOCK = true;
+
   const ALERT_LIMITS = {
     voltageHigh: 250,
     currentHigh: 100,
@@ -459,6 +462,8 @@
 
   function deviceKey(d) {
     if (!d) return "";
+    if (d.device_key) return String(d.device_key);
+    if (d.key) return String(d.key);
     if (d.device_topic) return String(d.device_topic);
     if (d.topic) return String(d.topic);
     if (d._raw_topic) return String(d._raw_topic);
@@ -469,7 +474,13 @@
   }
 
   function deviceLabel(d) {
-    return String(d?.device_display ?? d?.device_short ?? deviceKey(d));
+    return String(
+      d?.label ??
+      d?.device_display ??
+      d?.device_short ??
+      d?.name ??
+      deviceKey(d)
+    );
   }
 
   function selectDeviceByKey(key, label) {
@@ -487,6 +498,7 @@
         d?.site ??
         d?.location ??
         d?.place ??
+        d?.area ??
         d?.site_id ??
         d?.country ??
         "-";
@@ -598,7 +610,7 @@
     const kw3 = pickSummaryNumber(msg, ["kw3", "p3_kw"]) ??
       n(findChannel(channels, "in", "L3")?.kw ?? findChannel(channels, "in", "L3")?.p_kw ?? findChannel(channels, "in", "L3")?.power_kw ?? findChannel(channels, "in", "L3")?.p);
 
-    const kwt = pickSummaryNumber(msg, ["kw", "kw_total", "p_kw_total", "total_kw"]);
+    const kwt = pickSummaryNumber(msg, ["kw", "kw_total", "kwt", "p_kw_total", "total_kw"]);
     const kvar = pickSummaryNumber(msg, ["kvar", "q_kvar", "reactive_kvar"]);
     const kva = pickSummaryNumber(msg, ["kva", "s_kva", "apparent_kva"]);
     const hz = pickSummaryNumber(msg, ["hz", "freq", "frequency"]);
@@ -614,14 +626,14 @@
     setTile("tileHz", "FREQUENCY", hz !== null ? hz.toFixed(2) : "-", "Hz", nowText);
     setTile("tilePF", "POWER FACTOR", pf !== null ? pf.toFixed(2) : "-", "PF", nowText);
 
-    const thdb = pickSummaryNumber(msg, ["thd_before", "thd_b", "thdBefore"]);
-    const thda = pickSummaryNumber(msg, ["thd_after", "thd_a", "thdAfter"]);
+    const thdb = pickSummaryNumber(msg, ["thd_before", "thd_b", "thdBefore", "thdv"]);
+    const thda = pickSummaryNumber(msg, ["thd_after", "thd_a", "thdAfter", "thda"]);
 
     setTile("tileTHDb", "THD BEFORE", thdb !== null ? thdb.toFixed(2) : "-", "%", "Before K-Save");
     setTile("tileTHDa", "THD AFTER", thda !== null ? thda.toFixed(2) : "-", "%", "With K-Save");
 
     const kwh = pickSummaryNumber(msg, ["kwh", "energy_kwh"]);
-    const saved = pickSummaryNumber(msg, ["kwh_saved", "energy_saved_kwh"]);
+    const saved = pickSummaryNumber(msg, ["kwh_saved", "energy_saved_kwh", "saved"]);
     const co2 = pickSummaryNumber(msg, ["co2_saved", "co2_kg", "co2"]);
 
     setTile("tileKwh", "ENERGY", kwh !== null ? kwh.toFixed(2) : "-", "kWh", nowText);
@@ -680,7 +692,7 @@
   }
 
   function checkAlertsFromTelemetry(msg, deviceObj) {
-    const key = deviceKey(deviceObj) || msg?.key || "";
+    const key = deviceKey(deviceObj) || msg?.key || msg?.device_key || "";
     if (!key) return;
 
     const label = deviceLabel(deviceObj) || key;
@@ -706,8 +718,8 @@
 
     const pf = pickSummaryNumber(msg, ["pf", "power_factor"]);
 
-    const thdb = pickSummaryNumber(msg, ["thd_before", "thd_b", "thdBefore"]);
-    const thda = pickSummaryNumber(msg, ["thd_after", "thd_a", "thdAfter"]);
+    const thdb = pickSummaryNumber(msg, ["thd_before", "thd_b", "thdBefore", "thdv"]);
+    const thda = pickSummaryNumber(msg, ["thd_after", "thd_a", "thdAfter", "thda"]);
 
     if (v12 !== null && v12 > ALERT_LIMITS.voltageHigh) {
       pushAlert({
@@ -1002,13 +1014,13 @@
     const p = msg?.payload || {};
 
     const directMap = {
-      kw: ["kw", "kw_total", "total_kw", "p_kw_total"],
+      kw: ["kw", "kw_total", "kwt", "total_kw", "p_kw_total"],
       kvar: ["kvar", "q_kvar", "reactive_kvar"],
       kva: ["kva", "s_kva", "apparent_kva"],
       pf: ["pf", "power_factor"],
       hz: ["hz", "freq", "frequency"],
       kwh: ["kwh", "energy_kwh"],
-      kwh_saved: ["kwh_saved", "energy_saved_kwh"],
+      kwh_saved: ["kwh_saved", "energy_saved_kwh", "saved"],
 
       v_ln1: ["v1", "v_l1", "v_ln1", "vL1N", "v_l1n"],
       v_ln2: ["v2", "v_l2", "v_ln2", "vL2N", "v_l2n"],
@@ -1038,6 +1050,358 @@
     return null;
   }
 
+  // =========================
+  // ✅ MOCK HELPERS
+  // =========================
+  let mockTimer = null;
+  let mockState = [];
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function round(value, digits = 2) {
+    const p = 10 ** digits;
+    return Math.round(value * p) / p;
+  }
+
+  function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function vary(value, delta, min, max, digits = 2) {
+    const next = Number(value || 0) + randomBetween(-delta, delta);
+    return round(clamp(next, min, max), digits);
+  }
+
+  function makeMockSummary(seed = 0) {
+    const v1 = 229 + (seed % 3);
+    const v2 = 231 + (seed % 3);
+    const v3 = 230 + (seed % 2);
+
+    return {
+      v12: 398 + (seed % 5),
+      v23: 401 + (seed % 4),
+      v31: 400 + (seed % 3),
+
+      v_ln1: v1,
+      v_ln2: v2,
+      v_ln3: v3,
+
+      a1: 22 + seed,
+      a2: 20 + seed,
+      a3: 24 + seed,
+
+      kw1: 8 + seed * 0.5,
+      kw2: 7 + seed * 0.4,
+      kw3: 9 + seed * 0.3,
+      kw: 24 + seed,
+      kwt: 24 + seed,
+
+      kvar: 4 + seed * 0.3,
+      kva: 26 + seed * 0.8,
+      pf: 0.94,
+      hz: 50.0,
+
+      thdv: 3.2 + seed * 0.2,
+      thda: 4.1 + seed * 0.3,
+      thd_before: 3.2 + seed * 0.2,
+      thd_after: 4.1 + seed * 0.3,
+
+      kwh: 1200 + seed * 120,
+      kwh_saved: 120 + seed * 10,
+      saved: 120 + seed * 10,
+      co2: 80 + seed * 8,
+    };
+  }
+
+  function getMockDevices() {
+    const nowIso = new Date().toISOString();
+
+    return [
+      {
+        id: "mock-1",
+        key: "site001/pg46/001",
+        device_key: "site001/pg46/001",
+        label: "Site 001 - PG46 - Meter 001",
+        name: "Meter 001",
+        site: "Site 001",
+        area: "Bangkok A",
+        customer: "Demo Customer A",
+        topic: "th/site001/pg46/001/meter",
+        device_topic: "th/site001/pg46/001/meter",
+        last_type: "meter",
+        online: true,
+        last_seen_at: Date.now(),
+        summary: makeMockSummary(1),
+      },
+      {
+        id: "mock-2",
+        key: "site001/pg46/002",
+        device_key: "site001/pg46/002",
+        label: "Site 001 - PG46 - Meter 002",
+        name: "Meter 002",
+        site: "Site 001",
+        area: "Bangkok B",
+        customer: "Demo Customer A",
+        topic: "th/site001/pg46/002/meter",
+        device_topic: "th/site001/pg46/002/meter",
+        last_type: "meter",
+        online: true,
+        last_seen_at: Date.now(),
+        summary: makeMockSummary(2),
+      },
+      {
+        id: "mock-3",
+        key: "site001/pg46/003",
+        device_key: "site001/pg46/003",
+        label: "Site 001 - PG46 - Meter 003",
+        name: "Meter 003",
+        site: "Site 001",
+        area: "Bangkok C",
+        customer: "Demo Customer A",
+        topic: "th/site001/pg46/003/meter",
+        device_topic: "th/site001/pg46/003/meter",
+        last_type: "meter",
+        online: true,
+        last_seen_at: Date.now(),
+        summary: makeMockSummary(3),
+      },
+      {
+        id: "mock-4",
+        key: "site002/pg46/001",
+        device_key: "site002/pg46/001",
+        label: "Site 002 - PG46 - Meter 001",
+        name: "Meter 001",
+        site: "Site 002",
+        area: "Chiang Mai A",
+        customer: "Demo Customer B",
+        topic: "th/site002/pg46/001/meter",
+        device_topic: "th/site002/pg46/001/meter",
+        last_type: "meter",
+        online: true,
+        last_seen_at: Date.now(),
+        summary: makeMockSummary(4),
+      },
+      {
+        id: "mock-5",
+        key: "site002/pg46/002",
+        device_key: "site002/pg46/002",
+        label: "Site 002 - PG46 - Meter 002",
+        name: "Meter 002",
+        site: "Site 002",
+        area: "Chiang Mai B",
+        customer: "Demo Customer B",
+        topic: "th/site002/pg46/002/meter",
+        device_topic: "th/site002/pg46/002/meter",
+        last_type: "meter",
+        online: false,
+        last_seen_at: Date.now() - (1000 * 60 * 8),
+        summary: makeMockSummary(5),
+      },
+    ].map((x) => ({
+      ...x,
+      summary: { ...x.summary },
+      channels: [
+        { term: "in", phase: "L1", v: x.summary.v_ln1, a: x.summary.a1, kw: x.summary.kw1 },
+        { term: "in", phase: "L2", v: x.summary.v_ln2, a: x.summary.a2, kw: x.summary.kw2 },
+        { term: "in", phase: "L3", v: x.summary.v_ln3, a: x.summary.a3, kw: x.summary.kw3 },
+        { term: "ll", phase: "L1-L2", v: x.summary.v12 },
+        { term: "ll", phase: "L2-L3", v: x.summary.v23 },
+        { term: "ll", phase: "L3-L1", v: x.summary.v31 },
+      ],
+      last_topic: x.topic,
+      device_display: x.label,
+      device_short: x.label,
+      mock_loaded_at: nowIso,
+    }));
+  }
+
+  function initMockState() {
+    mockState = getMockDevices().map((d, index) => ({
+      ...d,
+      summary: { ...d.summary },
+      channels: Array.isArray(d.channels) ? d.channels.map((c) => ({ ...c })) : [],
+      _offlineChance: index === 4 ? 0.18 : 0.04,
+    }));
+  }
+
+  function updateMockChannels(device) {
+    const s = device.summary;
+    device.channels = [
+      { term: "in", phase: "L1", v: s.v_ln1, a: s.a1, kw: s.kw1 },
+      { term: "in", phase: "L2", v: s.v_ln2, a: s.a2, kw: s.kw2 },
+      { term: "in", phase: "L3", v: s.v_ln3, a: s.a3, kw: s.kw3 },
+      { term: "ll", phase: "L1-L2", v: s.v12 },
+      { term: "ll", phase: "L2-L3", v: s.v23 },
+      { term: "ll", phase: "L3-L1", v: s.v31 },
+    ];
+  }
+
+  function updateOneMockDevice(device) {
+    if (Math.random() < device._offlineChance) {
+      const goingOnline = !device.online;
+      device.online = goingOnline;
+      if (goingOnline) device.last_seen_at = nowMs();
+    }
+
+    if (!device.online) {
+      return {
+        type: "telemetry",
+        key: deviceKey(device),
+        device_key: deviceKey(device),
+        topic: device.topic,
+        online: false,
+        ts: new Date().toISOString(),
+        summary: { ...device.summary },
+        channels: Array.isArray(device.channels) ? device.channels.map((c) => ({ ...c })) : [],
+      };
+    }
+
+    const s = device.summary;
+
+    s.v12 = vary(s.v12, 1.8, 385, 420, 1);
+    s.v23 = vary(s.v23, 1.8, 385, 420, 1);
+    s.v31 = vary(s.v31, 1.8, 385, 420, 1);
+
+    s.v_ln1 = vary(s.v_ln1, 1.2, 220, 245, 1);
+    s.v_ln2 = vary(s.v_ln2, 1.2, 220, 245, 1);
+    s.v_ln3 = vary(s.v_ln3, 1.2, 220, 245, 1);
+
+    s.a1 = vary(s.a1, 2.5, 5, 120, 1);
+    s.a2 = vary(s.a2, 2.5, 5, 120, 1);
+    s.a3 = vary(s.a3, 2.5, 5, 120, 1);
+
+    s.kw1 = vary(s.kw1, 0.7, 1, 40, 2);
+    s.kw2 = vary(s.kw2, 0.7, 1, 40, 2);
+    s.kw3 = vary(s.kw3, 0.7, 1, 40, 2);
+    s.kw = round(s.kw1 + s.kw2 + s.kw3, 2);
+    s.kwt = s.kw;
+
+    s.kvar = vary(s.kvar, 0.5, 0, 25, 2);
+    s.kva = round(Math.max(s.kw, s.kw + s.kvar * 0.4), 2);
+
+    s.pf = vary(s.pf, 0.02, 0.7, 0.99, 2);
+    s.hz = vary(s.hz, 0.06, 49.7, 50.3, 2);
+
+    s.thdv = vary(s.thdv, 0.4, 1, 15, 1);
+    s.thda = vary(s.thda, 0.5, 1, 18, 1);
+    s.thd_before = s.thdv;
+    s.thd_after = s.thda;
+
+    s.kwh = round(s.kwh + randomBetween(0.08, 0.6), 3);
+    s.kwh_saved = round(s.kwh_saved + randomBetween(0.01, 0.08), 3);
+    s.saved = s.kwh_saved;
+    s.co2 = round(s.co2 + randomBetween(0.01, 0.06), 3);
+
+    if (Math.random() < 0.07) s.v12 = round(randomBetween(251, 260), 1);
+    if (Math.random() < 0.07) s.v23 = round(randomBetween(251, 260), 1);
+    if (Math.random() < 0.07) s.v31 = round(randomBetween(251, 260), 1);
+    if (Math.random() < 0.07) s.a1 = round(randomBetween(101, 118), 1);
+    if (Math.random() < 0.07) s.a2 = round(randomBetween(101, 118), 1);
+    if (Math.random() < 0.07) s.a3 = round(randomBetween(101, 118), 1);
+    if (Math.random() < 0.07) s.pf = round(randomBetween(0.72, 0.79), 2);
+    if (Math.random() < 0.07) s.thdv = round(randomBetween(10.5, 13.5), 1);
+    if (Math.random() < 0.07) s.thda = round(randomBetween(10.5, 13.5), 1);
+    s.thd_before = s.thdv;
+    s.thd_after = s.thda;
+
+    updateMockChannels(device);
+    device.last_seen_at = nowMs();
+
+    return {
+      type: "telemetry",
+      key: deviceKey(device),
+      device_key: deviceKey(device),
+      topic: device.topic,
+      online: true,
+      ts: new Date().toISOString(),
+      summary: { ...s },
+      channels: Array.isArray(device.channels) ? device.channels.map((c) => ({ ...c })) : [],
+      payload: { ...s },
+      channel_count: Array.isArray(device.channels) ? device.channels.length : 0,
+      last_topic: device.topic,
+    };
+  }
+
+  function startMockTelemetry(onMessage, intervalMs = 2000) {
+    stopMockTelemetry();
+    initMockState();
+
+    mockTimer = setInterval(() => {
+      mockState.forEach((device) => {
+        const msg = updateOneMockDevice(device);
+        onMessage(msg);
+      });
+    }, intervalMs);
+  }
+
+  function stopMockTelemetry() {
+    if (mockTimer) {
+      clearInterval(mockTimer);
+      mockTimer = null;
+    }
+  }
+
+  function buildMockTrendSeries(deviceKeySel, metric = "kw", count = 24) {
+    const device = devices.find((d) => deviceKey(d) === deviceKeySel) || null;
+    if (!device) return { labels: [], values: [] };
+
+    const msg = {
+      summary: { ...(device.summary || {}) },
+      channels: Array.isArray(device.channels) ? device.channels.map((c) => ({ ...c })) : [],
+      payload: { ...(device.summary || {}) },
+    };
+
+    const labels = [];
+    const values = [];
+    let base = pickTrendValueFromTelemetry(msg, metric);
+
+    if (base === null) base = 0;
+
+    for (let i = count - 1; i >= 0; i -= 1) {
+      const d = new Date(Date.now() - i * 60 * 1000);
+      labels.push(
+        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+      );
+      base = vary(base, Math.max(Math.abs(base) * 0.03, 0.3), Math.max(base * 0.5, 0), base * 1.3 + 5, 2);
+      values.push(base);
+    }
+
+    return { labels, values };
+  }
+
+  function buildMockMiniSeries(deviceKeySel, type = "energyTrend", count = 12) {
+    const device = devices.find((d) => deviceKey(d) === deviceKeySel) || null;
+    if (!device) return { labels: [], values: [] };
+
+    const labels = [];
+    const values = [];
+
+    let baseKwh = Number(device.summary?.kwh || 0);
+
+    for (let i = count - 1; i >= 0; i -= 1) {
+      const d = new Date(Date.now() - i * 60 * 60 * 1000);
+      labels.push(
+        `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:00`
+      );
+
+      if (type === "energyTrend") {
+        baseKwh += randomBetween(0.5, 3.5);
+        values.push(round(baseKwh, 2));
+      } else if (type === "energyCost") {
+        baseKwh += randomBetween(0.5, 3.5);
+        values.push(round(baseKwh * ENERGY_RATE_THB, 2));
+      } else if (type === "energyHistorical") {
+        values.push(round(randomBetween(10, 55), 2));
+      } else {
+        values.push(round(randomBetween(1, 20), 2));
+      }
+    }
+
+    return { labels, values };
+  }
+
   async function loadTrendSeries() {
     const deviceKeySel = __selectedKey || "";
     if (!deviceKeySel) {
@@ -1050,6 +1414,27 @@
     }
 
     const metric = trendMetricEl?.value || "kw";
+
+    if (USE_MOCK) {
+      resetTrend();
+      initTrendChart();
+
+      const series = buildMockTrendSeries(deviceKeySel, metric, 24);
+      trendBuf.labels = series.labels.slice(-TREND_MAX);
+      trendBuf.values = series.values.slice(-TREND_MAX);
+
+      if (trendChart) {
+        trendChart.data.labels = trendBuf.labels.slice();
+        trendChart.data.datasets[0].label = metric;
+        trendChart.data.datasets[0].data = trendBuf.values.slice();
+        trendChart.update();
+      }
+
+      if (trendEmptyEl) trendEmptyEl.hidden = !trendBuf.labels.length;
+      setTrendStatus(trendBuf.labels.length ? "Ready (Mock)" : "No data");
+      return;
+    }
+
     const interval = trendIntervalEl?.value || "day";
     const from = trendFromEl?.value || "";
     const to = trendToEl?.value || "";
@@ -1117,12 +1502,20 @@
     const deviceKeySel = __selectedKey || "";
     if (!deviceKeySel) return;
 
-    const interval = energyTrendIntervalEl?.value || "day";
-    const date = energyTrendDateEl?.value || "";
-
     energyTrendBuf.labels = [];
     energyTrendBuf.values = [];
     renderEnergyTrendChart();
+
+    if (USE_MOCK) {
+      const series = buildMockMiniSeries(deviceKeySel, "energyTrend", 12);
+      energyTrendBuf.labels = series.labels.slice(-TREND_MAX);
+      energyTrendBuf.values = series.values.slice(-TREND_MAX);
+      renderEnergyTrendChart();
+      return;
+    }
+
+    const interval = energyTrendIntervalEl?.value || "day";
+    const date = energyTrendDateEl?.value || "";
 
     try {
       let from = "";
@@ -1188,12 +1581,20 @@
     const deviceKeySel = __selectedKey || "";
     if (!deviceKeySel) return;
 
-    const interval = energyCostIntervalEl?.value || "day";
-    const date = energyCostDateEl?.value || "";
-
     energyCostBuf.labels = [];
     energyCostBuf.values = [];
     renderEnergyCostChart();
+
+    if (USE_MOCK) {
+      const series = buildMockMiniSeries(deviceKeySel, "energyCost", 12);
+      energyCostBuf.labels = series.labels.slice(-TREND_MAX);
+      energyCostBuf.values = series.values.slice(-TREND_MAX);
+      renderEnergyCostChart();
+      return;
+    }
+
+    const interval = energyCostIntervalEl?.value || "day";
+    const date = energyCostDateEl?.value || "";
 
     try {
       let from = "";
@@ -1259,13 +1660,21 @@
     const deviceKeySel = __selectedKey || "";
     if (!deviceKeySel) return;
 
-    const interval = energyHistIntervalEl?.value || "hour";
-    const fromDate = energyHistFromEl?.value || "";
-    const toDate = energyHistToEl?.value || "";
-
     energyHistBuf.labels = [];
     energyHistBuf.values = [];
     renderEnergyHistChart();
+
+    if (USE_MOCK) {
+      const series = buildMockMiniSeries(deviceKeySel, "energyHistorical", 12);
+      energyHistBuf.labels = series.labels.slice(-TREND_MAX);
+      energyHistBuf.values = series.values.slice(-TREND_MAX);
+      renderEnergyHistChart();
+      return;
+    }
+
+    const interval = energyHistIntervalEl?.value || "hour";
+    const fromDate = energyHistFromEl?.value || "";
+    const toDate = energyHistToEl?.value || "";
 
     try {
       const from = fromDate ? `${fromDate}T00:00:00` : "";
@@ -1761,7 +2170,7 @@
   }
 
   window.__monitorOnDevices__ = (items) => {
-    setApiStatus("ok");
+    setApiStatus(USE_MOCK ? "mock ok" : "ok");
 
     updateCount += 1;
     if (updateCountEl) updateCountEl.textContent = String(updateCount);
@@ -1807,112 +2216,133 @@
     renderDeviceTable(devices);
   };
 
-  setApiStatus("waiting...");
-  setWsStatus("WS connecting...");
+  setApiStatus(USE_MOCK ? "mock waiting..." : "waiting...");
+  setWsStatus(USE_MOCK ? "MOCK ready" : "WS connecting...");
   renderSelectedDeviceStatus(null);
   startLiveStateTicker();
 
   let __ws = null;
   let __wsClosedByUser = false;
 
-  (function initWebSocket() {
-    const WS_BASE =
-      (window.WS_BASE) ||
-      (API_BASE.startsWith("https")
-        ? API_BASE.replace("https", "wss")
-        : API_BASE.replace("http", "ws"));
+  function handleIncomingTelemetry(msg) {
+    let parsed = msg;
+    if (!parsed) return;
 
-    const wsUrl = `${WS_BASE}/ws/telemetry`;
-
-    let retry = 1000;
-
-    function connect() {
-      __wsClosedByUser = false;
-
-      try { __ws && __ws.close(); } catch {}
-      __ws = new WebSocket(wsUrl);
-
-      __ws.onopen = () => {
-        setWsStatus("WS connected");
-        retry = 1000;
-      };
-
-      __ws.onmessage = (ev) => {
-        let msg;
-        try { msg = JSON.parse(ev.data); } catch { return; }
-
-        if (msg.type === "ping") return;
-        if (msg.type !== "telemetry") return;
-
-        const key = msg.key;
-        if (!key) return;
-
-        let selectedKey = __selectedKey || "";
-        if (!selectedKey) {
-          const dd = devices.find((x) => deviceKey(x) === key) || null;
-          selectDeviceByKey(key, dd ? deviceLabel(dd) : key);
-          selectedKey = key;
-          initKpiPlaceholders();
-          loadEnergyTrendSeries();
-          loadEnergyCostSeries();
-          loadEnergyHistSeries();
-        }
-
-        const idx = devices.findIndex((d) => deviceKey(d) === key);
-        if (idx === -1) return;
-
-        const d = devices[idx];
-
-        d.payload = msg.payload || {};
-        d.channels = msg.channels || (msg.payload?.channels || []);
-        d.channel_count = msg.channel_count ?? (msg.payload?.channel_count ?? 0);
-
-        if (msg.summary && typeof msg.summary === "object") {
-          Object.assign(d, msg.summary);
-        }
-
-        d.last_seen_at = nowMs();
-        d.age_sec = 0;
-        d.online = true;
-
-        if (msg.last_topic) d.last_topic = msg.last_topic;
-
-        renderAutoCards(devices);
-        renderDeviceTable(devices);
-
-        updateCount += 1;
-        if (updateCountEl) updateCountEl.textContent = String(updateCount);
-        if (lastAtEl) lastAtEl.textContent = nowTime();
-
-        try { checkAlertsFromTelemetry(msg, d); } catch {}
-
-        if (selectedKey && selectedKey === key) {
-          renderSelectedDeviceStatus(d);
-
-          try { updateKpiFromTelemetry(msg); } catch {}
-
-          const metric = trendMetricEl?.value || "kw";
-          const v = pickTrendValueFromTelemetry(msg, metric);
-          const t = nowTime();
-          initTrendChart();
-          pushTrendPoint(t, v);
-        }
-      };
-
-      __ws.onclose = () => {
-        if (__wsClosedByUser) return;
-        setWsStatus("WS reconnecting...");
-        setTimeout(connect, retry);
-        retry = Math.min(10000, retry * 2);
-      };
-
-      __ws.onerror = () => {
-        setWsStatus("WS error");
-      };
+    if (typeof parsed === "string") {
+      try { parsed = JSON.parse(parsed); } catch { return; }
     }
 
-    connect();
-  })();
+    if (parsed.type === "ping") return;
+    if (parsed.type && parsed.type !== "telemetry") return;
+
+    const key = parsed.key || parsed.device_key || "";
+    if (!key) return;
+
+    let selectedKey = __selectedKey || "";
+    if (!selectedKey) {
+      const dd = devices.find((x) => deviceKey(x) === key) || null;
+      selectDeviceByKey(key, dd ? deviceLabel(dd) : key);
+      selectedKey = key;
+      initKpiPlaceholders();
+      loadEnergyTrendSeries();
+      loadEnergyCostSeries();
+      loadEnergyHistSeries();
+    }
+
+    const idx = devices.findIndex((d) => deviceKey(d) === key);
+    if (idx === -1) return;
+
+    const d = devices[idx];
+    d.payload = parsed.payload || {};
+    d.channels = parsed.channels || (parsed.payload?.channels || []);
+    d.channel_count = parsed.channel_count ?? (parsed.payload?.channel_count ?? 0);
+
+    if (parsed.summary && typeof parsed.summary === "object") {
+      d.summary = { ...(d.summary || {}), ...parsed.summary };
+      Object.assign(d, parsed.summary);
+    }
+
+    if (parsed.online === false) {
+      d.online = false;
+    } else {
+      d.last_seen_at = nowMs();
+      d.age_sec = 0;
+      d.online = true;
+    }
+
+    if (parsed.last_topic) d.last_topic = parsed.last_topic;
+    else if (parsed.topic) d.last_topic = parsed.topic;
+
+    renderAutoCards(devices);
+    renderDeviceTable(devices);
+
+    updateCount += 1;
+    if (updateCountEl) updateCountEl.textContent = String(updateCount);
+    if (lastAtEl) lastAtEl.textContent = nowTime();
+
+    try { checkAlertsFromTelemetry(parsed, d); } catch {}
+
+    if (selectedKey && selectedKey === key) {
+      renderSelectedDeviceStatus(d);
+
+      try { updateKpiFromTelemetry(parsed); } catch {}
+
+      const metric = trendMetricEl?.value || "kw";
+      const v = pickTrendValueFromTelemetry(parsed, metric);
+      const t = nowTime();
+      initTrendChart();
+      pushTrendPoint(t, v);
+    }
+  }
+
+  if (USE_MOCK) {
+    const mockDevices = getMockDevices();
+    window.__monitorOnDevices__(mockDevices);
+    startMockTelemetry((msg) => {
+      handleIncomingTelemetry(msg);
+    }, 2000);
+  } else {
+    (function initWebSocket() {
+      const WS_BASE =
+        (window.WS_BASE) ||
+        (API_BASE.startsWith("https")
+          ? API_BASE.replace("https", "wss")
+          : API_BASE.replace("http", "ws"));
+
+      const wsUrl = `${WS_BASE}/ws/telemetry`;
+
+      let retry = 1000;
+
+      function connect() {
+        __wsClosedByUser = false;
+
+        try { __ws && __ws.close(); } catch {}
+        __ws = new WebSocket(wsUrl);
+
+        __ws.onopen = () => {
+          setWsStatus("WS connected");
+          retry = 1000;
+        };
+
+        __ws.onmessage = (ev) => {
+          handleIncomingTelemetry(ev.data);
+        };
+
+        __ws.onclose = () => {
+          if (__wsClosedByUser) return;
+          setWsStatus("WS reconnecting...");
+          setTimeout(connect, retry);
+          retry = Math.min(10000, retry * 2);
+        };
+
+        __ws.onerror = () => {
+          setWsStatus("WS error");
+        };
+      }
+
+      connect();
+    })();
+  }
 
   const onDocClick = (e) => {
     const t = e.target;
@@ -1979,6 +2409,10 @@
         clearInterval(liveStateTimer);
         liveStateTimer = null;
       }
+    } catch {}
+
+    try {
+      stopMockTelemetry();
     } catch {}
 
     try {
